@@ -1,0 +1,13 @@
+export interface Env {
+  OAUTH_STATE: DurableObjectNamespace;
+  UPSTREAM_AUTHORIZE_URL: string;
+  UPSTREAM_TOKEN_URL: string;
+  UPSTREAM_USERINFO_URL: string;
+  UPSTREAM_REDIRECT_URI: string;
+  UPSTREAM_CLIENT_ID: string;
+  UPSTREAM_CLIENT_SECRET: string;
+  DOWNSTREAM_REDIRECT_URI: string;
+  DOWNSTREAM_CLIENT_ID: string;
+  DOWNSTREAM_CLIENT_SECRET: string;
+  ALLOWED_SCOPE: string;
+}

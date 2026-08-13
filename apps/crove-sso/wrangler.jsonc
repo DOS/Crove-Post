@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "crove-sso",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-13",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "UPSTREAM_AUTHORIZE_URL": "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/authorize",
+    "UPSTREAM_TOKEN_URL": "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/token",
+    "UPSTREAM_USERINFO_URL": "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/userinfo",
+    "UPSTREAM_REDIRECT_URI": "https://sso.crove.com/callback",
+    "DOWNSTREAM_REDIRECT_URI": "https://crove.com/settings",
+    "ALLOWED_SCOPE": "openid profile email"
+  }
+}

@@ -5,7 +5,7 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "cf-typegen": "wrangler types",
+    "cf-typegen": "wrangler types --include-runtime false",
     "deploy": "wrangler deploy"
   },
   "devDependencies": {

@@ -27,6 +27,10 @@ function base64Url(bytes: Uint8Array): string {
     .replace(/=+$/g, '');
 }
 
+export function randomToken(): string {
+  return base64Url(crypto.getRandomValues(new Uint8Array(32)));
+}
+
 async function constantTimeEqual(actual: string, expected: string): Promise<boolean> {
   const encoder = new TextEncoder();
   const [actualDigest, expectedDigest] = await Promise.all([
@@ -65,8 +69,7 @@ export function parseAuthorizeRequest(request: Request, env: Env): AuthorizeRequ
 }
 
 export async function createPkce(): Promise<{ verifier: string; challenge: string }> {
-  const entropy = crypto.getRandomValues(new Uint8Array(32));
-  const verifier = base64Url(entropy);
+  const verifier = randomToken();
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
   return { verifier, challenge: base64Url(new Uint8Array(digest)) };
 }

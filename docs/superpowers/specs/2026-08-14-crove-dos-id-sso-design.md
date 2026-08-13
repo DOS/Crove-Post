@@ -2,7 +2,7 @@
 
 ## Status
 
-Approved architecture direction: deploy a standalone OAuth compatibility bridge and keep the upstream Postiz image unchanged.
+Deployed and production-verified on 2026-08-14. The upstream Postiz image remains unchanged.
 
 ## Goal
 
@@ -141,7 +141,7 @@ If any precondition fails, stop without mutating the identity.
 
 - Worker name: `crove-sso`
 - Custom domain: `sso.crove.com`
-- Compatibility date: `2026-08-14`
+- Compatibility date: `2026-08-13`
 - Compatibility flag: `nodejs_compat`
 - Observability: enabled with structured logs
 - Durable Object migration tag: `v1`

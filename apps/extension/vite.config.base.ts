@@ -13,10 +13,15 @@ const isDev = process.env.NODE_ENV === 'development';
 // set this flag to true, if you want localization support
 const localize = false;
 
+const brandName = process.env.BRAND_NAME || process.env.NEXT_PUBLIC_BRAND_NAME || manifest.name;
+const brandDesc = process.env.BRAND_DESCRIPTION || process.env.NEXT_PUBLIC_BRAND_DESCRIPTION || `${brandName} browser extension for social media scheduling`;
+
 const merge = isDev ? devManifest : ({} as ManifestV3Export);
 
 export const baseManifest = {
   ...manifest,
+  name: brandName,
+  description: brandDesc,
   host_permissions: [
     import.meta.env?.FRONTEND_URL || process?.env?.FRONTEND_URL + '/*',
     (import.meta.env?.NEXT_PUBLIC_BACKEND_URL || process?.env?.NEXT_PUBLIC_BACKEND_URL || '') + '/*',
@@ -40,7 +45,7 @@ export const baseBuildOptions: BuildOptions = {
 };
 
 export default defineConfig({
-  envPrefix: ['NEXT_PUBLIC_', 'FRONTEND_URL', 'NEXT_PUBLIC_BACKEND_URL'],
+  envPrefix: ['NEXT_PUBLIC_', 'FRONTEND_URL', 'NEXT_PUBLIC_BACKEND_URL', 'BRAND_'],
   plugins: [
     tsconfigPaths(),
     react(),

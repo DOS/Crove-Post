@@ -8,8 +8,9 @@ import { setCookie } from '@gitroom/frontend/components/layout/layout.context';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 export const LogoutComponent: FC<{ isIcon?: boolean }> = ({ isIcon }) => {
   const fetch = useFetch();
-  const { isGeneral, isSecured } = useVariables();
+  const { isGeneral, isSecured, brandConfig } = useVariables();
   const t = useT();
+  const brandName = brandConfig?.name || (isGeneral ? 'Postiz' : 'Gitroom');
 
   const logout = useCallback(async () => {
     if (
@@ -44,7 +45,7 @@ export const LogoutComponent: FC<{ isIcon?: boolean }> = ({ isIcon }) => {
             data-tooltip-id="tooltip"
             data-tooltip-content={`
             ${t('logout_from', 'Logout from')}${' '}
-            ${isGeneral ? ' Postiz' : ' Gitroom'}
+            ${brandName}
             `}
           >
             <path
@@ -55,7 +56,7 @@ export const LogoutComponent: FC<{ isIcon?: boolean }> = ({ isIcon }) => {
         ) : (
           <span className="text-red-400">
             {t('logout_from', 'Logout from')}
-            {isGeneral ? ' Postiz' : ' Gitroom'}
+            {` ${brandName}`}
           </span>
         )}
       </div>

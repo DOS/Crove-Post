@@ -5,7 +5,7 @@ interface __BaseEnv_Env {
 	UPSTREAM_TOKEN_URL: "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/token";
 	UPSTREAM_USERINFO_URL: "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/userinfo";
 	UPSTREAM_REDIRECT_URI: "https://sso.crove.com/callback";
-	DOWNSTREAM_REDIRECT_URI: "https://crove.com/settings";
+	DOWNSTREAM_REDIRECT_URI: "https://app.crove.com/settings";
 	ALLOWED_SCOPE: "openid profile email";
 	OAUTH_STATE: DurableObjectNamespace<import("./src/index").OAuthStateStore>;
 }

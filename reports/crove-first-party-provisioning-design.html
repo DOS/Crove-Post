@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Thiết kế Crove First-party Provisioning</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0f1113; --panel:#171a1e; --panel2:#1d2126; --text:#edf0f3; --muted:#aab2bd; --red:#ff2e29; --green:#43d17c; --line:#30363d; --code:#111418; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font:16px/1.65 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
+    main { max-width:1120px; margin:auto; padding:48px 24px 80px; }
+    h1 { font-size:clamp(34px,5vw,58px); line-height:1.05; margin:0 0 14px; letter-spacing:-.04em; }
+    h2 { margin:44px 0 16px; font-size:26px; }
+    h3 { margin:26px 0 10px; font-size:19px; }
+    p, li { color:#d8dde3; }
+    .eyebrow { color:var(--red); font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+    .lead { max-width:900px; color:var(--muted); font-size:20px; }
+    .card { background:linear-gradient(145deg,var(--panel),var(--panel2)); border:1px solid var(--line); border-radius:16px; padding:22px; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; }
+    .flow { display:grid; gap:10px; margin-top:20px; }
+    .step { display:grid; grid-template-columns:42px 1fr; gap:14px; align-items:start; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; }
+    .num { width:34px; height:34px; border-radius:10px; display:grid; place-items:center; background:var(--red); color:white; font-weight:800; }
+    .ok { color:var(--green); font-weight:750; }
+    .warn { border-left:4px solid var(--red); padding-left:18px; }
+    code { background:var(--code); border:1px solid var(--line); border-radius:6px; padding:2px 6px; color:#ffb3b1; }
+    table { width:100%; border-collapse:collapse; margin:18px 0; background:var(--panel); border-radius:12px; overflow:hidden; }
+    th,td { text-align:left; padding:13px 15px; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { color:white; background:#20252b; }
+    a { color:#ff817d; }
+    .pill { display:inline-block; border:1px solid #5d2423; background:#281817; color:#ffaaa7; border-radius:999px; padding:5px 10px; margin:4px 4px 4px 0; font-size:13px; }
+    footer { margin-top:54px; padding-top:20px; border-top:1px solid var(--line); color:var(--muted); }
+  </style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">Crove x DOS.ID x DOSClaw</div>
+  <h1>Tạo và kết nối Crove ngay trong agent</h1>
+  <p class="lead">Người dùng không cần vào Crove để tạo account hoặc sao chép API key. Người dùng xác thực bằng DOS.ID, còn agent hoạt động bằng credential máy với máy và API key Crove được lưu mã hóa.</p>
+
+  <section class="grid">
+    <div class="card"><h3>Không sửa Postiz</h3><p>Dùng route đăng ký Generic OAuth, session, organization và API key có sẵn của image upstream.</p></div>
+    <div class="card"><h3>Không dùng chung account</h3><p>Mỗi DOS.ID được ánh xạ vào đúng Crove user và organization của họ bằng stable <code>sub</code>.</p></div>
+    <div class="card"><h3>Agent không giả làm người</h3><p>DOS.AI gửi assertion có chữ ký. Agent không giữ password, refresh token hoặc browser session của DOS.ID.</p></div>
+  </section>
+
+  <h2>Luồng hoạt động</h2>
+  <div class="flow">
+    <div class="step"><div class="num">1</div><div><strong>Người dùng ra lệnh</strong><br>Agent nhận yêu cầu kết nối Crove và hiển thị xác nhận rõ ràng.</div></div>
+    <div class="step"><div class="num">2</div><div><strong>DOS.AI phát hành assertion</strong><br>Assertion có chữ ký, gắn với DOS.ID <code>sub</code>, email, agent, audience, scope, thời hạn tối đa 60 giây và nonce chống replay.</div></div>
+    <div class="step"><div class="num">3</div><div><strong>Crove tạo token một lần</strong><br><code>sso.crove.com/v1/provision</code> xác minh assertion rồi tạo token <code>crv_prv_</code> chỉ dùng một lần ở UserInfo.</div></div>
+    <div class="step"><div class="num">4</div><div><strong>Postiz tự provision dữ liệu của nó</strong><br>Crove gọi route đăng ký Generic OAuth có sẵn. Postiz tự tạo hoặc tìm user, organization, membership, session và API key.</div></div>
+    <div class="step"><div class="num">5</div><div><strong>DOS.AI lưu credential</strong><br>Crove trả API key đúng organization một lần. DOS.AI mã hóa key và bật bộ MCP Marketing hiện có.</div></div>
+    <div class="step"><div class="num">6</div><div><strong>Web và agent dùng chung identity</strong><br>Người dùng login Crove bằng DOS.ID sẽ vào đúng account mà agent đã tạo.</div></div>
+  </div>
+
+  <h2>Phân tách xác thực</h2>
+  <table>
+    <thead><tr><th>Chủ thể</th><th>Cách xác thực</th><th>Không được giữ</th></tr></thead>
+    <tbody>
+      <tr><td>Người dùng</td><td>DOS.ID trên DOS.AI hoặc Crove web</td><td>Không chia sẻ password cho agent</td></tr>
+      <tr><td>DOS.AI</td><td>JWT ngắn hạn có chữ ký, audience riêng cho Crove</td><td>Không gửi assertion vào model prompt</td></tr>
+      <tr><td>DOSClaw</td><td>MCP Marketing nội bộ của DOS.AI</td><td>Không nhìn thấy Crove API key</td></tr>
+      <tr><td>Crove</td><td>API key riêng của organization, chỉ nằm trong gateway</td><td>Không đặt key trong URL hoặc log</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Idempotency và nhiều organization</h2>
+  <p>Provisioning lặp lại với cùng DOS.ID <code>sub</code> phải trả về cùng Postiz user, không tạo duplicate. Khi user chỉ có một organization, Crove tự chọn. Khi có nhiều organization mà chưa có mapping, DOS.AI yêu cầu user chọn ngay trong DOS.AI, không bắt mở dashboard Crove.</p>
+
+  <h2>Disconnect và revoke</h2>
+  <p>Disconnect thông thường chỉ xóa credential mã hóa khỏi DOS.AI. Account, channel và post trên Crove vẫn còn. API key Postiz là key cấp organization, nên rotate key sẽ làm hỏng mọi client API, MCP và CLI khác. Rotate chỉ được thực hiện bằng xác nhận tác động cao riêng.</p>
+
+  <h2>Social OAuth vẫn cần người dùng</h2>
+  <p class="warn">Provisioning account không thể bỏ qua consent của Facebook, TikTok, LinkedIn và các social provider. Luồng consent có thể mở bên trong DOS.AI, nhưng vẫn phải do người dùng xác nhận.</p>
+
+  <h2>Kết luận branding</h2>
+  <p>Image Postiz chính thức không có env để white-label toàn app. Hai env <code>NEXT_PUBLIC_POSTIZ_OAUTH_DISPLAY_NAME</code> và <code>NEXT_PUBLIC_POSTIZ_OAUTH_LOGO_URL</code> chỉ đổi nút DOS.ID, và Crove hiện đã set cả hai.</p>
+  <table>
+    <thead><tr><th>Phương án</th><th>Kết quả</th><th>Đánh giá</th></tr></thead>
+    <tbody>
+      <tr><td>Giữ image upstream</td><td>Còn logo và text Postiz</td><td>An toàn nhất cho update</td></tr>
+      <tr><td>Mount static assets</td><td>Đổi được một số favicon và file ảnh, text hardcode vẫn còn</td><td>Chỉ cải thiện một phần</td></tr>
+      <tr><td>Custom image với patch tối thiểu</td><td>White-label đầy đủ</td><td>Cần duy trì theo upstream</td></tr>
+    </tbody>
+  </table>
+  <p>Không chọn rewrite response ở proxy vì JavaScript chunk thay đổi theo mỗi release, dễ vỡ UI và tạo thêm bề mặt bảo mật.</p>
+
+  <h2>Điều kiện hoàn thành</h2>
+  <div class="card">
+    <span class="pill">Không DB insert</span><span class="pill">Không shared account</span><span class="pill">Không key trong URL</span><span class="pill">Token một lần</span><span class="pill">Replay protection</span><span class="pill">Draft-only UAT</span>
+    <p class="ok">Thành công khi một DOS.ID test user được agent provision, dùng MCP đọc state và tạo draft, sau đó login Crove web thấy đúng cùng user, organization và draft.</p>
+  </div>
+
+  <footer>Bản review cho JOY, ngày 14/08/2026. Source-of-record kỹ thuật nằm trong <code>docs/superpowers/specs</code>.</footer>
+</main>
+</body>
+</html>

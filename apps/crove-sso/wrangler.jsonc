@@ -32,7 +32,40 @@
     "UPSTREAM_TOKEN_URL": "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/token",
     "UPSTREAM_USERINFO_URL": "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/userinfo",
     "UPSTREAM_REDIRECT_URI": "https://sso.crove.com/callback",
-    "DOWNSTREAM_REDIRECT_URI": "https://crove.com/settings",
+    "DOWNSTREAM_REDIRECT_URI": "https://app.crove.com/settings",
     "ALLOWED_SCOPE": "openid profile email"
+  },
+  "env": {
+    "beta": {
+      "name": "crove-sso-beta",
+      "routes": [
+        {
+          "pattern": "beta-sso.crove.com",
+          "custom_domain": true
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "OAUTH_STATE",
+            "class_name": "OAuthStateStore"
+          }
+        ]
+      },
+      "migrations": [
+        {
+          "tag": "v1",
+          "new_sqlite_classes": ["OAuthStateStore"]
+        }
+      ],
+      "vars": {
+        "UPSTREAM_AUTHORIZE_URL": "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/authorize",
+        "UPSTREAM_TOKEN_URL": "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/token",
+        "UPSTREAM_USERINFO_URL": "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/userinfo",
+        "UPSTREAM_REDIRECT_URI": "https://beta-sso.crove.com/callback",
+        "DOWNSTREAM_REDIRECT_URI": "https://beta-app.crove.com/settings",
+        "ALLOWED_SCOPE": "openid profile email"
+      }
+    }
   }
 }

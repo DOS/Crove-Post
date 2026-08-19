@@ -109,6 +109,16 @@
 - Temporal
 - Resend (email notifications)
 
+## 📖 Official Architecture & Extension Documentation
+
+For detailed technical guides on self-hosting, white-labeling, SSO, and automated sync:
+
+- **[Documentation Index](docs/README.md)**
+- **[Runtime Branding & White-labeling via ENV](docs/branding.md)**
+- **[Upstream Sync & Branding Guard CI](docs/upstream-sync.md)**
+- **[Single Sign-On (SSO) & OAuth 2.1 PKCE Bridge](docs/sso-integration.md)**
+- **[First-Party Provisioning API](docs/first-party-provisioning.md)**
+
 ## Quick Start
 
 To have the project up and running, please follow the [Quick Start Guide](https://docs.postiz.com/quickstart)

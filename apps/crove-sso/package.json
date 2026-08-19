@@ -6,7 +6,9 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "cf-typegen": "wrangler types --include-runtime false",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "deploy:beta": "wrangler deploy -e beta",
+    "deploy:prod": "wrangler deploy"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "0.21.3",

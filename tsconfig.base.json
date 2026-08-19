@@ -33,7 +33,8 @@
       "@gitroom/react/*": ["libraries/react-shared-libraries/src/*"],
       "@gitroom/plugins/*": ["libraries/plugins/src/*"],
       "@gitroom/orchestrator/*": ["apps/orchestrator/src/*"],
-      "@gitroom/extension/*": ["apps/extension/src/*"]
+      "@gitroom/extension/*": ["apps/extension/src/*"],
+      "@crove/web/*": ["apps/web/src/*"]
     }
   },
   "exclude": ["node_modules", "tmp"]

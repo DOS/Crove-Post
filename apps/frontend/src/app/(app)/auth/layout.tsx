@@ -5,6 +5,7 @@ import { ReactNode } from 'react';
 import loadDynamic from 'next/dynamic';
 import { TestimonialComponent } from '@gitroom/frontend/components/auth/testimonial.component';
 import { LogoTextComponent } from '@gitroom/frontend/components/ui/logo-text.component';
+import { getBrandNameServerSide } from '@gitroom/helpers/utils/is.general.server.side';
 const ReturnUrlComponent = loadDynamic(() => import('./return.url.component'));
 export default async function AuthLayout({
   children,
@@ -12,6 +13,7 @@ export default async function AuthLayout({
   children: ReactNode;
 }) {
   const t = await getT();
+  const brandName = getBrandNameServerSide();
 
   return (
     <div className="bg-[#0E0E0E] flex flex-1 p-[12px] gap-[12px] min-h-screen w-screen text-white">
@@ -28,7 +30,7 @@ export default async function AuthLayout({
           Over <span className="text-[42px] text-[#FC69FF]">20,000+</span>{' '}
           Entrepreneurs use
           <br />
-          Postiz To Grow Their Social Presence
+          {brandName} To Grow Their Social Presence
         </div>
         <TestimonialComponent />
       </div>

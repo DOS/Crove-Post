@@ -1,11 +1,53 @@
 'use client';
 
-export const Logo = () => {
+import { useVariables } from '@gitroom/react/helpers/variable.context';
+import React, { useState } from 'react';
+
+export const Logo = ({ size = 60 }: { size?: number }) => {
+  const { brandConfig } = useVariables();
+  const [imgError, setImgError] = useState(false);
+
+  const iconUrl = brandConfig?.iconUrl || brandConfig?.logoUrl;
+  const isCustom = brandConfig?.isCustomBrand;
+
+  if (iconUrl && !imgError) {
+    return (
+      <img
+        src={iconUrl}
+        alt={brandConfig?.name || 'Logo'}
+        width={size}
+        height={size}
+        className={`mt-[8px] min-w-[${size}px] min-h-[${size}px] object-contain rounded-lg`}
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+
+  if (isCustom) {
+    const initial = (brandConfig?.shortName || brandConfig?.name || 'C').charAt(0).toUpperCase();
+    const primaryColor = brandConfig?.primaryColor || '#612BD3';
+    return (
+      <div
+        className="mt-[8px] flex items-center justify-center font-bold text-white rounded-xl shadow-md select-none"
+        style={{
+          width: size,
+          height: size,
+          minWidth: size,
+          minHeight: size,
+          backgroundColor: primaryColor,
+          fontSize: `${Math.round(size * 0.45)}px`,
+        }}
+      >
+        {initial}
+      </div>
+    );
+  }
+
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      width="60"
-      height="60"
+      width={size}
+      height={size}
       viewBox="0 0 60 60"
       fill="none"
       className="mt-[8px] min-w-[60px] min-h-[60px]"

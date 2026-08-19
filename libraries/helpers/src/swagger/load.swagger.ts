@@ -1,10 +1,12 @@
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { INestApplication } from '@nestjs/common';
+import { getBrandConfig } from '../utils/brand.config';
 
 export const loadSwagger = (app: INestApplication) => {
+  const brand = getBrandConfig();
   const config = new DocumentBuilder()
-    .setTitle('Postiz Swagger file')
-    .setDescription('API description')
+    .setTitle(`${brand.name} API Documentation`)
+    .setDescription(`${brand.name} - ${brand.description}`)
     .setVersion('1.0')
     .build();
 

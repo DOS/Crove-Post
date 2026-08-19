@@ -6,6 +6,7 @@ import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/o
 import { OAuthService } from '@gitroom/nestjs-libraries/database/prisma/oauth/oauth.service';
 import { runWithContext } from './async.storage';
 import { createOAuthMiddleware } from './oauth-middleware';
+import { getBrandConfig } from '@gitroom/helpers/utils/brand.config';
 const fixAcceptHeader = (req: Request) => {
   const value = 'application/json, text/event-stream';
   req.headers.accept = value;
@@ -35,8 +36,9 @@ export const startMcp = async (app: INestApplication) => {
   const agent = mastra.getAgent('postiz');
   const tools = await agent.listTools();
 
+  const brand = getBrandConfig();
   const serverConfig = {
-    name: 'Postiz MCP',
+    name: `${brand.name} MCP`,
     version: '1.0.0',
     tools,
     agents: { postiz: agent },

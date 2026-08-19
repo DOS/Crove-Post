@@ -1,7 +1,12 @@
 'use client';
 
 import { createContext, FC, ReactNode, useContext, useEffect } from 'react';
-interface VariableContextInterface {
+import {
+  DEFAULT_BRAND_CONFIG,
+  PublicBrandConfig,
+} from '@gitroom/helpers/utils/brand.config';
+
+export interface VariableContextInterface {
   stripeClient: string;
   billingEnabled: boolean;
   isChatBase: boolean;
@@ -32,7 +37,14 @@ interface VariableContextInterface {
   extensionId: string;
   googleAdsId?: string;
   googleAdsTrialTracking?: string;
+  brandConfig?: PublicBrandConfig;
 }
+
+const defaultBrandWithCustom: PublicBrandConfig = {
+  ...DEFAULT_BRAND_CONFIG,
+  isCustomBrand: false,
+};
+
 const VariableContext = createContext({
   stripeClient: '',
   billingEnabled: false,
@@ -63,6 +75,7 @@ const VariableContext = createContext({
   transloadit: [],
   sentryDsn: '',
   extensionId: '',
+  brandConfig: defaultBrandWithCustom,
 } as VariableContextInterface);
 export const VariableContextComponent: FC<
   VariableContextInterface & {

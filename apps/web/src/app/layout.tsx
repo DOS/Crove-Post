@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '../components/theme/theme-provider';
+import { I18nProvider } from '../i18n/i18n-context';
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -65,10 +66,12 @@ export default function RootLayout({
       </head>
       <body
         suppressHydrationWarning
-        className="min-h-screen font-sans antialiased selection:bg-brand-500/20 selection:text-brand-600 dark:selection:text-brand-300"
+        className="min-h-screen font-sans antialiased selection:bg-brand-500/25 selection:text-brand-700 dark:selection:text-brand-300"
       >
         <ThemeProvider defaultTheme="dark">
-          {children}
+          <I18nProvider defaultLang="vi">
+            {children}
+          </I18nProvider>
         </ThemeProvider>
       </body>
     </html>

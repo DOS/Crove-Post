@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Tự động hóa triển khai môi trường Beta (beta.crove.com & beta-app.crove.com).
+    Tự động hóa triển khai môi trường Beta (beta.crove.com & beta-post.crove.com).
 .DESCRIPTION
     Script thực hiện:
     1. Kiểm thử SSO Worker (@crove/sso) và Branding Guard
@@ -68,6 +68,6 @@ Write-Host "  docker compose -f scripts/docker-compose.beta.yaml up -d" -Foregro
 Write-Host "`n==========================================================" -ForegroundColor Green
 Write-Host "  MÔI TRƯỜNG BETA ĐÃ SẴN SÀNG:" -ForegroundColor Green
 Write-Host "  - Landing Page:  https://beta.crove.com" -ForegroundColor Cyan
-Write-Host "  - App Dashboard: https://beta-app.crove.com" -ForegroundColor Cyan
+    Write-Host "  - App Dashboard: https://beta-post.crove.com" -ForegroundColor Cyan
 Write-Host "  - SSO Bridge:    https://beta-sso.crove.com" -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Green

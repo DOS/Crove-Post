@@ -9,7 +9,7 @@ Tài liệu này mô tả chi tiết kiến trúc phân chia 2 môi trường **
 | Thành Phần | Môi Trường PRODUCTION | Môi Trường BETA (Staging) | Ghi Chú |
 | :--- | :--- | :--- | :--- |
 | **Landing Page** (`apps/web`) | `https://crove.com`<br>`https://www.crove.com` | `https://beta.crove.com` | Next.js 16 App Router, đa ngôn ngữ VI/EN, Dark/Light theme |
-| **App Dashboard** (`apps/frontend` + `backend`) | `https://app.crove.com` | `https://beta-app.crove.com` | Core App Postiz, quản lý 28+ mạng xã hội |
+| **App Dashboard** (`apps/frontend` + `backend`) | `https://post.crove.com` | `https://beta-post.crove.com` | Core App Postiz, quản lý 28+ mạng xã hội |
 | **SSO Worker** (`apps/crove-sso`) | `https://sso.crove.com` | `https://beta-sso.crove.com` | Cloudflare Worker OAuth 2.1 PKCE Bridge kết nối Supabase |
 | **Supabase Client ID** | `18790ccb-4d71-48cd-ad24-aee5f3ced3da` | `7ef5e5f1-68e6-42a7-901e-1f39e9471d24` | Ứng dụng OAuth riêng biệt trên Supabase / DOS ID |
 | **Docker Compose Stack** | `scripts/docker-compose.prod.yaml` | `scripts/docker-compose.beta.yaml` | Độc lập về Database & Redis, chia sẻ Temporal cluster |
@@ -80,6 +80,8 @@ credentials-file: /etc/cloudflared/credentials.json
 
 ingress:
   # Production Routes
+  - hostname: post.crove.com
+    service: http://postiz:5000
   - hostname: app.crove.com
     service: http://postiz:5000
   - hostname: crove.com
@@ -88,6 +90,8 @@ ingress:
     service: http://crove-web:3000
 
   # Beta Routes
+  - hostname: beta-post.crove.com
+    service: http://postiz-beta:5000
   - hostname: beta-app.crove.com
     service: http://postiz-beta:5000
   - hostname: beta.crove.com

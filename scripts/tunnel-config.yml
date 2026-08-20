@@ -36,10 +36,15 @@ ingress:
       httpHostHeader: www.crove.com
 
   # 3. Beta App Dashboard
+  - hostname: beta-post.crove.com
+    service: http://postiz-beta:5000
+    originRequest:
+      httpHostHeader: beta-post.crove.com
+
   - hostname: beta-app.crove.com
     service: http://postiz-beta:5000
     originRequest:
-      httpHostHeader: beta-app.crove.com
+      httpHostHeader: beta-post.crove.com
 
   # 4. Beta Landing Page
   - hostname: beta.crove.com

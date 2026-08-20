@@ -1,11 +1,12 @@
 # ==============================================================================
 # CROVE BETA DOCKER COMPOSE STACK (scripts/docker-compose.beta.yaml)
-# Hosts: beta-app.crove.com (App) & beta.crove.com (Landing Page)
+# Hosts: beta-post.crove.com (App) & beta.crove.com (Landing Page)
 # ==============================================================================
 
 services:
   postiz-beta:
-    image: ghcr.io/gitroomhq/postiz-app:beta
+    # Use custom container ghcr.io/dos/crove-app:beta or fallback to latest
+    image: ghcr.io/gitroomhq/postiz-app:latest
     container_name: postiz-beta
     restart: always
     env_file:
@@ -31,7 +32,7 @@ services:
     environment:
       - PORT=3000
       - NODE_ENV=production
-      - NEXT_PUBLIC_APP_URL=https://beta-app.crove.com
+      - NEXT_PUBLIC_APP_URL=https://beta-post.crove.com
     ports:
       - '127.0.0.1:3001:3000'
     networks:

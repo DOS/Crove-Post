@@ -86,7 +86,7 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "  DEPLOY THÀNH CÔNG CHO MÔI TRƯỜNG $($Environment.ToUpper())!" -ForegroundColor Green
     if ($Environment -eq "beta") {
         Write-Host "  SSO Endpoint: https://beta-sso.crove.com" -ForegroundColor Cyan
-        Write-Host "  App Callback: https://beta-app.crove.com/settings" -ForegroundColor Cyan
+        Write-Host "  App Callback: https://beta-post.crove.com/settings" -ForegroundColor Cyan
     } else {
         Write-Host "  SSO Endpoint: https://sso.crove.com" -ForegroundColor Cyan
         Write-Host "  App Callback: https://post.crove.com/settings" -ForegroundColor Cyan

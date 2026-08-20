@@ -22,17 +22,17 @@ Hệ thống CI/CD của Crove tự động hóa toàn diện từ kiểm thử 
    │
    ├──> 1. Push code lên nhánh `dev`
    ├──> 2. CI/CD chạy Branding Guard & Tests
-   ├──> 3. Build & Push Image: ghcr.io/.../postiz-app:beta & crove-web:beta
+   ├──> 3. Build & Push Image: ghcr.io/.../crove-app:beta & crove-web:beta
    ├──> 4. Deploy SSO: beta-sso.crove.com
-   └──> 5. Cập nhật môi trường: beta.crove.com & beta-app.crove.com
+   └──> 5. Cập nhật môi trường: beta.crove.com & beta-post.crove.com
    
 [ Nhánh MAIN (Production) ]
    │
    ├──> 1. Merge PR từ `dev` vào `main`
    ├──> 2. CI/CD chạy Branding Guard & Tests
-   ├──> 3. Build & Push Image: ghcr.io/.../postiz-app:latest & crove-web:latest
+   ├──> 3. Build & Push Image: ghcr.io/.../crove-app:latest & crove-web:latest
    ├──> 4. Deploy SSO: sso.crove.com
-   └──> 5. Cập nhật môi trường: crove.com & app.crove.com
+   └──> 5. Cập nhật môi trường: crove.com & post.crove.com
 ```
 
 ---

@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useI18n } from '../i18n/i18n-context';
 import { Check, Sparkles, Zap, ArrowRight } from 'lucide-react';
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://app.crove.com';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://post.crove.com';
 
 export function Pricing() {
   const { t, lang } = useI18n();

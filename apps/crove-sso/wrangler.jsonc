@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "crove-sso",
+  "account_id": "3368ff98a4c956164b7bbdc8fb950163",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-13",
   "compatibility_flags": ["nodejs_compat"],
@@ -32,7 +33,10 @@
     "UPSTREAM_TOKEN_URL": "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/token",
     "UPSTREAM_USERINFO_URL": "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/userinfo",
     "UPSTREAM_REDIRECT_URI": "https://sso.crove.com/callback",
-    "DOWNSTREAM_REDIRECT_URI": "https://app.crove.com/settings",
+    "UPSTREAM_CLIENT_ID": "18790ccb-4d71-48cd-ad24-aee5f3ced3da",
+    "DOWNSTREAM_REDIRECT_URI": "https://post.crove.com/settings",
+    "DOWNSTREAM_CLIENT_ID": "crove-postiz",
+    "DOWNSTREAM_CLIENT_SECRET": "bridge-secret-value",
     "ALLOWED_SCOPE": "openid profile email"
   },
   "env": {
@@ -63,7 +67,10 @@
         "UPSTREAM_TOKEN_URL": "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/token",
         "UPSTREAM_USERINFO_URL": "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/userinfo",
         "UPSTREAM_REDIRECT_URI": "https://beta-sso.crove.com/callback",
+        "UPSTREAM_CLIENT_ID": "18790ccb-4d71-48cd-ad24-aee5f3ced3da",
         "DOWNSTREAM_REDIRECT_URI": "https://beta-app.crove.com/settings",
+        "DOWNSTREAM_CLIENT_ID": "crove-postiz",
+        "DOWNSTREAM_CLIENT_SECRET": "bridge-secret-value",
         "ALLOWED_SCOPE": "openid profile email"
       }
     }

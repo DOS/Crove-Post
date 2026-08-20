@@ -12,6 +12,8 @@ Chào mừng đến với hệ thống tài liệu kỹ thuật chính thức c�
 | **[2. Tự Động Đồng Bộ Upstream & CI Guard](./upstream-sync.md)** | Quy trình đồng bộ tự động với `gitroomhq/postiz-app` qua GitHub Actions và cơ chế kiểm thử Branding Guard CI. |
 | **[3. Kiến Trúc SSO & OAuth 2.1 PKCE Bridge](./sso-integration.md)** | Thiết kế hệ thống đăng nhập đơn DOS ID / Supabase OAuth 2.1 sử dụng Cloudflare Workers & Durable Objects. |
 | **[4. First-Party Provisioning API](./first-party-provisioning.md)** | Đặc tả API cấp phát tài khoản tự động (`/v1/provision`) phục vụ tích hợp hệ sinh thái. |
+| **[5. Phân Chia Môi Trường Beta & Staging](./beta-environment.md)** | Cấu hình độc lập 2 môi trường Production (`crove.com`, `app.crove.com`) và Beta (`beta.crove.com`, `beta-app.crove.com`). |
+| **[6. Hệ Thống Tự Động Hóa CI/CD](./cicd.md)** | Hướng dẫn toàn bộ pipeline GitHub Actions, phân nhánh dev/main và tự động build/deploy container. |
 
 ---
 

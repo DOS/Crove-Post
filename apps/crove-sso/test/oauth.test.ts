@@ -11,7 +11,7 @@ import {
 const env = {
   DOWNSTREAM_CLIENT_ID: 'crove-postiz',
   DOWNSTREAM_CLIENT_SECRET: 'bridge-secret-value',
-  DOWNSTREAM_REDIRECT_URI: 'https://app.crove.com/settings',
+  DOWNSTREAM_REDIRECT_URI: 'https://post.crove.com/settings',
   ALLOWED_SCOPE: 'openid profile email',
 } as Env;
 

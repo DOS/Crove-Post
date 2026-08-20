@@ -27,4 +27,4 @@ jobs:
 
       - name: Run Branding Guard Tests
         run: |
-          pnpm exec tsx scripts/branding-guard.ts
+          pnpm dlx tsx scripts/branding-guard.ts

@@ -63,6 +63,8 @@ i18n.cache
 apps/frontend/public/g.js
 .vercel
 .env*
+*.env
+scripts/*.env
 .artifacts/
 .codex-artifacts/
 .playwright-mcp/

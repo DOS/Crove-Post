@@ -118,6 +118,8 @@ For detailed technical guides on self-hosting, white-labeling, SSO, and automate
 - **[Upstream Sync & Branding Guard CI](docs/upstream-sync.md)**
 - **[Single Sign-On (SSO) & OAuth 2.1 PKCE Bridge](docs/sso-integration.md)**
 - **[First-Party Provisioning API](docs/first-party-provisioning.md)**
+- **[Beta & Staging Environment Architecture](docs/beta-environment.md)**
+- **[Automated CI/CD Pipelines](docs/cicd.md)**
 
 ## Quick Start
 

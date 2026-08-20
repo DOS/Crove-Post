@@ -8,7 +8,7 @@ import { LanguageToggle } from './language-toggle';
 import { useI18n } from '../i18n/i18n-context';
 import { Menu, X, ArrowRight, Sparkles } from 'lucide-react';
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://app.crove.com';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://post.crove.com';
 
 export function Navbar() {
   const { t } = useI18n();

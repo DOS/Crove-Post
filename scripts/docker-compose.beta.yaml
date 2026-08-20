@@ -1,0 +1,87 @@
+# ==============================================================================
+# CROVE BETA DOCKER COMPOSE STACK (scripts/docker-compose.beta.yaml)
+# Hosts: beta-app.crove.com (App) & beta.crove.com (Landing Page)
+# ==============================================================================
+
+services:
+  postiz-beta:
+    image: ghcr.io/gitroomhq/postiz-app:beta
+    container_name: postiz-beta
+    restart: always
+    env_file:
+      - crove-server.beta.env
+    volumes:
+      - postiz-beta-config:/config/
+      - postiz-beta-uploads:/uploads/
+    ports:
+      - '127.0.0.1:5001:5000'
+    networks:
+      - postiz-beta-network
+      - temporal-network
+    depends_on:
+      postiz-postgres-beta:
+        condition: service_healthy
+      postiz-redis-beta:
+        condition: service_healthy
+
+  crove-web-beta:
+    image: ghcr.io/gitroomhq/crove-web:beta
+    container_name: crove-web-beta
+    restart: always
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      - NEXT_PUBLIC_APP_URL=https://beta-app.crove.com
+    ports:
+      - '127.0.0.1:3001:3000'
+    networks:
+      - postiz-beta-network
+
+  postiz-postgres-beta:
+    image: postgres:17-alpine
+    container_name: postiz-postgres-beta
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: postiz-password
+      POSTGRES_USER: postiz-user
+      POSTGRES_DB: postiz-db-local
+    volumes:
+      - postgres-beta-volume:/var/lib/postgresql/data
+    networks:
+      - postiz-beta-network
+    healthcheck:
+      test: pg_isready -U postiz-user -d postiz-db-local
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  postiz-redis-beta:
+    image: redis:7.2
+    container_name: postiz-redis-beta
+    restart: always
+    healthcheck:
+      test: redis-cli ping
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    volumes:
+      - postiz-redis-beta-data:/data
+    networks:
+      - postiz-beta-network
+
+volumes:
+  postgres-beta-volume:
+    external: false
+  postiz-redis-beta-data:
+    external: false
+  postiz-beta-config:
+    external: false
+  postiz-beta-uploads:
+    external: false
+
+networks:
+  postiz-beta-network:
+    external: false
+  temporal-network:
+    external: true
+    name: scripts_temporal-network

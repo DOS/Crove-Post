@@ -89,7 +89,7 @@ if ($LASTEXITCODE -eq 0) {
         Write-Host "  App Callback: https://beta-app.crove.com/settings" -ForegroundColor Cyan
     } else {
         Write-Host "  SSO Endpoint: https://sso.crove.com" -ForegroundColor Cyan
-        Write-Host "  App Callback: https://app.crove.com/settings" -ForegroundColor Cyan
+        Write-Host "  App Callback: https://post.crove.com/settings" -ForegroundColor Cyan
     }
     Write-Host "==========================================================" -ForegroundColor Green
 } else {

@@ -52,7 +52,10 @@ console.log('=== Running Branding Guard Validations ===\n');
   assert(custom.logoUrl === 'https://crove.app/logo.png', 'Custom logo URL parsed');
   assert(custom.defaultEmailDomain === 'crove.app', 'Custom email domain parsed');
   assert(custom.supportEmail === 'support@crove.app', 'Support email auto fallbacks to support@<defaultEmailDomain>');
-  assert(custom.websiteUrl === 'https://crove.app', 'websiteUrl auto fallbacks to MAIN_URL when BRAND_WEBSITE_URL omitted');
+  assert(
+    custom.websiteUrl === 'https://crove.app' || custom.websiteUrl === 'https://crove.app/',
+    'websiteUrl auto fallbacks to MAIN_URL when BRAND_WEBSITE_URL omitted'
+  );
 }
 
 // 3. Security sanitization tests

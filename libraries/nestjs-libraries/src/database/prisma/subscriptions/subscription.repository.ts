@@ -283,4 +283,40 @@ export class SubscriptionRepository {
       },
     });
   }
+
+  syncFromDosPlan(
+    organizationId: string,
+    billing: 'STANDARD' | 'PRO',
+    totalChannels: number,
+    identifier: string,
+    cancelAt: Date | null
+  ) {
+    return this._subscription.model.subscription.upsert({
+      where: { organizationId },
+      update: {
+        subscriptionTier: billing,
+        totalChannels,
+        identifier,
+        period: 'MONTHLY',
+        cancelAt,
+        deletedAt: null,
+        isLifetime: false,
+      },
+      create: {
+        organizationId,
+        subscriptionTier: billing,
+        totalChannels,
+        identifier,
+        period: 'MONTHLY',
+        cancelAt,
+        isLifetime: false,
+      },
+    });
+  }
+
+  clearDosSyncedSubscription(organizationId: string) {
+    return this._subscription.model.subscription.deleteMany({
+      where: { organizationId },
+    });
+  }
 }

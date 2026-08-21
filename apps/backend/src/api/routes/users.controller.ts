@@ -31,6 +31,8 @@ import { UserAgent } from '@gitroom/nestjs-libraries/user/user.agent';
 import { TrackEnum } from '@gitroom/nestjs-libraries/user/track.enum';
 import { TrackService } from '@gitroom/nestjs-libraries/track/track.service';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
+import { DosSharedBillingService } from '@gitroom/nestjs-libraries/dos-billing/dos-shared-billing.service';
+import { isCroveBillingGated } from '@gitroom/nestjs-libraries/dos-billing/crove-billing-gate';
 import {
   AuthorizationActions,
   Sections,
@@ -45,7 +47,8 @@ export class UsersController {
     private _authService: AuthService,
     private _orgService: OrganizationService,
     private _userService: UsersService,
-    private _trackService: TrackService
+    private _trackService: TrackService,
+    private _dosBilling: DosSharedBillingService
   ) {}
 
   @Get('/chatbase-token')
@@ -107,28 +110,45 @@ export class UsersController {
     }
 
     const impersonate = req.cookies.impersonate || req.headers.impersonate;
+    const billingGated = isCroveBillingGated();
+    const sharedDosBilling = this._dosBilling.enabled();
+    let totalChannels = !billingGated
+      ? 10000
+      : // @ts-ignore
+        organization?.subscription?.totalChannels || pricing.FREE.channel;
+    let tier =
+      // @ts-ignore
+      organization?.subscription?.subscriptionTier ||
+      (!billingGated ? 'ULTIMATE' : 'FREE');
+    let dosPlan: 'free' | 'plus' | 'pro' | null = null;
+
+    if (sharedDosBilling && !user.isSuperAdmin) {
+      try {
+        const mapped = await this._dosBilling.syncOrg(user, organization.id);
+        totalChannels = mapped.channels;
+        tier = mapped.tier;
+        dosPlan = mapped.dosPlan;
+      } catch {
+        // Fail closed to the last local subscription rather than unlock ULTIMATE.
+      }
+    }
+
     // @ts-ignore
     return {
       ...user,
       orgId: organization.id,
-      totalChannels: !process.env.STRIPE_PUBLISHABLE_KEY
-        ? 10000
-        : // @ts-ignore
-          organization?.subscription?.totalChannels || pricing.FREE.channel,
-      tier:
-        // @ts-ignore
-        organization?.subscription?.subscriptionTier ||
-        (!process.env.STRIPE_PUBLISHABLE_KEY ? 'ULTIMATE' : 'FREE'),
+      totalChannels,
+      tier,
+      sharedDosBilling,
+      dosPlan,
       // @ts-ignore
       role: organization?.users[0]?.role,
       // @ts-ignore
       isLifetime: !!organization?.subscription?.isLifetime,
       admin: !!user.isSuperAdmin,
       impersonate: !!impersonate,
-      isTrailing: !process.env.STRIPE_PUBLISHABLE_KEY
-        ? false
-        : organization?.isTrailing,
-      allowTrial: organization?.allowTrial,
+      isTrailing: !billingGated ? false : organization?.isTrailing,
+      allowTrial: sharedDosBilling ? false : organization?.allowTrial,
       streakSince: organization?.streakSince || null,
       publicApi:
         // @ts-ignore

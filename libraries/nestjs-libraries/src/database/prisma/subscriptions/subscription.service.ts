@@ -261,4 +261,26 @@ export class SubscriptionService {
       orgId
     );
   }
+
+  syncFromDosPlan(
+    organizationId: string,
+    billing: 'STANDARD' | 'PRO',
+    totalChannels: number,
+    identifier: string,
+    cancelAt: Date | null
+  ) {
+    return this._subscriptionRepository.syncFromDosPlan(
+      organizationId,
+      billing,
+      totalChannels,
+      identifier,
+      cancelAt
+    );
+  }
+
+  clearDosSyncedSubscription(organizationId: string) {
+    return this._subscriptionRepository.clearDosSyncedSubscription(
+      organizationId
+    );
+  }
 }

@@ -217,6 +217,7 @@ export const MainBillingComponent: FC<{
   const fetch = useFetch();
   const toast = useToaster();
   const user = useUser();
+  const sharedDosBilling = !!user?.sharedDosBilling;
   const dub = useDubClickId();
   const modal = useModals();
   const router = useRouter();
@@ -261,14 +262,16 @@ export const MainBillingComponent: FC<{
     if (!subscription) {
       return 'FREE';
     }
-    if (period === 'YEARLY' && monthlyOrYearly === 'off') {
-      return '';
-    }
-    if (period === 'MONTHLY' && monthlyOrYearly === 'on') {
-      return '';
+    if (!sharedDosBilling) {
+      if (period === 'YEARLY' && monthlyOrYearly === 'off') {
+        return '';
+      }
+      if (period === 'MONTHLY' && monthlyOrYearly === 'on') {
+        return '';
+      }
     }
     return subscription?.subscriptionTier;
-  }, [subscription, initialChannels, monthlyOrYearly, period]);
+  }, [subscription, initialChannels, monthlyOrYearly, period, sharedDosBilling]);
   const moveToCheckout = useCallback(
     (billing: 'STANDARD' | 'PRO' | 'FREE', reactivate = false) =>
       async () => {
@@ -314,25 +317,27 @@ export const MainBillingComponent: FC<{
               'Cancel Subscription'
             ))
           ) {
-            const checkDiscount = await (
-              await fetch('/billing/check-discount')
-            ).json();
-            if (checkDiscount.offerCoupon) {
-              const info = await new Promise((res) => {
-                modal.openModal({
-                  title: 'Before you cancel',
-                  withCloseButton: true,
-                  classNames: {
-                    modal: 'bg-transparent text-textColor',
-                  },
-                  children: <Accept resolve={res} />,
+            if (!sharedDosBilling) {
+              const checkDiscount = await (
+                await fetch('/billing/check-discount')
+              ).json();
+              if (checkDiscount.offerCoupon) {
+                const info = await new Promise((res) => {
+                  modal.openModal({
+                    title: 'Before you cancel',
+                    withCloseButton: true,
+                    classNames: {
+                      modal: 'bg-transparent text-textColor',
+                    },
+                    children: <Accept resolve={res} />,
+                  });
                 });
-              });
 
-              modal.closeAll();
+                modal.closeAll();
 
-              if (info) {
-                return;
+                if (info) {
+                  return;
+                }
               }
             }
 
@@ -453,6 +458,7 @@ export const MainBillingComponent: FC<{
     <div className="flex flex-col gap-[16px]">
       <div className="flex flex-row">
         <div className="flex-1 text-[20px]">{t('plans', 'Plans')}</div>
+        {!sharedDosBilling && (
         <div className="flex items-center gap-[16px]">
           <div>{t('monthly', 'MONTHLY')}</div>
           <div>
@@ -460,27 +466,43 @@ export const MainBillingComponent: FC<{
           </div>
           <div>{t('yearly', 'YEARLY')}</div>
         </div>
+        )}
       </div>
 
       {finishTrial && <FinishTrial close={() => setFinishTrial(false)} />}
       <div className="flex gap-[16px] [@media(max-width:1024px)]:flex-col [@media(max-width:1024px)]:text-center">
         {Object.entries(pricing)
-          .filter((f) => !isGeneral || f[0] !== 'FREE')
+          .filter((f) => {
+            if (sharedDosBilling) {
+              return ['FREE', 'STANDARD', 'PRO'].includes(f[0]);
+            }
+            return !isGeneral || f[0] !== 'FREE';
+          })
           .map(([name, values]) => (
             <div
               key={name}
               className="flex-1 bg-sixth border border-customColor6 rounded-[4px] p-[24px] gap-[16px] flex flex-col [@media(max-width:1024px)]:items-center"
             >
-              <div className="text-[18px]">{name}</div>
+              <div className="text-[18px]">
+                {sharedDosBilling && name === 'STANDARD' ? 'Plus' : name}
+              </div>
               <div className="text-[38px] flex gap-[2px] items-center">
                 <div>
                   $
-                  {monthlyOrYearly === 'on'
+                  {sharedDosBilling
+                    ? name === 'PRO'
+                      ? 19
+                      : name === 'STANDARD'
+                      ? 9
+                      : 0
+                    : monthlyOrYearly === 'on'
                     ? values.year_price
                     : values.month_price}
                 </div>
                 <div className={`text-[14px] text-customColor18`}>
-                  {monthlyOrYearly === 'on' ? '/year' : '/month'}
+                  {sharedDosBilling || monthlyOrYearly !== 'on'
+                    ? '/month'
+                    : '/year'}
                 </div>
               </div>
               <div className="text-[14px] flex gap-[10px]">

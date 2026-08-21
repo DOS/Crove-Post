@@ -43,6 +43,8 @@ import { GoogleProvider } from '@gitroom/backend/services/auth/providers/google.
 import { FarcasterProvider } from '@gitroom/backend/services/auth/providers/farcaster.provider';
 import { WalletProvider } from '@gitroom/backend/services/auth/providers/wallet.provider';
 import { OauthProvider } from '@gitroom/backend/services/auth/providers/oauth.provider';
+import { DosMeBillingClient } from '@gitroom/nestjs-libraries/dos-billing/dos-me-billing.client';
+import { DosSharedBillingService } from '@gitroom/nestjs-libraries/dos-billing/dos-shared-billing.service';
 
 const authenticatedController = [
   UsersController,
@@ -96,6 +98,8 @@ const authenticatedController = [
     FarcasterProvider,
     WalletProvider,
     OauthProvider,
+    DosMeBillingClient,
+    DosSharedBillingService,
   ],
   get exports() {
     return [...this.imports, ...this.providers];

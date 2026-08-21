@@ -11,6 +11,7 @@ import { NotificationService } from '@gitroom/nestjs-libraries/database/prisma/n
 import { Request } from 'express';
 import { AuthService } from '@gitroom/helpers/auth/auth.service';
 import { UsersService } from '@gitroom/nestjs-libraries/database/prisma/users/users.service';
+import { DosSharedBillingService } from '@gitroom/nestjs-libraries/dos-billing/dos-shared-billing.service';
 
 @ApiTags('Billing')
 @Controller('/billing')
@@ -19,7 +20,8 @@ export class BillingController {
     private _subscriptionService: SubscriptionService,
     private _stripeService: StripeService,
     private _notificationService: NotificationService,
-    private _usersService: UsersService
+    private _usersService: UsersService,
+    private _dosBilling: DosSharedBillingService
   ) {}
 
   private async assertNoOtherSubscribedAccount(user: User) {
@@ -82,6 +84,10 @@ export class BillingController {
       return { blocked: true };
     }
 
+    if (this._dosBilling.enabled()) {
+      return this.subscribeThroughDos(user, body.billing);
+    }
+
     const uniqueId = req?.cookies?.track;
     return this._stripeService.embedded(
       uniqueId,
@@ -103,6 +109,10 @@ export class BillingController {
       return { blocked: true };
     }
 
+    if (this._dosBilling.enabled()) {
+      return this.subscribeThroughDos(user, body.billing);
+    }
+
     const uniqueId = req?.cookies?.track;
     return this._stripeService.subscribe(
       uniqueId,
@@ -114,7 +124,17 @@ export class BillingController {
   }
 
   @Get('/portal')
-  async modifyPayment(@GetOrgFromRequest() org: Organization) {
+  async modifyPayment(
+    @GetOrgFromRequest() org: Organization,
+    @GetUserFromRequest() user: User
+  ) {
+    if (this._dosBilling.enabled()) {
+      const { url } = await this._dosBilling.portal(
+        user,
+        process.env.FRONTEND_URL || 'https://post.crove.com'
+      );
+      return { portal: url };
+    }
     const customer = await this._stripeService.getCustomerByOrganizationId(
       org.id
     );
@@ -125,7 +145,15 @@ export class BillingController {
   }
 
   @Get('/')
-  getCurrentBilling(@GetOrgFromRequest() org: Organization) {
+  async getCurrentBilling(
+    @GetOrgFromRequest() org: Organization,
+    @GetUserFromRequest() user: User
+  ) {
+    if (this._dosBilling.enabled() && user && !user.isSuperAdmin) {
+      try {
+        await this._dosBilling.syncOrg(user, org.id);
+      } catch {}
+    }
     return this._subscriptionService.getSubscriptionByOrganizationId(org.id);
   }
 
@@ -142,15 +170,47 @@ export class BillingController {
       user.email
     );
 
+    if (this._dosBilling.enabled()) {
+      await this._dosBilling.cancel(user);
+      try {
+        await this._dosBilling.syncOrg(user, org.id);
+      } catch {}
+      const sub =
+        await this._subscriptionService.getSubscriptionByOrganizationId(org.id);
+      return { cancel_at: sub?.cancelAt || null };
+    }
+
     return this._stripeService.setToCancel(org.id);
   }
 
   @Post('/prorate')
-  prorate(
+  async prorate(
     @GetOrgFromRequest() org: Organization,
+    @GetUserFromRequest() user: User,
     @Body() body: BillingSubscribeDto
   ) {
+    if (this._dosBilling.enabled()) {
+      return { price: body.billing === 'PRO' ? 19 : 9 };
+    }
     return this._stripeService.prorate(org.id, body);
+  }
+
+  private async subscribeThroughDos(user: User, billing: string) {
+    const result = await this._dosBilling.checkout(
+      user,
+      billing,
+      process.env.FRONTEND_URL || 'https://post.crove.com'
+    );
+    if (result.updated) {
+      return {};
+    }
+    if (result.url) {
+      return { url: result.url };
+    }
+    if (result.portal_url) {
+      return { portal: result.portal_url };
+    }
+    return result;
   }
 
   @Get('/charges')

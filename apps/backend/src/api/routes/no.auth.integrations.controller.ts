@@ -12,6 +12,7 @@ import { ConnectIntegrationDto } from '@gitroom/nestjs-libraries/dtos/integratio
 import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integration.manager';
 import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/integrations/integration.service';
 import { CheckPolicies } from '@gitroom/backend/services/auth/permissions/permissions.ability';
+import { isCroveBillingGated } from '@gitroom/nestjs-libraries/dos-billing/crove-billing-gate';
 import { ApiTags } from '@nestjs/swagger';
 import { NotEnoughScopesFilter } from '@gitroom/nestjs-libraries/integrations/integration.missing.scopes';
 import { AuthService } from '@gitroom/helpers/auth/auth.service';
@@ -200,7 +201,7 @@ export class NoAuthIntegrationsController {
     }
 
     if (
-      process.env.STRIPE_PUBLISHABLE_KEY &&
+      isCroveBillingGated() &&
       org.isTrailing &&
       (await this._integrationService.checkPreviousConnections(
         org.id,

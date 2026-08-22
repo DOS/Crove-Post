@@ -3,17 +3,21 @@ name: Build & Deploy Crove Containers
 on:
   push:
     branches:
-      - main
       - dev
+    tags:
+      - 'v*'
+      - '*.*.*'
     paths-ignore:
       - '**.md'
       - 'docs/**'
       - '.claude/**'
       - 'reports/**'
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       target_env:
-        description: 'Target Environment'
+        description: 'Target Environment (beta or prod)'
         required: true
         default: 'beta'
         type: choice
@@ -64,28 +68,17 @@ jobs:
           REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             TAG="${{ github.event.inputs.target_env }}"
-          elif [ "${{ github.ref_name }}" = "main" ]; then
+          elif [ "${{ github.event_name }}" = "release" ] || [ "${{ github.ref_type }}" = "tag" ]; then
             TAG="latest"
+          elif [ "${{ github.ref_name }}" = "dev" ]; then
+            TAG="beta"
           else
             TAG="beta"
           fi
           echo "owner=${REPO_OWNER}" >> "$GITHUB_OUTPUT"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
-      # 1. Build Crove Landing Page Container (@crove/web)
-      - name: Build and Push Crove Web Image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./apps/web/Dockerfile
-          push: true
-          tags: |
-            ghcr.io/${{ steps.tags.outputs.owner }}/crove-web:${{ steps.tags.outputs.tag }}
-            ghcr.io/${{ steps.tags.outputs.owner }}/crove-web:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      # 2. Build Postiz Core App Container
+      # 1. Build Postiz Core App Container
       - name: Build and Push Postiz App Image
         uses: docker/build-push-action@v5
         with:
@@ -98,16 +91,6 @@ jobs:
             ghcr.io/${{ steps.tags.outputs.owner }}/postiz-app:${{ steps.tags.outputs.tag }}
             ghcr.io/${{ steps.tags.outputs.owner }}/postiz-app:${{ github.sha }}
           build-args: |
-            NEXT_PUBLIC_VERSION=${{ steps.tags.outputs.tag }}
+            NEXT_PUBLIC_VERSION=${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  deploy-to-gcp:
-    needs: validate-and-build
-    if: github.repository_owner == 'gitroomhq' || github.repository_owner == 'MetaDOS'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger Server Sync (Optional Webhook/SSH)
-        run: |
-          echo "Build and container push completed successfully for tag: ${{ needs.validate-and-build.outputs.tag || github.ref_name }}."
-          echo "Ready for deployment on crove-server."

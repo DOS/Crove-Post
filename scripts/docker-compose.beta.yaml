@@ -1,11 +1,10 @@
 # ==============================================================================
 # CROVE BETA DOCKER COMPOSE STACK (scripts/docker-compose.beta.yaml)
-# Hosts: beta-post.crove.com (App) & beta.crove.com (Landing Page)
+# Hosts: beta-post.crove.com (App)
 # ==============================================================================
 
 services:
   postiz-beta:
-    # Use custom container ghcr.io/dos/crove-app:beta or fallback to latest
     image: ghcr.io/gitroomhq/postiz-app:latest
     container_name: postiz-beta
     restart: always
@@ -18,25 +17,13 @@ services:
       - '127.0.0.1:5001:5000'
     networks:
       - postiz-beta-network
+      - postiz-network
       - temporal-network
     depends_on:
       postiz-postgres-beta:
         condition: service_healthy
       postiz-redis-beta:
         condition: service_healthy
-
-  crove-web-beta:
-    image: ghcr.io/gitroomhq/crove-web:beta
-    container_name: crove-web-beta
-    restart: always
-    environment:
-      - PORT=3000
-      - NODE_ENV=production
-      - NEXT_PUBLIC_APP_URL=https://beta-post.crove.com
-    ports:
-      - '127.0.0.1:3001:3000'
-    networks:
-      - postiz-beta-network
 
   postiz-postgres-beta:
     image: postgres:17-alpine
@@ -83,6 +70,9 @@ volumes:
 networks:
   postiz-beta-network:
     external: false
+  postiz-network:
+    external: true
+    name: crove_postiz-network
   temporal-network:
     external: true
-    name: scripts_temporal-network
+    name: crove_temporal-network

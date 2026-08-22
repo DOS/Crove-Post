@@ -11,6 +11,7 @@ import { LoginUserDto } from '@gitroom/nestjs-libraries/dtos/auth/login.user.dto
 import { GithubProvider } from '@gitroom/frontend/components/auth/providers/github.provider';
 import { OauthProvider } from '@gitroom/frontend/components/auth/providers/oauth.provider';
 import { GoogleProvider } from '@gitroom/frontend/components/auth/providers/google.provider';
+import { AppleProvider } from '@gitroom/frontend/components/auth/providers/apple.provider';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { FarcasterProvider } from '@gitroom/frontend/components/auth/providers/farcaster.provider';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
@@ -24,8 +25,13 @@ export function Login() {
   const t = useT();
   const [loading, setLoading] = useState(false);
   const [notActivated, setNotActivated] = useState(false);
-  const { isGeneral, neynarClientId, billingEnabled, genericOauth } =
-    useVariables();
+  const {
+    isGeneral,
+    neynarClientId,
+    appleClientId,
+    billingEnabled,
+    genericOauth,
+  } = useVariables();
   const resolver = useMemo(() => {
     return classValidatorResolver(LoginUserDto);
   }, []);
@@ -89,6 +95,7 @@ export function Login() {
                 ) : (
                   <div className="gap-[8px] flex">
                     <GoogleProvider />
+                    {!!appleClientId && <AppleProvider />}
                     {!!neynarClientId && <FarcasterProvider />}
                   </div>
                 )}

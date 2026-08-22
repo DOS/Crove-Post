@@ -152,6 +152,12 @@ export class AuthService {
       provider
     );
     if (user) {
+      if (providerUser.name && user.name !== providerUser.name) {
+        await this._userService.changePersonal(user.id, {
+          fullname: providerUser.name,
+          bio: user.bio || '',
+        });
+      }
       return user;
     }
 
@@ -159,18 +165,42 @@ export class AuthService {
       throw new Error('Registration is disabled');
     }
 
+    const companyName =
+      (providerUser.organizations && providerUser.organizations[0]?.name) ||
+      body.company ||
+      (providerUser.name ? `${providerUser.name}'s Organization` : providerUser.email.split('@')[0]);
+
     const create = await this._organizationService.createOrgAndUser(
       {
-        company: body.company,
+        company: companyName,
         email: providerUser.email,
         password: '',
         provider,
         providerId: providerUser.id,
-        datafast_visitor_id: body.datafast_visitor_id,
+        datafast_visitor_id: body.datafast_visitor_id || '',
       },
       ip,
       userAgent
     );
+
+    if (providerUser.name) {
+      await this._userService.changePersonal(create.users[0].user.id, {
+        fullname: providerUser.name,
+        bio: '',
+      });
+    }
+
+    if (providerUser.organizations && providerUser.organizations.length > 1) {
+      for (let i = 1; i < providerUser.organizations.length; i++) {
+        const orgInfo = providerUser.organizations[i];
+        const role = orgInfo.role === 'MEMBER' ? 'USER' : 'ADMIN';
+        await this._organizationService.createOrgForExistingUser(
+          create.users[0].user.id,
+          orgInfo.name,
+          role
+        ).catch(() => {});
+      }
+    }
 
     this._track('register', providerUser.email, body.datafast_visitor_id).catch(
       (err) => {}

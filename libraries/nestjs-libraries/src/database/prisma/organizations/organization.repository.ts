@@ -417,13 +417,45 @@ export class OrganizationRepository {
   }
 
   async deleteTeamMember(orgId: string, userId: string) {
-    return this._userOrg.model.userOrganization.delete({
+    return this._userOrg.model.userOrganization.deleteMany({
       where: {
-        userId_organizationId: {
-          userId,
-          organizationId: orgId,
+        userId,
+        organizationId: orgId,
+      },
+    });
+  }
+
+  async createOrgForExistingUser(
+    userId: string,
+    orgName: string,
+    role: 'SUPERADMIN' | 'ADMIN' | 'USER' = 'SUPERADMIN'
+  ) {
+    return this._organization.model.organization.create({
+      data: {
+        name: orgName,
+        apiKey: AuthService.fixedEncryption(makeId(20)),
+        allowTrial: true,
+        isTrailing: true,
+        users: {
+          create: {
+            role: Role[role] || Role.SUPERADMIN,
+            userId,
+          },
         },
       },
+    });
+  }
+
+  async updateOrganizationName(orgId: string, name: string) {
+    return this._organization.model.organization.update({
+      where: { id: orgId },
+      data: { name },
+    });
+  }
+
+  async findOrgByName(name: string) {
+    return this._organization.model.organization.findFirst({
+      where: { name, deletedAt: null },
     });
   }
 

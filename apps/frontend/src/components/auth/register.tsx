@@ -149,103 +149,124 @@ export function RegisterAfter({
             {t('continue_with', 'Continue With')}
           </div>
           <div className="flex flex-col">
-            {!isAfterProvider &&
-              (isGeneral && genericOauth ? (
+            {!isAfterProvider && isGeneral && genericOauth ? (
+              <div className="flex flex-col gap-4 mt-2">
                 <OauthProvider />
-              ) : !isGeneral ? (
-                <GithubProvider />
-              ) : (
-                <div className="gap-[8px] flex">
-                  <GoogleProvider />
-                  {!!neynarClientId && <FarcasterProvider />}
-                </div>
-              ))}
-            {!isAfterProvider && (
-              <div className="h-[20px] mb-[24px] mt-[24px] relative">
-                <div className="absolute w-full h-[1px] bg-fifth top-[50%] -translate-y-[50%]" />
-                <div
-                  className={`absolute z-[1] justify-center items-center w-full start-0 -top-[4px] flex`}
-                >
-                  <div className="px-[16px]">{t('or', 'or')}</div>
+                <p className="text-xs text-zinc-400 text-center mt-2 leading-relaxed">
+                  {t(
+                    'sso_description',
+                    'Sign in or create your account seamlessly with DOS ID.'
+                  )}
+                </p>
+                <div className="text-center mt-4">
+                  <p className="text-sm">
+                    {t('already_have_an_account', 'Already Have An Account?')}&nbsp;
+                    <Link href="/auth/login" className="underline cursor-pointer">
+                      {t('sign_in', 'Sign In')}
+                    </Link>
+                  </p>
                 </div>
               </div>
-            )}
-            <div className="flex flex-col gap-[12px]">
-              <div className="text-textColor">
+            ) : (
+              <>
                 {!isAfterProvider && (
                   <>
-                    <Input
-                      label="Email"
-                      translationKey="label_email"
-                      {...form.register('email')}
-                      type="email"
-                      placeholder={t('email_address', 'Email Address')}
-                    />
-                    <Input
-                      label="Password"
-                      translationKey="label_password"
-                      {...form.register('password')}
-                      autoComplete="off"
-                      type="password"
-                      placeholder={t('label_password', 'Password')}
-                    />
+                    {!isGeneral ? (
+                      <GithubProvider />
+                    ) : (
+                      <div className="gap-[8px] flex">
+                        <GoogleProvider />
+                        {!!neynarClientId && <FarcasterProvider />}
+                      </div>
+                    )}
+                    <div className="h-[20px] mb-[24px] mt-[24px] relative">
+                      <div className="absolute w-full h-[1px] bg-fifth top-[50%] -translate-y-[50%]" />
+                      <div
+                        className={`absolute z-[1] justify-center items-center w-full start-0 -top-[4px] flex`}
+                      >
+                        <div className="px-[16px]">{t('or', 'or')}</div>
+                      </div>
+                    </div>
                   </>
                 )}
-                <Input
-                  label="Company"
-                  translationKey="label_company"
-                  {...form.register('company')}
-                  autoComplete="off"
-                  type="text"
-                  placeholder={t('label_company', 'Company')}
-                />
-              </div>
-              <div className={clsx('text-[12px]')}>
-                {t(
-                  'by_registering_you_agree_to_our',
-                  'By registering you agree to our'
-                )}
-                &nbsp;
-                <a
-                  href={`https://postiz.com/terms`}
-                  className="underline hover:font-bold"
-                  rel="nofollow"
-                >
-                  {t('terms_of_service', 'Terms of Service')}
-                </a>
-                &nbsp;
-                {t('and', 'and')}&nbsp;
-                <a
-                  href={`https://postiz.com/privacy`}
-                  rel="nofollow"
-                  className="underline hover:font-bold"
-                >
-                  {t('privacy_policy', 'Privacy Policy')}
-                </a>
-                &nbsp;
-              </div>
-              <div className="text-center mt-6">
-                <div className="w-full flex">
-                  <Button
-                    type="submit"
-                    className="flex-1 rounded-[10px] !h-[52px]"
-                    loading={loading}
-                  >
-                    {t('create_account', 'Create Account')}
-                  </Button>
+                <div className="flex flex-col gap-[12px]">
+                  <div className="text-textColor">
+                    {!isAfterProvider && (
+                      <>
+                        <Input
+                          label="Email"
+                          translationKey="label_email"
+                          {...form.register('email')}
+                          type="email"
+                          placeholder={t('email_address', 'Email Address')}
+                        />
+                        <Input
+                          label="Password"
+                          translationKey="label_password"
+                          {...form.register('password')}
+                          autoComplete="off"
+                          type="password"
+                          placeholder={t('label_password', 'Password')}
+                        />
+                      </>
+                    )}
+                    <Input
+                      label="Company"
+                      translationKey="label_company"
+                      {...form.register('company')}
+                      autoComplete="off"
+                      type="text"
+                      placeholder={t('label_company', 'Company')}
+                    />
+                  </div>
+                  <div className={clsx('text-[12px]')}>
+                    {t(
+                      'by_registering_you_agree_to_our',
+                      'By registering you agree to our'
+                    )}
+                    &nbsp;
+                    <a
+                      href={`https://postiz.com/terms`}
+                      className="underline hover:font-bold"
+                      rel="nofollow"
+                    >
+                      {t('terms_of_service', 'Terms of Service')}
+                    </a>
+                    &nbsp;
+                    {t('and', 'and')}&nbsp;
+                    <a
+                      href={`https://postiz.com/privacy`}
+                      rel="nofollow"
+                      className="underline hover:font-bold"
+                    >
+                      {t('privacy_policy', 'Privacy Policy')}
+                    </a>
+                    &nbsp;
+                  </div>
+                  <div className="text-center mt-6">
+                    <div className="w-full flex">
+                      <Button
+                        type="submit"
+                        className="flex-1 rounded-[10px] !h-[52px]"
+                        loading={loading}
+                      >
+                        {t('create_account', 'Create Account')}
+                      </Button>
+                    </div>
+                    <p className="mt-4 text-sm">
+                      {t('already_have_an_account', 'Already Have An Account?')}
+                      &nbsp;
+                      <Link
+                        href="/auth/login"
+                        className="underline  cursor-pointer"
+                      >
+                        {t('sign_in', 'Sign In')}
+                      </Link>
+                    </p>
+                  </div>
                 </div>
-                <p className="mt-4 text-sm">
-                  {t('already_have_an_account', 'Already Have An Account?')}
-                  &nbsp;
-                  <Link
-                    href="/auth/login"
-                    className="underline  cursor-pointer"
-                  >
-                    {t('sign_in', 'Sign In')}
-                  </Link>
-                </p>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         </div>
       </form>

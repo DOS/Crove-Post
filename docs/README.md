@@ -8,6 +8,7 @@ Chào mừng đến với hệ thống tài liệu kỹ thuật chính thức c�
 
 | Tài Liệu | Nội Dung Chính |
 | :--- | :--- |
+| **[0. Tiêu Chuẩn Kiến Trúc Crove OS (Hybrid Sync & Unified SSO)](./architecture.md)** | Thiết kế hệ sinh thái Crove OS: Hybrid Sync (JIT + Webhook), API-First Delegation (Cách 3) và Generic OAuth 2.0 PKCE Bridge trên `api.dos.me`. |
 | **[1. Runtime Branding Engine (White-labeling)](./branding.md)** | Hướng dẫn cấu hình toàn bộ thương hiệu (Logo, Tên, Màu sắc, Email, Swagger, MCP) qua biến môi trường `BRAND_*` mà không cần rebuild container. |
 | **[2. Tự Động Đồng Bộ Upstream & CI Guard](./upstream-sync.md)** | Quy trình đồng bộ tự động với `gitroomhq/postiz-app` qua GitHub Actions và cơ chế kiểm thử Branding Guard CI. |
 | **[3. Kiến Trúc SSO & OAuth 2.1 PKCE Bridge](./sso-integration.md)** | Thiết kế hệ thống đăng nhập đơn DOS ID / Supabase OAuth 2.1 sử dụng Cloudflare Workers & Durable Objects. |

@@ -63,9 +63,9 @@
         }
       ],
       "vars": {
-        "UPSTREAM_AUTHORIZE_URL": "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/authorize",
-        "UPSTREAM_TOKEN_URL": "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/token",
-        "UPSTREAM_USERINFO_URL": "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/userinfo",
+        "UPSTREAM_AUTHORIZE_URL": "https://oyajkbadsykigtfrpdpg.supabase.co/auth/v1/oauth/authorize",
+        "UPSTREAM_TOKEN_URL": "https://oyajkbadsykigtfrpdpg.supabase.co/auth/v1/oauth/token",
+        "UPSTREAM_USERINFO_URL": "https://oyajkbadsykigtfrpdpg.supabase.co/auth/v1/oauth/userinfo",
         "UPSTREAM_REDIRECT_URI": "https://beta-sso.crove.com/callback",
         "UPSTREAM_CLIENT_ID": "7ef5e5f1-68e6-42a7-901e-1f39e9471d24",
         "DOWNSTREAM_REDIRECT_URI": "https://beta-post.crove.com/settings",

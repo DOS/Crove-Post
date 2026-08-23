@@ -86,8 +86,8 @@ jobs:
           file: ./Dockerfile.dev
           push: true
           tags: |
-            ghcr.io/${{ steps.tags.outputs.owner }}/crove-app:${{ steps.tags.outputs.tag }}
-            ghcr.io/${{ steps.tags.outputs.owner }}/crove-app:${{ github.sha }}
+            ghcr.io/${{ steps.tags.outputs.owner }}/crove-post:${{ steps.tags.outputs.tag }}
+            ghcr.io/${{ steps.tags.outputs.owner }}/crove-post:${{ github.sha }}
             ghcr.io/${{ steps.tags.outputs.owner }}/postiz-app:${{ steps.tags.outputs.tag }}
             ghcr.io/${{ steps.tags.outputs.owner }}/postiz-app:${{ github.sha }}
           build-args: |

@@ -1,12 +1,12 @@
-# Kiến Trúc Hệ Thống Crove OS (Hybrid Sync & Unified SSO)
+# Crove OS System Architecture (Hybrid Sync & Unified SSO)
 
-Tài liệu này quy định kiến trúc kỹ thuật chuẩn về **Đồng bộ Định danh & Tổ chức (Hybrid Identity & Organization Sync)**, **Ủy quyền tạo Tổ chức (API-First Delegation)** và **Cơ chế Đăng nhập Đơn Generic OAuth 2.0 PKCE Bridge** giữa trung tâm định danh **DOS.Me ID** và các ứng dụng thành viên trong hệ sinh thái **Crove** (Crove Post, Crove CRM, Crove Sign, Crove Cal, Crove Desk).
+This document specifies the technical architecture standard for **Hybrid Identity & Organization Synchronization**, **API-First Delegation (Method 3) for Organization Management**, and the **Centralized Generic OAuth 2.0 PKCE Bridge** between **DOS.Me ID** and all member applications across the **Crove Ecosystem** (Crove Post, Crove CRM, Crove Sign, Crove Cal, and Crove Desk).
 
 ---
 
-## 1. 🌟 Tổng Quan Hệ Sinh Thái Crove OS
+## 1. 🌟 Crove OS Ecosystem Overview
 
-Hệ sinh thái Crove bao gồm các ứng dụng mã nguồn mở độc lập được tích hợp qua lớp định danh và điều phối dữ liệu tập trung:
+The Crove ecosystem connects independent, best-in-class open-source core platforms through a unified identity layer, shared multi-tenant database infrastructure, and event-driven data synchronization:
 
 ```
                                   ┌───────────────────────────────┐
@@ -33,33 +33,33 @@ Hệ sinh thái Crove bao gồm các ứng dụng mã nguồn mở độc lập 
 
 ---
 
-## 2. 🔄 Chuẩn Đồng Bộ Identity & Organization (Hybrid Sync Standard)
+## 2. 🔄 Hybrid Identity & Organization Sync Standard
 
-### 2.1. Vấn Đề Cốt Lõi
-- Mỗi sản phẩm thành viên (Postiz, Twenty CRM, Documenso, Cal.com) sở hữu database/schema riêng biệt để phục vụ tính độc lập và khả năng nâng cấp upstream.
-- **Nếu chỉ dùng Webhook push từ DOS.Me**: Khi User tạo Org mới trên DOS.Me nhưng chưa từng đăng nhập vào app con, app con chưa có `User ID` local nên không thể map quan hệ Foreign Key.
-- **Nếu chỉ dùng JIT lúc Login**: Khi User đã login rồi nhưng sau đó được thêm vào Org mới trên DOS.Me thì app con sẽ bị lệch dữ liệu nếu User không đăng xuất/đăng nhập lại.
+### 2.1. Core Problem & Rationale
+- Each member application (Postiz, Twenty CRM, Documenso, Cal.com) maintains its own database schema for maximum operational autonomy and smooth upstream synchronization.
+- **Push Webhooks Only**: If a user creates an Organization on DOS.Me before ever logging into a satellite app, the satellite app lacks the local `User ID` required to establish foreign key constraints.
+- **JIT Login Sync Only**: If a user is added to a new Organization on DOS.Me while already authenticated, satellite apps will suffer data drift unless the user explicitly logs out and logs back in.
 
-👉 **Giải pháp tiêu chuẩn**: **Kiến trúc Hybrid Sync 2 pha (JIT + Webhook)**.
+👉 **Standard Architecture**: **Two-Phase Hybrid Sync (JIT + Webhooks)**.
 
 ---
 
-### 2.2. Chi Tiết 2 Pha Đồng Bộ
+### 2.2. Two-Phase Synchronization Workflow
 
-#### 🔹 Pha 1: JIT (Just-In-Time) Sync khi Login OIDC (Khởi tạo lần đầu)
-Mỗi khi User đăng nhập qua nút **DOS ID**:
-1. **User & Profile Sync**: App con đọc `id_token` / `userinfo` từ DOS.Me:
-   - `sub`: Unique ID của DOS.Me / Supabase Auth
-   - `email`: Email chính
-   - `name`: Tên hiển thị đầy đủ
+#### 🔹 Phase 1: JIT (Just-In-Time) Sync upon OIDC Sign-In
+When a user signs in via **DOS ID**:
+1. **User & Profile Synchronization**: The satellite app consumes the `id_token` / `userinfo` claims from DOS.Me:
+   - `sub`: Unique ID from DOS.Me / Supabase Auth
+   - `email`: Primary email address
+   - `name`: Full display name
    - `picture`: Avatar URL
-   $\rightarrow$ App con tự động tạo mới / cập nhật `User` local và lưu avatar/tên.
+   $\rightarrow$ The satellite app automatically provisions or updates its local `User` record, syncing name and profile picture.
 2. **Organization Provisioning**:
-   - Nếu User chưa thuộc Org nào trong app con: App con đọc claim `organizations: [{ id, name, role }]` trong UserInfo để tự động provision Workspace/Org tương ứng và gán quyền (`SUPERADMIN` / `ADMIN` / `USER`).
+   - If the user has no existing Organization in the satellite app, the app inspects the `organizations: [{ id, name, role }]` claim to provision the corresponding Workspace/Organization and assign appropriate roles (`SUPERADMIN` / `ADMIN` / `USER`).
 
-#### 🔹 Pha 2: Event-Driven Sync qua Webhook (Cập nhật thời gian thực)
-Khi có sự thay đổi từ trang quản trị DOS.Me (đổi tên Org, thêm thành viên, xóa thành viên, nâng cấp plan):
-- **DOS.Me Event Router** gửi Webhook POST kèm chữ ký HMAC (`X-DOS-Signature: sha256=...`) đến endpoint nội bộ của các app con:
+#### 🔹 Phase 2: Event-Driven Real-Time Sync via Webhooks
+When an administrative change occurs on DOS.Me (organization renamed, member invited, member removed, subscription tier updated):
+- **DOS.Me Event Router** dispatches an HMAC-SHA256 signed HTTP POST webhook (`X-DOS-Signature: sha256=...`) to internal endpoints across satellite apps:
   - `https://post.crove.com/api/webhooks/dos-org-sync`
   - `https://crm.crove.com/api/webhooks/dos-org-sync`
   - `https://sign.crove.com/api/webhooks/dos-org-sync`
@@ -68,14 +68,14 @@ Khi có sự thay đổi từ trang quản trị DOS.Me (đổi tên Org, thêm 
 
 ---
 
-## 3. 🏛️ Mô Hình Tạo Tổ Chức: API-First Delegation (Cách 3)
+## 3. 🏛️ Organization Creation: API-First Delegation (Method 3)
 
-Để đảm bảo **Trải nghiệm người dùng mượt mà (ở lại app)** và **Toàn vẹn dữ liệu (Single Source of Truth)**, các app con không ghi trực tiếp vào `public.organizations`, mà thực hiện **Ủy quyền tạo qua API Hub (`api.dos.me`)**:
+To ensure **seamless user experience (staying within the app)** and **absolute data consistency (Single Source of Truth)**, satellite apps do not write directly to `public.organizations`. Instead, they delegate creation via **DOS.Me Central API Hub (`api.dos.me`)**:
 
 ```
 ┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐       ┌──────────────────────┐
-│   User bấm tạo  │──────▶│ App con (Post,  │──────▶│   api.dos.me    │──────▶│ Database (Supabase)  │
-│ Org trong App   │       │ Sign, CRM, Cal) │       │(NestJS Org Svc) │       │ schema: public       │
+│   User creates  │──────▶│  Satellite App  │──────▶│   api.dos.me    │──────▶│ Database (Supabase)  │
+│  Org in app UI  │       │(Post/Sign/CRM)  │       │(NestJS Org Svc) │       │ schema: public       │
 └─────────────────┘       └─────────────────┘       └─────────────────┘       └──────────────────────┘
                                                              │
                                           ┌──────────────────┴──────────────────┐
@@ -89,35 +89,35 @@ Khi có sự thay đổi từ trang quản trị DOS.Me (đổi tên Org, thêm 
                                           └─────────────────────────────────────┘
 ```
 
-### 3.1. Quy Trình Thực Thi
-1. **Frontend / Server Action App Con**: Gửi request tạo Org:
-   - **Endpoint**: `POST https://api.dos.me/organizations`
+### 3.1. Detailed Execution Flow
+1. **Satellite App Frontend / Server Action**:
+   - **Endpoint**: `POST https://api.dos.me/organizations` (or `https://beta-api.dos.me/organizations`)
    - **Header**: `Authorization: Bearer <user_access_token>`
    - **Body**:
      ```json
      {
-       "name": "Acme Corp",
+       "name": "Acme Corporation",
        "slug": "acme-corp"
      }
      ```
-2. **Phía `api.dos.me`**:
-   - Kiểm tra **Quota / Subscription Entitlement** của User (gói Free/Pro/Enterprise có được tạo thêm Org không).
-   - Tạo bản ghi trong `public.organizations` và set User làm `OWNER` trong `public.org_members`.
-   - `WebhookDispatcherService` tự động dispatch sự kiện `org.created` tới toàn bộ các webhook URL đã đăng ký.
-   - Trả về `{ success: true, organization: { id, name, slug } }`.
-3. **App con nhận phản hồi**: Cập nhật `active_org` và hiển thị Workspace mới ngay lập tức cho User mà không cần reload/redirect trang.
+2. **Processing at `api.dos.me`**:
+   - Validates **Quota / Plan Entitlements** (ensuring Free/Pro/Enterprise limits are enforced).
+   - Inserts organization into `public.organizations` and assigns the user as `OWNER` in `public.org_members`.
+   - `WebhookDispatcherService` fans out an `org.created` event to all registered satellite endpoints.
+   - Returns `{ success: true, organization: { id, name, slug } }`.
+3. **Satellite App Reaction**: Sets `active_org` to the newly created Organization ID without requiring page reloads or external redirects.
 
 ---
 
-## 4. 🔑 Chuẩn Hóa Generic OAuth 2.0 PKCE Bridge (DOS ID SSO)
+## 4. 🔑 Centralized Generic OAuth 2.0 PKCE Bridge (DOS ID SSO)
 
-### 4.1. Vấn Đề với Cloudflare Workers Rời Rạc
-Trước đây, hệ thống sử dụng Cloudflare Worker (`sso.crove.com` và `beta-sso.crove.com`) làm proxy PKCE trung gian giữa Postiz (chỉ hỗ trợ Generic OAuth 2.0 `client_secret_post`) và Supabase Auth (bắt buộc OAuth 2.1 PKCE `code_challenge`).
-- **Nhược điểm**: Phân mảnh cấu hình môi trường, phải duy trì secrets ở 2 nơi (Cloudflare + GCP Secret Manager), phát sinh lỗi DNS CNAME/SSL.
+### 4.1. Edge Proxy Elimination
+Previously, separate Cloudflare Workers (`sso.crove.com` and `beta-sso.crove.com`) were used as stateful intermediaries between Postiz (Generic OAuth 2.0 `client_secret_post`) and Supabase Auth (OAuth 2.1 PKCE `code_challenge`).
+- **Limitation**: Fragmented environment secrets across Cloudflare and GCP Secret Manager, DNS complexity, and separate deployment lifecycles.
 
-### 4.2. Kiến Trúc Cầu Nối Tập Trung trên `api.dos.me`
+### 4.2. Unified Bridge on `api.dos.me`
 
-Gom toàn bộ logic PKCE Bridge về trực tiếp `api.dos.me` / `id.dos.me`:
+All Generic OAuth 2.0 to PKCE proxy logic is integrated directly into `api.dos.me` / `id.dos.me`:
 
 ```
 ┌─────────────────┐           ┌──────────────────────────────────────┐           ┌────────────────────────┐
@@ -126,48 +126,48 @@ Gom toàn bộ logic PKCE Bridge về trực tiếp `api.dos.me` / `id.dos.me`:
 └─────────────────┘           └──────────────────────────────────────┘           └────────────────────────┘
          │                                       │                                            │
          │ 1. GET /oauth/authorize               │                                            │
-         │    (OAuth 2.0 cơ bản)                 │                                            │
-         │──────────────────────────────────────▶│ 2. Tự sinh code_verifier & S256 challenge  │
-         │                                       │    Lưu verifier vào OAuthFlowState         │
-         │                                       │ 3. Redirect sang Supabase Auth kèm PKCE    │
+         │    (Standard OAuth 2.0 query)         │                                            │
+         │──────────────────────────────────────▶│ 2. Generate code_verifier & S256 challenge │
+         │                                       │    Store verifier in OAuthFlowState        │
+         │                                       │ 3. Redirect to Supabase Auth with PKCE     │
          │                                       │───────────────────────────────────────────▶│
          │                                       │                                            │
-         │                                       │ 4. Supabase trả authorization code         │
+         │                                       │ 4. Supabase returns authorization code     │
          │                                       │◀───────────────────────────────────────────│
-         │ 5. Trả code về lại Crove Post         │                                            │
+         │ 5. Return code to Crove Post          │                                            │
          │◀──────────────────────────────────────│                                            │
          │                                       │                                            │
          │ 6. POST /oauth/token                  │                                            │
-         │    (client_secret_post từ Postiz)     │                                            │
-         │──────────────────────────────────────▶│ 7. Lấy lại code_verifier từ State         │
-         │                                       │    Gửi code + verifier sang Supabase       │
+         │    (client_secret_post)               │                                            │
+         │──────────────────────────────────────▶│ 7. Retrieve code_verifier from State       │
+         │                                       │    Exchange code + verifier with Supabase  │
          │                                       │───────────────────────────────────────────▶│
-         │                                       │ 8. Nhận access_token / id_token            │
-         │ 9. Trả token chuẩn OAuth 2.0          │◀───────────────────────────────────────────│
+         │                                       │ 8. Receive access_token / id_token         │
+         │ 9. Return standard OAuth 2.0 tokens   │◀───────────────────────────────────────────│
          │◀──────────────────────────────────────│                                            │
 ```
 
-### 4.3. Lợi Ích Cốt Lõi
-1. **Loại bỏ 100% Cloudflare Workers `sso.crove.com`**: Đơn giản hóa kiến trúc hạ tầng và giảm thiểu điểm nghẽn mạng.
-2. **Hỗ trợ đồng nhất mọi Open Source**: Postiz, Twenty CRM, Documenso, Cal.com đều cắm chung một định dạng endpoint chuẩn OAuth 2.0:
-   - `POSTIZ_OAUTH_AUTH_URL=https://api.dos.me/oauth/authorize` (hoặc `https://beta-api.dos.me/oauth/authorize`)
+### 4.3. Key Architectural Benefits
+1. **Single Source of Truth for SSO**: Standardized endpoints for all satellite apps:
+   - `POSTIZ_OAUTH_AUTH_URL=https://api.dos.me/oauth/authorize` (or `https://beta-api.dos.me/oauth/authorize`)
    - `POSTIZ_OAUTH_TOKEN_URL=https://api.dos.me/oauth/token`
    - `POSTIZ_OAUTH_USERINFO_URL=https://api.dos.me/oauth/userinfo`
-3. **Quản lý Secrets duy nhất**: Toàn bộ `client_secret` được lưu trong **GCP Secret Manager** (Project: `dos-me`).
+2. **Unified Secret Management**: All client credentials live in GCP Secret Manager (Project: `dos-me`).
+3. **Zero Merging Conflicts with Upstream**: Core Postiz backend needs zero codebase patches to interoperate with OAuth 2.1 PKCE identity providers.
 
 ---
 
-## 5. 📦 Đặc Tả Webhook Payload (`/api/webhooks/dos-org-sync`)
+## 5. 📦 Webhook Payload Specification (`/api/webhooks/dos-org-sync`)
 
-### 5.1. Headers Bắt Buộc
+### 5.1. Required Headers
 ```http
 POST /api/webhooks/dos-org-sync HTTP/1.1
 Host: post.crove.com
 Content-Type: application/json
-X-DOS-Signature: sha256=a1b2c3d4e5f6... (HMAC SHA-256 tính từ secret chung)
+X-DOS-Signature: sha256=<hex_hmac_sha256_signature>
 ```
 
-### 5.2. Định Dạng JSON Payload
+### 5.2. Payload Schema
 ```json
 {
   "event": "org.member_added",
@@ -183,20 +183,20 @@ X-DOS-Signature: sha256=a1b2c3d4e5f6... (HMAC SHA-256 tính từ secret chung)
 }
 ```
 
-### 5.3. Danh Sách Sự Kiện (`event`)
-| Event | Mô Tả | Hành Động Phía Crove Post |
+### 5.3. Supported Event Types
+| Event | Description | Crove Post Handler |
 | :--- | :--- | :--- |
-| `org.created` | Tạo tổ chức mới | Tạo `Organization` + gán `SUPERADMIN` cho owner |
-| `org.updated` | Đổi tên tổ chức | Cập nhật trường `name` trong `Organization` |
-| `org.deleted` | Xóa tổ chức | Đánh dấu `deletedAt` trên `Organization` |
-| `org.member_added` | Thêm thành viên vào tổ chức | Tạo bản ghi `UserOrganization` với role tương ứng |
-| `org.member_removed` | Xóa thành viên khỏi tổ chức | Xóa bản ghi trong `UserOrganization` |
+| `org.created` | New organization created | Creates `Organization` & sets user as `SUPERADMIN` |
+| `org.updated` | Organization name changed | Updates `Organization.name` |
+| `org.deleted` | Organization removed | Sets `Organization.deletedAt` |
+| `org.member_added` | Member added to organization | Creates `UserOrganization` record with mapped role |
+| `org.member_removed` | Member removed from organization | Removes `UserOrganization` association |
 
 ---
 
-## 6. 📊 Bảng Ánh Xạ Schema Giữa DOS.Me và Các Ứng Dụng Thành Viên
+## 6. 📊 Entity Mapping across Crove Ecosystem Schemas
 
-| Thực thể DOS.Me (`public`) | Crove Post (`post`) | Crove CRM (`core`) | Crove Sign (`sign`) | Crove Cal (`cal`) |
+| DOS.Me (`public`) | Crove Post (`post`) | Crove CRM (`core`) | Crove Sign (`sign`) | Crove Cal (`cal`) |
 | :--- | :--- | :--- | :--- | :--- |
 | `profiles.user_id` | `User.providerId` | `user.id` / `sub` | `User.id` | `users.id` |
 | `profiles.email` | `User.email` | `user.email` | `User.email` | `users.email` |

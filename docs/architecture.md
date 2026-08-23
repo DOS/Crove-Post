@@ -1,6 +1,6 @@
 # Crove OS System Architecture (Hybrid Sync & Unified SSO)
 
-This document specifies the technical architecture standard for **Hybrid Identity & Organization Synchronization**, **API-First Delegation (Method 3) for Organization Management**, and the **Centralized Generic OAuth 2.0 PKCE Bridge** between **DOS.Me ID** and all member applications across the **Crove Ecosystem** (Crove Post, Crove CRM, Crove Sign, Crove Cal, and Crove Desk).
+This document specifies the technical architecture standard for **Hybrid Identity & Organization Synchronization**, **API-First Delegation (Method 3) for Organization Management**, the **Centralized Generic OAuth 2.0 PKCE Bridge (`api.dos.me`)**, and **Autonomous Agent Connections (DOSClaw)** between **DOS.Me ID** and all member applications across the **Crove Ecosystem** (Crove Post, Crove CRM, Crove Sign, Crove Cal, and Crove Desk).
 
 ---
 
@@ -55,7 +55,7 @@ When a user signs in via **DOS ID**:
    - `picture`: Avatar URL
    $\rightarrow$ The satellite app automatically provisions or updates its local `User` record, syncing name and profile picture.
 2. **Organization Provisioning**:
-   - If the user has no existing Organization in the satellite app, the app inspects the `organizations: [{ id, name, role }]` claim to provision the corresponding Workspace/Organization and assign appropriate roles (`SUPERADMIN` / `ADMIN` / `USER`).
+   - If the user has no existing Organization in the satellite app, the app inspects the `organizations: [{ id, name, slug, role }]` claim to provision the corresponding Workspace/Organization and assign appropriate roles (`SUPERADMIN` / `ADMIN` / `USER`).
 
 #### 🔹 Phase 2: Event-Driven Real-Time Sync via Webhooks
 When an administrative change occurs on DOS.Me (organization renamed, member invited, member removed, subscription tier updated):
@@ -109,57 +109,91 @@ To ensure **seamless user experience (staying within the app)** and **absolute d
 
 ---
 
-## 4. 🔑 Centralized Generic OAuth 2.0 PKCE Bridge (DOS ID SSO)
+## 4. 🔑 Centralized Generic OAuth 2.0 PKCE Bridge (`api.dos.me`)
 
-### 4.1. Edge Proxy Elimination
-Previously, separate Cloudflare Workers (`sso.crove.com` and `beta-sso.crove.com`) were used as stateful intermediaries between Postiz (Generic OAuth 2.0 `client_secret_post`) and Supabase Auth (OAuth 2.1 PKCE `code_challenge`).
-- **Limitation**: Fragmented environment secrets across Cloudflare and GCP Secret Manager, DNS complexity, and separate deployment lifecycles.
-
-### 4.2. Unified Bridge on `api.dos.me`
-
-All Generic OAuth 2.0 to PKCE proxy logic is integrated directly into `api.dos.me` / `id.dos.me`:
+### 4.1. Edge Proxy Elimination & Centralization
+Previously, Cloudflare Workers (`sso.crove.com` and `beta-sso.crove.com`) were used as stateful intermediaries. All PKCE Bridge functionality is now centralized inside `apps/api` (`api.dos.me` and `beta-api.dos.me`), eliminating external Cloudflare Workers.
 
 ```
-┌─────────────────┐           ┌──────────────────────────────────────┐           ┌────────────────────────┐
-│   Crove Post    │           │             api.dos.me               │           │     Supabase Auth      │
-│  (Postiz Core)  │           │         (Generic PKCE Bridge)        │           │     (OAuth 2.1 Server) │
-└─────────────────┘           └──────────────────────────────────────┘           └────────────────────────┘
-         │                                       │                                            │
-         │ 1. GET /oauth/authorize               │                                            │
-         │    (Standard OAuth 2.0 query)         │                                            │
-         │──────────────────────────────────────▶│ 2. Generate code_verifier & S256 challenge │
-         │                                       │    Store verifier in OAuthFlowState        │
-         │                                       │ 3. Redirect to Supabase Auth with PKCE     │
-         │                                       │───────────────────────────────────────────▶│
-         │                                       │                                            │
-         │                                       │ 4. Supabase returns authorization code     │
-         │                                       │◀───────────────────────────────────────────│
-         │ 5. Return code to Crove Post          │                                            │
-         │◀──────────────────────────────────────│                                            │
-         │                                       │                                            │
-         │ 6. POST /oauth/token                  │                                            │
-         │    (client_secret_post)               │                                            │
-         │──────────────────────────────────────▶│ 7. Retrieve code_verifier from State       │
-         │                                       │    Exchange code + verifier with Supabase  │
-         │                                       │───────────────────────────────────────────▶│
-         │                                       │ 8. Receive access_token / id_token         │
-         │ 9. Return standard OAuth 2.0 tokens   │◀───────────────────────────────────────────│
-         │◀──────────────────────────────────────│                                            │
+┌─────────────────────────┐          ┌─────────────────────────┐          ┌─────────────────────────┐
+│   Open Source Client    │          │       api.dos.me        │          │      Supabase Auth      │
+│(Postiz / Twenty / Sign) │          │  (Generic OAuth Bridge) │          │ (OAuth 2.1 Server PKCE) │
+└─────────────────────────┘          └─────────────────────────┘          └─────────────────────────┘
+             │                                    │                                    │
+             │ 1. GET /oauth/authorize (No PKCE)  │                                    │
+             │───────────────────────────────────▶│ 2. Generate S256 PKCE Pair         │
+             │                                    │    (verifier & challenge)          │
+             │                                    │ 3. Redirect to Supabase            │
+             │                                    │───────────────────────────────────▶│
+             │                                    │                                    │
+             │                                    │ 4. Supabase returns auth code      │
+             │                                    │◀───────────────────────────────────│
+             │ 5. Redirect with Bridge Code       │                                    │
+             │◀───────────────────────────────────│                                    │
+             │                                    │                                    │
+             │ 6. POST /oauth/token (Basic/Post)  │                                    │
+             │───────────────────────────────────▶│ 7. Exchange code + verifier        │
+             │                                    │───────────────────────────────────▶│
+             │                                    │ 8. Return Token Pair               │
+             │                                    │◀───────────────────────────────────│
+             │ 9. Return access_token + claims    │                                    │
+             │◀───────────────────────────────────│                                    │
+             │                                    │                                    │
+             │ 10. GET /oauth/userinfo (Bearer)   │                                    │
+             │───────────────────────────────────▶│ 11. Enrich `organizations` array   │
+             │                                    │     from PostgreSQL DB             │
+             │ 12. Return UserInfo + Orgs         │                                    │
+             │◀───────────────────────────────────│                                    │
 ```
 
-### 4.3. Key Architectural Benefits
-1. **Single Source of Truth for SSO**: Standardized endpoints for all satellite apps:
-   - `POSTIZ_OAUTH_AUTH_URL=https://api.dos.me/oauth/authorize` (or `https://beta-api.dos.me/oauth/authorize`)
-   - `POSTIZ_OAUTH_TOKEN_URL=https://api.dos.me/oauth/token`
-   - `POSTIZ_OAUTH_USERINFO_URL=https://api.dos.me/oauth/userinfo`
-2. **Unified Secret Management**: All client credentials live in GCP Secret Manager (Project: `dos-me`).
-3. **Zero Merging Conflicts with Upstream**: Core Postiz backend needs zero codebase patches to interoperate with OAuth 2.1 PKCE identity providers.
+### 4.2. Standard Environment Configuration for Satellite Apps
+
+```env
+# ================================================================
+# CROVE POST (POSTIZ) - CENTRALIZED GENERIC OAUTH 2.0 CONFIG
+# ================================================================
+POSTIZ_GENERIC_OAUTH=true
+
+# --- PRODUCTION ENVIRONMENT ---
+POSTIZ_OAUTH_URL=https://api.dos.me
+POSTIZ_OAUTH_AUTH_URL=https://api.dos.me/oauth/authorize
+POSTIZ_OAUTH_TOKEN_URL=https://api.dos.me/oauth/token
+POSTIZ_OAUTH_USERINFO_URL=https://api.dos.me/oauth/userinfo
+
+# --- BETA ENVIRONMENT ---
+# POSTIZ_OAUTH_URL=https://beta-api.dos.me
+# POSTIZ_OAUTH_AUTH_URL=https://beta-api.dos.me/oauth/authorize
+# POSTIZ_OAUTH_TOKEN_URL=https://beta-api.dos.me/oauth/token
+# POSTIZ_OAUTH_USERINFO_URL=https://beta-api.dos.me/oauth/userinfo
+
+POSTIZ_OAUTH_CLIENT_ID=crove-postiz
+POSTIZ_OAUTH_CLIENT_SECRET=<CROVE_POSTIZ_OAUTH_CLIENT_SECRET>
+POSTIZ_OAUTH_SCOPE="openid profile email organizations offline_access"
+NEXT_PUBLIC_POSTIZ_OAUTH_DISPLAY_NAME="DOS ID"
+NEXT_PUBLIC_POSTIZ_OAUTH_LOGO_URL="/icons/generic-oauth.svg"
+```
 
 ---
 
-## 5. 📦 Webhook Payload Specification (`/api/webhooks/dos-org-sync`)
+## 5. 🤖 Autonomous Agent Integration (DOSClaw Connector)
 
-### 5.1. Required Headers
+### 5.1. Protocol & Token Model
+DOSClaw AI agents connect via **Option A (One-Touch OAuth 2.0)**:
+- **Client IDs**:
+  - Beta: `pca_dosclaw_beta_7ef5e5f1`
+  - Production: `pca_dosclaw_prod_18790ccb`
+- **Redirect URIs**:
+  - Beta: `https://beta-api.dos.me/oauth/crove-post/callback`
+  - Production: `https://api.dos.me/oauth/crove-post/callback`
+- **Token Format**: Crove Post issues scoped `pos_*` tokens upon consent.
+- **Token Revocation (RFC 7009)**: `POST /oauth/revoke` with `{ token: "pos_..." }` immediately invalidates access tokens when agents disconnect.
+- **Security Boundary**: The token is stored securely in **DOS-Me Vault**. DOS.AI agents only receive an `agent_connection_binding` reference and never see plaintext credentials.
+
+---
+
+## 6. 📦 Webhook Payload Specification (`/api/webhooks/dos-org-sync`)
+
+### 6.1. Required Headers
 ```http
 POST /api/webhooks/dos-org-sync HTTP/1.1
 Host: post.crove.com
@@ -167,7 +201,7 @@ Content-Type: application/json
 X-DOS-Signature: sha256=<hex_hmac_sha256_signature>
 ```
 
-### 5.2. Payload Schema
+### 6.2. Payload Schema
 ```json
 {
   "event": "org.member_added",
@@ -183,7 +217,7 @@ X-DOS-Signature: sha256=<hex_hmac_sha256_signature>
 }
 ```
 
-### 5.3. Supported Event Types
+### 6.3. Supported Event Types
 | Event | Description | Crove Post Handler |
 | :--- | :--- | :--- |
 | `org.created` | New organization created | Creates `Organization` & sets user as `SUPERADMIN` |
@@ -194,7 +228,7 @@ X-DOS-Signature: sha256=<hex_hmac_sha256_signature>
 
 ---
 
-## 6. 📊 Entity Mapping across Crove Ecosystem Schemas
+## 7. 📊 Entity Mapping across Crove Ecosystem Schemas
 
 | DOS.Me (`public`) | Crove Post (`post`) | Crove CRM (`core`) | Crove Sign (`sign`) | Crove Cal (`cal`) |
 | :--- | :--- | :--- | :--- | :--- |

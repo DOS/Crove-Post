@@ -1,0 +1,78 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "crove-sso",
+  "account_id": "5f2a58925e790423dfafa0e6bee46b28",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-13",
+  "compatibility_flags": ["nodejs_compat"],
+  "routes": [
+    {
+      "pattern": "sso.crove.com",
+      "custom_domain": true
+    }
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "OAUTH_STATE",
+        "class_name": "OAuthStateStore"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["OAuthStateStore"]
+    }
+  ],
+  "vars": {
+    "UPSTREAM_AUTHORIZE_URL": "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/authorize",
+    "UPSTREAM_TOKEN_URL": "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/token",
+    "UPSTREAM_USERINFO_URL": "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/userinfo",
+    "UPSTREAM_REDIRECT_URI": "https://sso.crove.com/callback",
+    "UPSTREAM_CLIENT_ID": "18790ccb-4d71-48cd-ad24-aee5f3ced3da",
+    "DOWNSTREAM_REDIRECT_URI": "https://post.crove.com/settings",
+    "DOWNSTREAM_CLIENT_ID": "crove-postiz",
+    "DOWNSTREAM_CLIENT_SECRET": "bridge-secret-value",
+    "ALLOWED_SCOPE": "openid profile email"
+  },
+    "env": {
+    "beta": {
+      "name": "crove-sso-beta",
+      "routes": [
+        {
+          "pattern": "beta-sso.crove.com",
+          "custom_domain": true
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "OAUTH_STATE",
+            "class_name": "OAuthStateStore"
+          }
+        ]
+      },
+      "migrations": [
+        {
+          "tag": "v1",
+          "new_sqlite_classes": ["OAuthStateStore"]
+        }
+      ],
+      "vars": {
+        "UPSTREAM_AUTHORIZE_URL": "https://oyajkbadsykigtfrpdpg.supabase.co/auth/v1/oauth/authorize",
+        "UPSTREAM_TOKEN_URL": "https://oyajkbadsykigtfrpdpg.supabase.co/auth/v1/oauth/token",
+        "UPSTREAM_USERINFO_URL": "https://oyajkbadsykigtfrpdpg.supabase.co/auth/v1/oauth/userinfo",
+        "UPSTREAM_REDIRECT_URI": "https://beta-sso.crove.com/callback",
+        "UPSTREAM_CLIENT_ID": "7ef5e5f1-68e6-42a7-901e-1f39e9471d24",
+        "DOWNSTREAM_REDIRECT_URI": "https://beta-post.crove.com/settings",
+        "DOWNSTREAM_CLIENT_ID": "crove-postiz",
+        "DOWNSTREAM_CLIENT_SECRET": "bridge-secret-value",
+        "ALLOWED_SCOPE": "openid profile email"
+      }
+    }
+  }
+}

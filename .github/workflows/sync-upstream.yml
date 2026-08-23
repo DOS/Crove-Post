@@ -1,0 +1,85 @@
+name: "Sync Upstream Postiz"
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # Run daily at 03:00 UTC
+  workflow_dispatch:
+    inputs:
+      auto_merge:
+        description: "Auto merge into dev if no conflicts"
+        required: false
+        default: "false"
+        type: boolean
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync-upstream:
+    name: "Fetch & Sync Upstream Releases"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Git Credentials
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add Upstream Remote & Fetch
+        run: |
+          git remote add upstream https://github.com/gitroomhq/postiz-app.git || true
+          git fetch upstream main --tags
+
+      - name: Check Commits and Prepare Sync Branch
+        id: sync
+        run: |
+          COMMITS_BEHIND=$(git rev-list --count origin/main..upstream/main)
+          echo "Commits behind upstream: $COMMITS_BEHIND"
+
+          if [ "$COMMITS_BEHIND" -gt 0 ]; then
+            BRANCH_NAME="upstream-sync-$(date +%Y%m%d)"
+            git checkout -b "$BRANCH_NAME" origin/main
+            git merge upstream/main -m "chore(sync): automated sync with upstream main" --no-edit || {
+              echo "Merge conflict detected. Please resolve manually."
+              exit 1
+            }
+            git push -u origin "$BRANCH_NAME" -f
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            echo "branch_name=$BRANCH_NAME" >> "$GITHUB_OUTPUT"
+          else
+            echo "Already up-to-date with upstream."
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Node.js & PNPM
+        if: steps.sync.outputs.has_changes == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup PNPM
+        if: steps.sync.outputs.has_changes == 'true'
+        uses: pnpm/action-setup@v4
+
+      - name: Run Branding Guard on Synced Code
+        if: steps.sync.outputs.has_changes == 'true'
+        run: |
+          pnpm install --frozen-lockfile=false
+          npx tsx scripts/branding-guard.ts
+
+      - name: Create Pull Request
+        if: steps.sync.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create \
+            --title "chore: sync with upstream Postiz ($(date +%Y-%m-%d))" \
+            --body "Automated synchronization with upstream \`gitroomhq/postiz-app\` main branch. Branding guard tests verified." \
+            --head "${{ steps.sync.outputs.branch_name }}" \
+            --base main || echo "PR might already exist"

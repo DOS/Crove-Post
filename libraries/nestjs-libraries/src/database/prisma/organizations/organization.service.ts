@@ -195,4 +195,28 @@ export class OrganizationService {
       shortlink
     );
   }
+
+  async createOrgForExistingUser(
+    userId: string,
+    orgName: string,
+    role: 'SUPERADMIN' | 'ADMIN' | 'USER' = 'SUPERADMIN'
+  ) {
+    return this._organizationRepository.createOrgForExistingUser(
+      userId,
+      orgName,
+      role
+    );
+  }
+
+  async updateOrganizationName(orgId: string, name: string) {
+    return this._organizationRepository.updateOrganizationName(orgId, name);
+  }
+
+  async deleteOrganization(orgId: string) {
+    return this._organizationRepository.deleteOrganization(orgId);
+  }
+
+  async findOrgByName(name: string) {
+    return this._organizationRepository.findOrgByName(name);
+  }
 }

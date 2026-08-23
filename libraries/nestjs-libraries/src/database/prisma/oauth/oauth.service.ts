@@ -393,4 +393,31 @@ export class OAuthService {
     await this._oauthRepository.revokeAuthorization(userId, authId);
     return { success: true };
   }
+
+  async revokeToken(token: string) {
+    if (!token) {
+      return { success: false };
+    }
+    const encrypted = AuthService.fixedEncryption(token);
+    const auth = await this._oauthRepository.findByAccessToken(encrypted);
+    if (auth) {
+      await this._oauthRepository.revokeAuthorization(auth.userId, auth.id);
+    }
+    return { success: true };
+  }
+
+  async createPlatformApp(data: {
+    name: string;
+    description?: string;
+    redirectUrl: string;
+    redirectUris?: string[];
+    clientId: string;
+    clientSecret: string;
+  }) {
+    const encryptedSecret = AuthService.fixedEncryption(data.clientSecret);
+    return this._oauthRepository.createPlatformApp({
+      ...data,
+      clientSecret: encryptedSecret,
+    });
+  }
 }

@@ -75,7 +75,13 @@ export class OauthProvider extends AuthProviderAbstract {
     return access_token;
   }
 
-  async getUser(access_token: string): Promise<{ email: string; id: string }> {
+  async getUser(access_token: string): Promise<{
+    email: string;
+    id: string;
+    name?: string;
+    picture?: string;
+    organizations?: Array<{ id: string; name: string; role?: 'OWNER' | 'ADMIN' | 'MEMBER' }>;
+  }> {
     const { userInfoUrl } = this.getConfig();
     const response = await fetch(`${userInfoUrl}`, {
       headers: {
@@ -89,7 +95,13 @@ export class OauthProvider extends AuthProviderAbstract {
       throw new Error(`User info request failed: ${error}`);
     }
 
-    const { email, sub: id } = await response.json();
-    return { email, id };
+    const payload = await response.json();
+    return {
+      email: payload.email,
+      id: payload.sub || payload.id,
+      name: payload.name || payload.full_name || payload.user_metadata?.name || payload.user_metadata?.full_name,
+      picture: payload.picture || payload.avatar_url || payload.user_metadata?.picture || payload.user_metadata?.avatar_url,
+      organizations: payload.organizations || payload.user_metadata?.organizations || [],
+    };
   }
 }

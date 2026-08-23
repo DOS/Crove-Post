@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/nestjs';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
 import { capitalize } from 'lodash';
+import { getBrandConfig } from '@gitroom/helpers/utils/brand.config';
 
 export const setSentryUserContext = (params: {
   userId?: string;
@@ -31,11 +32,13 @@ export const initializeSentry = (appName: string, allowLogs = false) => {
   }
 
   try {
+    const brand = getBrandConfig();
     Sentry.init({
       initialScope: {
         tags: {
           service: appName,
           component: 'nestjs',
+          brand: brand.name,
         },
         contexts: {
           app: {

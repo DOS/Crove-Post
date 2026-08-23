@@ -80,6 +80,51 @@ export class OAuthRepository {
     });
   }
 
+  async createPlatformApp(data: {
+    name: string;
+    description?: string;
+    redirectUrl: string;
+    redirectUris?: string[];
+    clientId: string;
+    clientSecret: string;
+  }) {
+    const existing = await this._oauthApp.model.oAuthApp.findFirst({
+      where: {
+        clientId: data.clientId,
+      },
+    });
+
+    const redirectUris = data.redirectUris
+      ? JSON.stringify(data.redirectUris)
+      : JSON.stringify([data.redirectUrl]);
+
+    if (existing) {
+      return this._oauthApp.model.oAuthApp.update({
+        where: { id: existing.id },
+        data: {
+          name: data.name,
+          description: data.description,
+          redirectUrl: data.redirectUrl,
+          redirectUris,
+          clientSecret: data.clientSecret,
+          deletedAt: null,
+        },
+      });
+    }
+
+    return this._oauthApp.model.oAuthApp.create({
+      data: {
+        name: data.name,
+        description: data.description,
+        redirectUrl: data.redirectUrl,
+        redirectUris,
+        clientId: data.clientId,
+        clientSecret: data.clientSecret,
+        dynamic: false,
+      },
+    });
+  }
+
   // Dynamic clients register before the consent screen, so abandoned flows
   // leave orphan rows; prune the ones no user ever authorized
   deleteStaleDynamicApps(olderThan: Date) {

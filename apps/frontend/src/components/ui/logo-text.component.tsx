@@ -1,6 +1,49 @@
-import React from 'react';
+'use client';
+
+import React, { useState } from 'react';
+import { useVariables } from '@gitroom/react/helpers/variable.context';
 
 export const LogoTextComponent = () => {
+  const { brandConfig } = useVariables();
+  const [imgError, setImgError] = useState(false);
+
+  const logoUrl = brandConfig?.logoDarkUrl || brandConfig?.logoUrl;
+  const isCustom = brandConfig?.isCustomBrand;
+
+  if (logoUrl && !imgError) {
+    return (
+      <div className="flex items-center gap-3">
+        <img
+          src={logoUrl}
+          alt={brandConfig?.name || 'Brand Logo'}
+          height={33}
+          className="h-[33px] max-w-[200px] object-contain"
+          onError={() => setImgError(true)}
+        />
+      </div>
+    );
+  }
+
+  if (isCustom) {
+    const brandName = brandConfig?.name || 'Crove';
+    const initial = (brandConfig?.shortName || brandName).charAt(0).toUpperCase();
+    const primaryColor = brandConfig?.primaryColor || '#612BD3';
+
+    return (
+      <div className="flex items-center gap-3 select-none">
+        <div
+          className="w-[34px] h-[34px] rounded-lg flex items-center justify-center font-bold text-white shadow-sm text-[18px]"
+          style={{ backgroundColor: primaryColor }}
+        >
+          {initial}
+        </div>
+        <span className="text-[24px] font-bold tracking-tight text-white">
+          {brandName}
+        </span>
+      </div>
+    );
+  }
+
   return (
     <svg
       width="101"

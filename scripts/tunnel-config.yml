@@ -1,0 +1,56 @@
+# ==============================================================================
+# CLOUDFLARE TUNNEL CONFIGURATION (scripts/tunnel-config.yml)
+# Tunnel ID: 41d183ca-1507-4092-a2e5-a5bd988282ee
+# Routes:
+#   - app.crove.com        -> Postiz App (Prod)
+#   - crove.com            -> Crove Landing Page (Prod)
+#   - www.crove.com        -> Crove Landing Page (Prod)
+#   - beta-app.crove.com   -> Postiz App (Beta)
+#   - beta.crove.com       -> Crove Landing Page (Beta)
+# ==============================================================================
+
+tunnel: 41d183ca-1507-4092-a2e5-a5bd988282ee
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  # 1. Production App Dashboard (Postiz)
+  - hostname: post.crove.com
+    service: http://postiz:5000
+    originRequest:
+      httpHostHeader: post.crove.com
+
+  - hostname: app.crove.com
+    service: http://postiz:5000
+    originRequest:
+      httpHostHeader: post.crove.com
+
+  # 2. Production Landing Page
+  - hostname: crove.com
+    service: http://crove-web:3000
+    originRequest:
+      httpHostHeader: crove.com
+
+  - hostname: www.crove.com
+    service: http://crove-web:3000
+    originRequest:
+      httpHostHeader: www.crove.com
+
+  # 3. Beta App Dashboard
+  - hostname: beta-post.crove.com
+    service: http://postiz-beta:5000
+    originRequest:
+      httpHostHeader: beta-post.crove.com
+
+  - hostname: beta-app.crove.com
+    service: http://postiz-beta:5000
+    originRequest:
+      httpHostHeader: beta-post.crove.com
+
+  # 4. Beta Landing Page
+  - hostname: beta.crove.com
+    service: http://crove-web-beta:3000
+    originRequest:
+      httpHostHeader: beta.crove.com
+
+  # Fallback 404
+  - service: http_status:404

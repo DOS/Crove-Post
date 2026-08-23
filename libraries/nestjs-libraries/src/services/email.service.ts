@@ -5,6 +5,7 @@ import { EmptyProvider } from '@gitroom/nestjs-libraries/emails/empty.provider';
 import { NodeMailerProvider } from '@gitroom/nestjs-libraries/emails/node.mailer.provider';
 import { TemporalService } from 'nestjs-temporal-core';
 import { timer } from '@gitroom/helpers/utils/timer';
+import { getBrandConfig } from '@gitroom/helpers/utils/brand.config';
 
 @Injectable()
 export class EmailService {
@@ -63,12 +64,20 @@ export class EmailService {
       return;
     }
 
-    if (!process.env.EMAIL_FROM_ADDRESS || !process.env.EMAIL_FROM_NAME) {
+    const brand = getBrandConfig();
+    const fromName = process.env.EMAIL_FROM_NAME || brand.name;
+    const fromAddress = process.env.EMAIL_FROM_ADDRESS || `notifications@${brand.defaultEmailDomain}`;
+
+    if (!fromAddress || !fromName) {
       console.log(
         'Email sender information not found in environment variables'
       );
       return;
     }
+
+    const logoHtml = brand.emailLogoUrl
+      ? `<div style="margin-bottom: 1.5rem;"><img src="${brand.emailLogoUrl}" alt="${brand.name}" style="max-height: 40px; max-width: 200px; object-fit: contain;" /></div>`
+      : '';
 
     const modifiedHtml = `
     <div style="
@@ -77,9 +86,10 @@ export class EmailService {
         align-items: center;
         justify-content: center;
         padding: 2rem;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     ">
         <div style="
-            background-color: rgba(255, 255, 255, 0.9);
+            background-color: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(4px);
             border-radius: 0.5rem;
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
@@ -87,6 +97,7 @@ export class EmailService {
             width: 100%;
             padding: 2rem;
         ">
+            ${logoHtml}
             <h1 style="
                 font-size: 1.875rem;
                 font-weight: bold;
@@ -98,6 +109,7 @@ export class EmailService {
             <div style="
                 margin-bottom: 2rem;
                 color: #374151;
+                line-height: 1.6;
             ">
                 ${html}
             </div>
@@ -114,9 +126,9 @@ export class EmailService {
                         font-weight: 600;
                         color: #1f2937;
                         margin: 0;
-                    ">${process.env.EMAIL_FROM_NAME}</h2>
-                    <div style="font-size: 12px">
-                      You can change your notification preferences in your <a href="${process.env.FRONTEND_URL}/settings">account settings.</a>
+                    ">${fromName}</h2>
+                    <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">
+                      You can change your notification preferences in your <a href="${process.env.FRONTEND_URL}/settings" style="color: #4f46e5;">account settings.</a>
                      </div>
                 </div>
             </div>
@@ -131,8 +143,8 @@ export class EmailService {
           to,
           subject,
           modifiedHtml,
-          process.env.EMAIL_FROM_NAME,
-          process.env.EMAIL_FROM_ADDRESS,
+          fromName,
+          fromAddress,
           replyTo
         );
         console.log(sends);

@@ -1,8 +1,9 @@
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
+import { getBrandNameServerSide } from '@gitroom/helpers/utils/is.general.server.side';
 
 export const metadata: Metadata = {
-  title: 'Postiz - Agent',
+  title: `${getBrandNameServerSide()} - Agent`,
   description: '',
 };
 

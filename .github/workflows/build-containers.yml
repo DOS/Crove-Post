@@ -1,25 +1,66 @@
 ---
-name: "Build Containers"
+name: "Build & Publish Crove Containers"
 
 on:
   workflow_dispatch:
+    inputs:
+      tag_latest:
+        description: "Tag as latest"
+        required: false
+        type: boolean
+        default: true
   push:
+    branches:
+      - main
+      - dev
     tags:
-      - '*'
+      - 'v*'
+      - '*.*.*'
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
 
 jobs:
-  build-containers-common:
+  prepare:
     runs-on: ubuntu-latest
     outputs:
-      containerver: ${{ steps.getcontainerver.outputs.containerver }}
+      image_name: ${{ steps.vars.outputs.image_name }}
+      version: ${{ steps.vars.outputs.version }}
+      is_tag: ${{ steps.vars.outputs.is_tag }}
+      is_main: ${{ steps.vars.outputs.is_main }}
     steps:
-      - name: Get Container Version
-        id: getcontainerver
+      - name: Compute Variables
+        id: vars
         run: |
-          echo "containerver=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          # Lowercase repository owner for GHCR compatibility
+          REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          IMAGE_NAME="ghcr.io/${REPO_OWNER}/crove-app"
+          echo "image_name=${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
+          
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            VERSION="${{ github.ref_name }}"
+            echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "is_tag=true" >> "$GITHUB_OUTPUT"
+          else
+            SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+            REF_NAME=$(echo "${{ github.ref_name }}" | tr '/' '-')
+            VERSION="${REF_NAME}-${SHORT_SHA}"
+            echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "is_tag=false" >> "$GITHUB_OUTPUT"
+          fi
+          
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "is_main=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_main=false" >> "$GITHUB_OUTPUT"
+          fi
 
   build-containers:
-    needs: build-containers-common
+    needs: prepare
     strategy:
       matrix:
         include:
@@ -29,75 +70,110 @@ jobs:
             arch: arm64
     runs-on: ${{ matrix.runnertags }}
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - name: Setup Node.js & PNPM
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4
+
+      - name: Install Root Dependencies for Guard Validation
+        run: |
+          pnpm install --frozen-lockfile=false
+
+      - name: Verify Branding Guard Before Build
+        run: |
+          npx tsx scripts/branding-guard.ts
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to ghcr
+      - name: Login to GitHub Container Registry (GHCR)
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ github.token }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Push Image
+      - name: Build and Push Architecture Image
         env:
-          CONTAINERVER: ${{ needs.build-containers-common.outputs.containerver }}
-          NEXT_PUBLIC_VERSION: ${{ github.ref_name }}
+          IMAGE_NAME: ${{ needs.prepare.outputs.image_name }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          ARCH: ${{ matrix.arch }}
         run: |
-          docker buildx build --platform linux/${{ matrix.arch }} \
+          echo "Building ${IMAGE_NAME}:${VERSION}-${ARCH} on $(uname -m)"
+          docker buildx build \
+            --platform linux/${ARCH} \
             -f Dockerfile.dev \
-            -t ghcr.io/gitroomhq/postiz-app:${{ env.CONTAINERVER }}-${{ matrix.arch }} \
-            --build-arg NEXT_PUBLIC_VERSION=${{ env.NEXT_PUBLIC_VERSION }} \
+            -t ${IMAGE_NAME}:${VERSION}-${ARCH} \
+            --build-arg NEXT_PUBLIC_VERSION=${{ github.ref_name }} \
             --pull \
             --no-cache \
-            --provenance=false --sbom=false \
-            --output "type=registry,name=ghcr.io/gitroomhq/postiz-app:${{ env.CONTAINERVER }}-${{ matrix.arch }}" .
+            --provenance=false \
+            --sbom=false \
+            --output "type=registry,name=${IMAGE_NAME}:${VERSION}-${ARCH}" .
 
-  build-container-manifest:
-    needs: [build-containers, build-containers-common]
+  build-manifest:
+    needs: [prepare, build-containers]
     runs-on: ubuntu-latest
     steps:
-      - name: Login to ghcr
+      - name: Login to GitHub Container Registry (GHCR)
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ github.token }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create Docker Manifest
+      - name: Create and Push Multi-Arch Docker Manifests
         env:
-          CONTAINERVER: ${{ needs.build-containers-common.outputs.containerver }}
+          IMAGE_NAME: ${{ needs.prepare.outputs.image_name }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          IS_TAG: ${{ needs.prepare.outputs.is_tag }}
+          IS_MAIN: ${{ needs.prepare.outputs.is_main }}
+          BRANCH: ${{ github.ref_name }}
         run: |
-          # Verify the architecture images
-          echo "Verifying AMD64 image:"
-          docker buildx imagetools inspect ghcr.io/gitroomhq/postiz-app:${{ env.CONTAINERVER }}-amd64
+          echo "Inspecting AMD64 image: ${IMAGE_NAME}:${VERSION}-amd64"
+          docker buildx imagetools inspect ${IMAGE_NAME}:${VERSION}-amd64
           
-          echo "Verifying ARM64 image:"
-          docker buildx imagetools inspect ghcr.io/gitroomhq/postiz-app:${{ env.CONTAINERVER }}-arm64
-          
-          # Try to remove any existing manifests first
-          docker manifest rm ghcr.io/gitroomhq/postiz-app:${{ env.CONTAINERVER }} || true
-          docker manifest rm ghcr.io/gitroomhq/postiz-app:latest || true
-          
-          # Create and push the version-specific manifest
-          docker manifest create ghcr.io/gitroomhq/postiz-app:${{ env.CONTAINERVER }} \
-            --amend ghcr.io/gitroomhq/postiz-app:${{ env.CONTAINERVER }}-amd64 \
-            --amend ghcr.io/gitroomhq/postiz-app:${{ env.CONTAINERVER }}-arm64
+          echo "Inspecting ARM64 image: ${IMAGE_NAME}:${VERSION}-arm64"
+          docker buildx imagetools inspect ${IMAGE_NAME}:${VERSION}-arm64
 
-          docker manifest push ghcr.io/gitroomhq/postiz-app:${{ env.CONTAINERVER }}
+          # 1. Push Version-specific manifest
+          docker manifest rm ${IMAGE_NAME}:${VERSION} 2>/dev/null || true
+          docker manifest create ${IMAGE_NAME}:${VERSION} \
+            --amend ${IMAGE_NAME}:${VERSION}-amd64 \
+            --amend ${IMAGE_NAME}:${VERSION}-arm64
+          docker manifest push ${IMAGE_NAME}:${VERSION}
 
-          # Create and push the latest manifest
-          docker manifest create ghcr.io/gitroomhq/postiz-app:latest \
-            --amend ghcr.io/gitroomhq/postiz-app:${{ env.CONTAINERVER }}-amd64 \
-            --amend ghcr.io/gitroomhq/postiz-app:${{ env.CONTAINERVER }}-arm64
+          # 2. If main branch or tagged release, also push :latest
+          if [ "${IS_MAIN}" = "true" ] || [ "${IS_TAG}" = "true" ]; then
+            docker manifest rm ${IMAGE_NAME}:latest 2>/dev/null || true
+            docker manifest create ${IMAGE_NAME}:latest \
+              --amend ${IMAGE_NAME}:${VERSION}-amd64 \
+              --amend ${IMAGE_NAME}:${VERSION}-arm64
+            docker manifest push ${IMAGE_NAME}:latest
+            echo "Pushed ${IMAGE_NAME}:latest"
+          fi
 
-          docker manifest push ghcr.io/gitroomhq/postiz-app:latest
+          # 3. If dev branch, also push :dev
+          if [ "${BRANCH}" = "dev" ]; then
+            docker manifest rm ${IMAGE_NAME}:dev 2>/dev/null || true
+            docker manifest create ${IMAGE_NAME}:dev \
+              --amend ${IMAGE_NAME}:${VERSION}-amd64 \
+              --amend ${IMAGE_NAME}:${VERSION}-arm64
+            docker manifest push ${IMAGE_NAME}:dev
+            echo "Pushed ${IMAGE_NAME}:dev"
+          fi
 
-      - name: Verify Manifest
+      - name: Verify Final Manifest
+        env:
+          IMAGE_NAME: ${{ needs.prepare.outputs.image_name }}
+          VERSION: ${{ needs.prepare.outputs.version }}
         run: |
-          docker manifest inspect ghcr.io/gitroomhq/postiz-app:latest
+          docker manifest inspect ${IMAGE_NAME}:${VERSION}

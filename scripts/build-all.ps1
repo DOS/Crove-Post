@@ -1,8 +1,8 @@
 <#
 .SYNOPSIS
-    Kiểm tra và Build toàn bộ các ứng dụng trong monorepo Crove.
+    Automated build and test for all applications in Crove monorepo.
 .DESCRIPTION
-    Tự động hóa build song song / tuần tự cho:
+    Automates parallel/sequential builds for:
     - apps/web (Landing page Next.js)
     - apps/frontend (App Dashboard Next.js)
     - apps/backend (API NestJS)
@@ -21,12 +21,12 @@ Write-Host "==========================================================" -Foregro
 # 1. Build & Test SSO Worker
 Write-Host "`n[1/4] Build & Test Cloudflare Worker SSO (@crove/sso)..." -ForegroundColor Green
 pnpm --filter @crove/sso test
-if ($LASTEXITCODE -ne 0) { Write-Error "SSO Test thất bại!"; exit 1 }
+if ($LASTEXITCODE -ne 0) { Write-Error "SSO Test failed!"; exit 1 }
 
 # 2. Build Landing Page
 Write-Host "`n[2/4] Build Landing Page (@crove/web)..." -ForegroundColor Green
 pnpm --filter @crove/web run build
-if ($LASTEXITCODE -ne 0) { Write-Error "Web Build thất bại!"; exit 1 }
+if ($LASTEXITCODE -ne 0) { Write-Error "Web Build failed!"; exit 1 }
 
 # 3. Prisma Generate
 Write-Host "`n[3/4] Generate Prisma Client..." -ForegroundColor Green
@@ -37,5 +37,5 @@ Write-Host "`n[4/4] Build Core Backend & Frontend..." -ForegroundColor Green
 pnpm run build
 
 Write-Host "`n==========================================================" -ForegroundColor Green
-Write-Host "  TẤT CẢ CÁC APP ĐÃ BUILD THÀNH CÔNG!" -ForegroundColor Green
+Write-Host "  ALL APPLICATIONS BUILT SUCCESSFULLY!" -ForegroundColor Green
 Write-Host "==========================================================" -ForegroundColor Green

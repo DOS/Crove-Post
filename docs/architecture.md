@@ -160,15 +160,15 @@ POSTIZ_GENERIC_OAUTH=true
 
 # --- PRODUCTION ENVIRONMENT ---
 POSTIZ_OAUTH_URL=https://api.dos.me
-POSTIZ_OAUTH_AUTH_URL=https://api.dos.me/oauth/authorize
-POSTIZ_OAUTH_TOKEN_URL=https://api.dos.me/oauth/token
-POSTIZ_OAUTH_USERINFO_URL=https://api.dos.me/oauth/userinfo
+POSTIZ_OAUTH_AUTH_URL=https://api.dos.me/sso/authorize
+POSTIZ_OAUTH_TOKEN_URL=https://api.dos.me/sso/token
+POSTIZ_OAUTH_USERINFO_URL=https://api.dos.me/sso/userinfo
 
 # --- BETA ENVIRONMENT ---
 # POSTIZ_OAUTH_URL=https://beta-api.dos.me
-# POSTIZ_OAUTH_AUTH_URL=https://beta-api.dos.me/oauth/authorize
-# POSTIZ_OAUTH_TOKEN_URL=https://beta-api.dos.me/oauth/token
-# POSTIZ_OAUTH_USERINFO_URL=https://beta-api.dos.me/oauth/userinfo
+# POSTIZ_OAUTH_AUTH_URL=https://beta-api.dos.me/sso/authorize
+# POSTIZ_OAUTH_TOKEN_URL=https://beta-api.dos.me/sso/token
+# POSTIZ_OAUTH_USERINFO_URL=https://beta-api.dos.me/sso/userinfo
 
 POSTIZ_OAUTH_CLIENT_ID=crove-postiz
 POSTIZ_OAUTH_CLIENT_SECRET=<CROVE_POSTIZ_OAUTH_CLIENT_SECRET>

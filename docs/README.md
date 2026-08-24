@@ -11,7 +11,7 @@ Welcome to the official technical documentation for **Crove Post** (the open-sou
 | **[0. Crove OS Architecture Standard (Hybrid Sync & Unified SSO)](./architecture.md)** | Technical specification for Crove OS ecosystem: Two-phase Hybrid Sync (JIT + Webhooks), API-First Delegation (Method 3) for organization creation, and centralized Generic OAuth 2.0 PKCE Bridge on `api.dos.me`. |
 | **[1. Runtime Branding Engine (White-labeling)](./branding.md)** | Configure application branding (Logo, Name, Primary Color, Email Templates, Swagger, MCP) via `BRAND_*` environment variables with zero image rebuilds. |
 | **[2. Upstream Synchronization & CI Guard](./upstream-sync.md)** | Automated synchronization with upstream `gitroomhq/postiz-app` via GitHub Actions and automated contract validation via Branding Guard CI. |
-| **[3. SSO & OAuth 2.1 PKCE Bridge Architecture](./sso-integration.md)** | Single Sign-On bridge connecting Postiz Generic OAuth with DOS ID / Supabase OAuth 2.1 via Cloudflare Workers & Durable Objects. |
+| **[3. SSO Architecture via PKCE Bridge](./sso-architecture.md)** | Single Sign-On bridge connecting satellite apps (Postiz, Twenty CRM, Documenso, Cal.com) with DOS ID / Supabase OAuth 2.1 via `api.dos.me/sso/callback`. |
 | **[4. First-Party Provisioning API](./first-party-provisioning.md)** | Automated account & workspace provisioning API specification (`/v1/provision`). |
 | **[5. Beta & Production Environments](./beta-environment.md)** | Independent configurations for Production (`crove.com`, `post.crove.com`) and Beta (`beta.crove.com`, `beta-post.crove.com`). |
 | **[6. CI/CD & Deployment Pipeline](./cicd.md)** | GitHub Actions multi-arch container build, branching strategy (dev/main), and automated server deployment. |

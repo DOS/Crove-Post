@@ -111,13 +111,17 @@ To ensure **seamless user experience (staying within the app)** and **absolute d
 
 ## 4. 🔑 Centralized Generic OAuth 2.0 PKCE Bridge (`api.dos.me`)
 
-### 4.1. Edge Proxy Elimination & Centralization
-Previously, Cloudflare Workers (`sso.crove.com` and `beta-sso.crove.com`) were used as stateful intermediaries. All PKCE Bridge functionality is now centralized inside `apps/api` (`api.dos.me` and `beta-api.dos.me`), eliminating external Cloudflare Workers.
+### 4.1. Architecture & Protocol Compatibility
+In the Crove ecosystem, satellite applications differ in their OAuth client capabilities:
+- **Crove Post (Postiz)**: Uses a generic OAuth 2.0 client without native PKCE support (`code_challenge` / `code_verifier`). Because Supabase Auth enforces OAuth 2.1 PKCE, Postiz routes through the **Centralized PKCE Bridge** on `api.dos.me`.
+- **Crove CRM (Twenty), Crove Sign (Documenso), Crove Cal (Cal.com), Crove Desk**: Support native standard OpenID Connect (OIDC) with PKCE out-of-the-box via NextAuth/Passport and can authenticate directly against Supabase Auth.
+
+Previously, Cloudflare Workers were used as stateful intermediaries. All PKCE Bridge functionality for Crove Post is now centralized inside `apps/api` (`api.dos.me` and `beta-api.dos.me`), eliminating external Cloudflare Workers.
 
 ```
 ┌─────────────────────────┐          ┌─────────────────────────┐          ┌─────────────────────────┐
-│   Open Source Client    │          │       api.dos.me        │          │      Supabase Auth      │
-│(Postiz / Twenty / Sign) │          │  (Generic OAuth Bridge) │          │ (OAuth 2.1 Server PKCE) │
+│       Crove Post        │          │       api.dos.me        │          │      Supabase Auth      │
+│    (Postiz - NestJS)    │          │  (Generic OAuth Bridge) │          │ (OAuth 2.1 Server PKCE) │
 └─────────────────────────┘          └─────────────────────────┘          └─────────────────────────┘
              │                                    │                                    │
              │ 1. GET /oauth/authorize (No PKCE)  │                                    │

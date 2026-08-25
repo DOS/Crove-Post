@@ -1,60 +1,61 @@
-# Tài Liệu Kỹ Thuật Dự Án Crove / Postiz
+# Crove Post Technical Documentation
 
-Chào mừng đến với hệ thống tài liệu kỹ thuật chính thức của **Crove** (nền tảng quản lý và lên lịch mạng xã hội đa kênh mã nguồn mở dựa trên Postiz).
+Welcome to the official technical documentation for **Crove Post** (the open-source multi-channel social media scheduler and management platform based on Postiz).
 
 ---
 
-## 📚 Mục Lục Tài Liệu
+## 📚 Documentation Index
 
-| Tài Liệu | Nội Dung Chính |
+| Document | Key Highlights |
 | :--- | :--- |
-| **[1. Runtime Branding Engine (White-labeling)](./branding.md)** | Hướng dẫn cấu hình toàn bộ thương hiệu (Logo, Tên, Màu sắc, Email, Swagger, MCP) qua biến môi trường `BRAND_*` mà không cần rebuild container. |
-| **[2. Tự Động Đồng Bộ Upstream & CI Guard](./upstream-sync.md)** | Quy trình đồng bộ tự động với `gitroomhq/postiz-app` qua GitHub Actions và cơ chế kiểm thử Branding Guard CI. |
-| **[3. Kiến Trúc SSO & OAuth 2.1 PKCE Bridge](./sso-integration.md)** | Thiết kế hệ thống đăng nhập đơn DOS ID / Supabase OAuth 2.1 sử dụng Cloudflare Workers & Durable Objects. |
-| **[4. First-Party Provisioning API](./first-party-provisioning.md)** | Đặc tả API cấp phát tài khoản tự động (`/v1/provision`) phục vụ tích hợp hệ sinh thái. |
-| **[5. Phân Chia Môi Trường Beta & Staging](./beta-environment.md)** | Cấu hình độc lập 2 môi trường Production (`crove.com`, `post.crove.com`) và Beta (`beta.crove.com`, `beta-post.crove.com`). |
-| **[6. Hệ Thống Tự Động Hóa CI/CD](./cicd.md)** | Hướng dẫn toàn bộ pipeline GitHub Actions, phân nhánh dev/main và tự động build/deploy container. |
+| **[0. Crove OS Architecture Standard (Hybrid Sync & Unified SSO)](./architecture.md)** | Technical specification for Crove OS ecosystem: Two-phase Hybrid Sync (JIT + Webhooks), API-First Delegation (Method 3) for organization creation, and centralized Generic OAuth 2.0 PKCE Bridge on `api.dos.me`. |
+| **[1. Runtime Branding Engine (White-labeling)](./branding.md)** | Configure application branding (Logo, Name, Primary Color, Email Templates, Swagger, MCP) via `BRAND_*` environment variables with zero image rebuilds. |
+| **[2. Upstream Synchronization & CI Guard](./upstream-sync.md)** | Automated synchronization with upstream `gitroomhq/postiz-app` via GitHub Actions and automated contract validation via Branding Guard CI. |
+| **[3. SSO Architecture via PKCE Bridge](./sso-architecture.md)** | Single Sign-On bridge connecting satellite apps (Postiz, Twenty CRM, Documenso, Cal.com) with DOS ID / Supabase OAuth 2.1 via `api.dos.me/sso/callback`. |
+| **[4. First-Party Provisioning API](./first-party-provisioning.md)** | Automated account & workspace provisioning API specification (`/v1/provision`). |
+| **[5. Beta & Production Environments](./beta-environment.md)** | Independent configurations for Production (`crove.com`, `post.crove.com`) and Beta (`beta.crove.com`, `beta-post.crove.com`). |
+| **[6. CI/CD & Deployment Pipeline](./cicd.md)** | GitHub Actions multi-arch container build, branching strategy (dev/main), and automated server deployment. |
 
 ---
 
-## 🏗️ Kiến Trúc Hệ Thống
+## 🏗️ System Architecture
 
-Dự án là một **Monorepo (PNPM Workspaces)** với các thành phần chính:
+The project is structured as a **Monorepo (PNPM Workspaces)**:
 
 ```
 ├── apps/
 │   ├── backend/        # NestJS API Server (DTO -> Controller -> Service -> Repository)
-│   ├── orchestrator/   # Temporal Worker (Workflows & Activities cho lịch đăng bài)
+│   ├── orchestrator/   # Temporal Worker (Workflows & Activities for scheduled posting)
 │   ├── frontend/       # Next.js 16 (App Router) + React 19 + Tailwind CSS 3
 │   ├── extension/      # Chrome Extension Manifest V3 (Cookie capture & social bridge)
 │   └── crove-sso/      # Cloudflare Worker SSO Bridge (OAuth 2.1 PKCE)
 ├── libraries/
-│   ├── helpers/        # Tiện ích chung, Brand Config Engine, Fetch utilities
+│   ├── helpers/        # Shared utilities, Brand Config Engine, Fetch wrappers
 │   ├── nestjs-libraries/# 34+ Social Providers, Email, Database Prisma, Mastra MCP
 │   └── react-shared-libraries/ # UI Components, i18n Translations, Sentry
-├── docs/               # Tài liệu kỹ thuật chi tiết
-├── scripts/            # Script kiểm thử và CI guards (branding-guard.ts)
+├── docs/               # Technical specifications and architecture guides
+├── scripts/            # Deployment and testing scripts (branding-guard.ts, PowerShell)
 └── .github/workflows/  # CI/CD Workflows (Build, Sync Upstream, Branding Guard)
 ```
 
 ---
 
-## 🚀 Hướng Dẫn Bắt Đầu Nhanh
+## 🚀 Quick Start
 
-### Chạy Local Development với PNPM
+### Local Development with PNPM
 
 ```powershell
-# 1. Cài đặt dependencies
+# 1. Install dependencies
 pnpm install
 
-# 2. Sinh Prisma Client
+# 2. Generate Prisma Client
 pnpm exec prisma generate --schema=libraries/nestjs-libraries/src/database/prisma/schema.prisma
 
-# 3. Khởi động môi trường dev
+# 3. Start development environment
 pnpm dev
 ```
 
-### Chạy với Docker Compose
+### Running with Docker Compose
 
 ```powershell
 docker compose -f docker-compose.yaml up -d

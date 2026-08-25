@@ -6,7 +6,7 @@
 services:
   postiz:
     # To use custom-built Crove container from GitHub Actions CI/CD:
-    # image: ghcr.io/dos/crove-app:latest
+    # image: ghcr.io/dos/crove-post:latest
     image: ghcr.io/gitroomhq/postiz-app:latest
     container_name: postiz
     restart: always

@@ -43,7 +43,7 @@ export class OauthProvider extends AuthProviderAbstract {
       scope: process.env.POSTIZ_OAUTH_SCOPE || 'openid profile email organizations offline_access',
       response_type: 'code',
       state: query?.state || 'login',
-      redirect_uri: `${frontendUrl}/settings`,
+      redirect_uri: `${frontendUrl}/auth`,
     });
 
     return `${authUrl}?${params.toString()}`;
@@ -62,7 +62,7 @@ export class OauthProvider extends AuthProviderAbstract {
         client_id: clientId,
         client_secret: clientSecret,
         code,
-        redirect_uri: `${frontendUrl}/settings`,
+        redirect_uri: `${frontendUrl}/auth`,
       }),
     });
 

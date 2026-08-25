@@ -32,31 +32,44 @@ type Inputs = {
 export function Register() {
   const getQuery = useSearchParams();
   const fetch = useFetch();
-  const [provider] = useState(getQuery?.get('provider')?.toUpperCase());
+  const [provider] = useState(getQuery?.get('provider')?.toUpperCase() || 'GENERIC');
   const [code, setCode] = useState(getQuery?.get('code') || '');
   const [state] = useState(getQuery?.get('state') || '');
   const [show, setShow] = useState(false);
   useEffect(() => {
-    if (provider && code) {
+    if (code) {
       load();
     }
   }, []);
   const load = useCallback(async () => {
-    const { token } = await (
-      await fetch(`/auth/oauth/${provider?.toUpperCase() || 'LOCAL'}/exists`, {
-        method: 'POST',
-        body: JSON.stringify({
-          code,
-          state,
-        }),
-      })
-    ).json();
-    if (token) {
-      setCode(token);
+    try {
+      const response = await fetch(
+        `/auth/oauth/${provider?.toUpperCase() || 'GENERIC'}/exists`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            code,
+            state,
+          }),
+        }
+      );
+      if (!response.ok) {
+        setShow(true);
+        return;
+      }
+      const data = await response.json();
+      if (data?.token) {
+        setCode(data.token);
+        setShow(true);
+      } else {
+        window.location.href = '/';
+      }
+    } catch (e) {
+      console.error('Failed to verify oauth code:', e);
       setShow(true);
     }
-  }, [provider, code]);
-  if (!code && !provider) {
+  }, [provider, code, state]);
+  if (!code && !getQuery?.get('provider')) {
     return <RegisterAfter token="" provider="LOCAL" />;
   }
   if (!show) {

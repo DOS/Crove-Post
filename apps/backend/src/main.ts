@@ -48,7 +48,11 @@ async function start() {
     },
   });
 
-  await startMcp(app);
+  try {
+    await startMcp(app);
+  } catch (e) {
+    Logger.error('Failed to initialize Mastra MCP server:', e);
+  }
 
   app.useGlobalPipes(
     new ValidationPipe({

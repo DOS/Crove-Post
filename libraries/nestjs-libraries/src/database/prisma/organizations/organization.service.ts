@@ -158,7 +158,10 @@ export class OrganizationService {
     return { added: true };
   }
 
-  async deleteTeamMember(org: Organization, userId: string) {
+  async deleteTeamMember(org: Organization | string, userId: string) {
+    if (typeof org === 'string') {
+      return this._organizationRepository.deleteTeamMember(org, userId);
+    }
     const userOrgs = await this._organizationRepository.getOrgsByUserId(userId);
     const findOrgToDelete = userOrgs.find((orgUser) => orgUser.id === org.id);
     if (!findOrgToDelete) {
@@ -166,8 +169,8 @@ export class OrganizationService {
     }
 
     // @ts-ignore
-    const myRole = org.users[0].role;
-    const userRole = findOrgToDelete.users[0].role;
+    const myRole = org.users?.[0]?.role;
+    const userRole = findOrgToDelete.users?.[0]?.role;
     const myLevel = myRole === 'USER' ? 0 : myRole === 'ADMIN' ? 1 : 2;
     const userLevel = userRole === 'USER' ? 0 : userRole === 'ADMIN' ? 1 : 2;
 

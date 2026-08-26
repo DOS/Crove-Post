@@ -294,3 +294,25 @@ export function verifyEcosystemWebhook(
 }
 ```
 
+### 8.2. Crove Post MCP Tool Names & Aliasing Catalog (Tier 2)
+
+Crove Post exposes high-level MCP tool calling via dual-registration (aliasing), supporting upstream Postiz conventions as well as Crove OS ecosystem conventions (`crove_post.*` and `post.*`):
+
+| Capability | Canonical / Modern Alias | Ecosystem Aliases | Upstream Tool Name |
+| :--- | :--- | :--- | :--- |
+| **Schedule Post** | `schedule_post` | `crove_post_schedule_post`, `post_schedule_post` | `integrationSchedulePostTool` |
+| **List Channels** | `list_channels` | `crove_post_list_channels`, `post_list_channels` | `integrationList` |
+| **List Posts** | `list_posts` | `crove_post_list_posts`, `post_list_posts`, `get_posts` | `postsListTool` |
+| **List Groups** | `list_groups` | `crove_post_list_groups`, `post_list_groups`, `list_customers` | `groupList` |
+| **Update Post Settings** | `update_post_settings` | `crove_post_update_post_settings`, `post_settings` | `postSettingsTool` |
+| **Trigger Channel Sync** | `trigger_integration` | `crove_post_trigger_integration` | `integrationTriggerTool` |
+| **Validate Channel** | `validate_integration` | `crove_post_validate_integration` | `integrationValidationTool` |
+| **Upload Media URL** | `upload_from_url` | `crove_post_upload_from_url` | `uploadFromUrlTool` |
+| **Generate Image** | `generate_image` | `crove_post_generate_image` | `generateImageTool` |
+| **Generate Video** | `generate_video` | `crove_post_generate_video` | `generateVideoTool` |
+| **Video Options** | `generate_video_options` | `crove_post_generate_video_options` | `generateVideoOptions` |
+| **Video Processing** | `video_function` | `crove_post_video_function` | `videoFunctionTool` |
+
+Agents connecting via MCP (e.g. DOSClaw, Cursor, Claude Desktop, ChatGPT) can invoke tools using either convention without breaking changes.
+
+

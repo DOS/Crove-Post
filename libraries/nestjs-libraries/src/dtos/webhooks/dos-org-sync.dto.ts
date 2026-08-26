@@ -27,8 +27,8 @@ export enum DosSyncEvent {
 
 export class DosOrgSyncDataDto {
   @IsString()
-  @IsNotEmpty()
-  org_id: string;
+  @IsOptional()
+  org_id?: string;
 
   @IsString()
   @IsOptional()
@@ -53,15 +53,20 @@ export class DosOrgSyncDataDto {
 
 export class DosOrgSyncDto {
   @IsString()
+  @IsOptional()
+  id?: string;
+
+  @IsString()
   @IsNotEmpty()
-  event: DosSyncEvent;
+  event: string;
 
   @IsString()
   @IsOptional()
   timestamp?: string;
 
   @IsObject()
+  @IsOptional()
   @ValidateNested()
   @Type(() => DosOrgSyncDataDto)
-  data: DosOrgSyncDataDto;
+  data?: DosOrgSyncDataDto;
 }

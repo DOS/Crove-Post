@@ -62,7 +62,9 @@ export class DosOrgSyncWebhookController {
     @Body() payload: DosOrgSyncDto,
     @Headers('x-dos-signature') signature?: string
   ) {
-    const rawBody = typeof req.body === 'string' ? req.body : JSON.stringify(payload);
+    const rawBody =
+      (req as any).rawBody ||
+      (typeof req.body === 'string' ? req.body : JSON.stringify(payload));
     if (!this.verifySignature(rawBody, signature)) {
       throw new HttpException('Invalid webhook signature', HttpStatus.UNAUTHORIZED);
     }

@@ -242,3 +242,55 @@ X-DOS-Signature: sha256=<hex_hmac_sha256_signature>
 | `organizations.id` | `Organization.id` | `workspace.id` | `Organisation.id` | `Team.id` |
 | `organizations.name` | `Organization.name` | `workspace.name` | `Organisation.name` | `Team.name` |
 | `org_members.role` | `UserOrganization.role` | `workspaceMember.role` | `OrganisationMember.role` | `Membership.role` |
+
+---
+
+## 8. 🏗️ 2-Tier Hybrid Architecture Standard
+
+The Crove OS ecosystem adopts a strict **2-Tier Separation of Concerns** between high-performance local database mirrors and deep agentic tool calling:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                           CROVE OS 2-TIER HYBRID ARCHITECTURE                           │
+├──────────────────────────────────────────┬──────────────────────────────────────────────┤
+│ TIER 1: Identity & Entity Data Sync      │ TIER 2: Deep Agentic Business Actions        │
+│ (Companies, Customers, Organizations)    │ (Create Deals, Renewals, Assign Tasks)       │
+├──────────────────────────────────────────┼──────────────────────────────────────────────┤
+│        DATABASE SYNCHRONIZATION          │                 MCP PROTOCOL                 │
+│    (PostgreSQL Mirror / < 5ms Latency)   │      (Model Context Protocol Tool Calling)   │
+│                   │                      │                      │                       │
+│  • Master SSOT: DOS.Me & Twenty CRM      │  • twenty_crm.create_opportunity(...)        │
+│  • Local Mirrors: post.* / desk.*        │  • twenty_crm.get_subscription_status(...)   │
+│  • Bi-directional Webhook Dispatch       │  • twenty_crm.create_task(...)               │
+│  • JIT (Just-In-Time) Sync on Login      │  • crove_sign.get_contracts(...)             │
+│  • Event Ingress: api.dos.me/internal/   │  • Deep business validation & side-effects   │
+│    events/publish                        │                                              │
+└──────────────────────────────────────────┴──────────────────────────────────────────────┘
+```
+
+### 8.1. Webhook Signature Verification Standard
+
+All satellite applications verify inbound events using constant-time HMAC-SHA256 comparison:
+
+```typescript
+import * as crypto from 'crypto';
+
+export function verifyEcosystemWebhook(
+  rawBody: string | Buffer,
+  signatureHeader: string,
+  secret: string
+): boolean {
+  if (!signatureHeader || !secret) return false;
+  const cleanSignature = signatureHeader.replace(/^sha256=/, '').trim();
+  const expected = crypto
+    .createHmac('sha256', secret)
+    .update(rawBody)
+    .digest('hex');
+  if (cleanSignature.length !== expected.length) return false;
+  return crypto.timingSafeEqual(
+    Buffer.from(cleanSignature, 'hex'),
+    Buffer.from(expected, 'hex')
+  );
+}
+```
+

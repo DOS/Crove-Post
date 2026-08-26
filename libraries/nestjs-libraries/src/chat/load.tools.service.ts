@@ -7,6 +7,7 @@ import { array, object, string } from 'zod';
 import { ModuleRef } from '@nestjs/core';
 import { toolList } from '@gitroom/nestjs-libraries/chat/tools/tool.list';
 import dayjs from 'dayjs';
+import { getBrandConfig } from '@gitroom/helpers/utils/brand.config';
 
 export const AgentState = object({
   proverbs: array(string()).default([]),
@@ -22,7 +23,7 @@ export class LoadToolsService {
   constructor(private _moduleRef: ModuleRef) {}
 
   async loadTools() {
-    return (
+    const directTools = (
       await Promise.all<{ name: string; tool: any }>(
         toolList
           .map((p) => this._moduleRef.get(p, { strict: false }))
@@ -38,21 +39,96 @@ export class LoadToolsService {
       }),
       {} as Record<string, any>
     );
+
+    // Provide friendly alias mappings (snake_case and prefixed aliases) for MCP agents (DOSClaw, Claude, Cursor)
+    const aliases: Record<string, string[]> = {
+      integrationSchedulePostTool: [
+        'schedule_post',
+        'crove_post_schedule_post',
+        'post_schedule_post',
+        'postiz_schedule_post',
+      ],
+      integrationList: [
+        'list_channels',
+        'list_integrations',
+        'crove_post_list_channels',
+        'post_list_channels',
+        'postiz_list_channels',
+      ],
+      postsListTool: [
+        'list_posts',
+        'get_posts',
+        'crove_post_list_posts',
+        'post_list_posts',
+        'postiz_list_posts',
+      ],
+      groupList: [
+        'list_groups',
+        'list_customers',
+        'crove_post_list_groups',
+        'post_list_groups',
+      ],
+      postSettingsTool: [
+        'update_post_settings',
+        'post_settings',
+        'crove_post_update_post_settings',
+      ],
+      integrationTriggerTool: [
+        'trigger_integration',
+        'crove_post_trigger_integration',
+      ],
+      integrationValidationTool: [
+        'validate_integration',
+        'crove_post_validate_integration',
+      ],
+      uploadFromUrlTool: [
+        'upload_from_url',
+        'crove_post_upload_from_url',
+      ],
+      generateImageTool: [
+        'generate_image',
+        'crove_post_generate_image',
+      ],
+      generateVideoTool: [
+        'generate_video',
+        'crove_post_generate_video',
+      ],
+      generateVideoOptions: [
+        'generate_video_options',
+        'crove_post_generate_video_options',
+      ],
+      videoFunctionTool: [
+        'video_function',
+        'crove_post_video_function',
+      ],
+    };
+
+    const expandedTools = { ...directTools };
+    for (const [originalName, aliasList] of Object.entries(aliases)) {
+      if (directTools[originalName]) {
+        for (const alias of aliasList) {
+          expandedTools[alias] = directTools[originalName];
+        }
+      }
+    }
+
+    return expandedTools;
   }
 
-  async agent() {
+  async agent(agentId = 'postiz') {
     const tools = await this.loadTools();
+    const brand = getBrandConfig();
     return new Agent({
-      id: 'postiz',
-      name: 'postiz',
-      description: 'Agent that helps schedule and list social media posts for users',
+      id: agentId,
+      name: agentId,
+      description: `Agent that helps schedule and list social media posts for users (${brand.name})`,
       instructions: ({ requestContext }) => {
         const ui: string = requestContext.get('ui' as never);
         return `
       Global information:
         - Date (UTC): ${dayjs().format('YYYY-MM-DD HH:mm:ss')}
 
-      You are an agent that helps manage and schedule social media posts for users, you can:
+      You are an agent that helps manage and schedule social media posts for users (${brand.name}), you can:
         - Schedule posts into the future, or now, adding texts, images and videos
         - List the posts scheduled between two dates (postsListTool)
         - Update the settings of a scheduled post or draft that was not published yet (postSettingsTool)
@@ -81,7 +157,7 @@ export class LoadToolsService {
       - To find or inspect existing posts, use postsListTool with a UTC start and end date - it returns every post scheduled in that window. To cover "all my upcoming posts", pass a wide window starting now.
       - To change the provider settings of an existing post that was not published yet (scheduled or draft), first find it with postsListTool, then use postSettingsTool with the post's id. It only updates the settings - the content and the publish date stay as they are - and only the keys you pass are changed (get them with the integrationSchema tool). Show the user which post and which settings will change and get their confirmation first.
       - Never open the "modal with populated content" to edit an existing post - that modal only CREATES a new post, so using it to edit would duplicate the post. It is only for brand new posts.
-      - You can create, schedule and update posts, but you CANNOT delete posts - there is no delete capability. Never offer to delete a post. If the user asks you to delete one, tell them deletion is a destructive action and they should delete it themselves in the Postiz app (the calendar).
+      - You can create, schedule and update posts, but you CANNOT delete posts - there is no delete capability. Never offer to delete a post. If the user asks you to delete one, tell them deletion is a destructive action and they should delete it themselves in the application (the calendar).
       - Between tools, we will reference things like: [output:name] and [input:name] to set the information right.
       - When outputting a date for the user, make sure it's human readable with time
       - The content of the post, HTML, Each line must be wrapped in <p> here is the possible tags: h1, h2, h3, u, strong, li, ul, p (you can\'t have u and strong together), don't use a "code" box

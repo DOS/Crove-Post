@@ -14,7 +14,9 @@ export class MastraService {
       new Mastra({
         storage: pStore,
         agents: {
-          postiz: await this._loadToolsService.agent(),
+          postiz: await this._loadToolsService.agent('postiz'),
+          crove_post: await this._loadToolsService.agent('crove_post'),
+          post: await this._loadToolsService.agent('post'),
         },
         logger: new ConsoleLogger({
           level: 'info',

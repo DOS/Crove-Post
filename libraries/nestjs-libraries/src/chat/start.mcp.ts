@@ -53,6 +53,14 @@ export const startMcp = async (app: INestApplication) => {
     'generateVideoTool',
     'generateVideoOptions',
     'videoFunctionTool',
+    'generate_image',
+    'generate_video',
+    'generate_video_options',
+    'video_function',
+    'crove_post_generate_image',
+    'crove_post_generate_video',
+    'crove_post_generate_video_options',
+    'crove_post_video_function',
   ];
   const claudeTools = Object.fromEntries(
     Object.entries(tools).filter(([name]) => !claudeHiddenTools.includes(name))
@@ -61,7 +69,11 @@ export const startMcp = async (app: INestApplication) => {
     name: `${brand.name} MCP`,
     version: '1.0.0',
     tools,
-    agents: { postiz: agent },
+    agents: {
+      postiz: agent,
+      crove_post: agent,
+      post: agent,
+    },
   };
 
   const server = new MCPServer(serverConfig);

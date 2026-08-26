@@ -28,7 +28,10 @@ export class DosOrgSyncWebhookController {
   ) {}
 
   private verifySignature(rawBody: string, signatureHeader?: string): boolean {
-    const secret = process.env.DOS_WEBHOOK_SECRET || process.env.JWT_SECRET;
+    const secret =
+      process.env.DOS_SYNC_WEBHOOK_SECRET ||
+      process.env.DOS_WEBHOOK_SECRET ||
+      process.env.JWT_SECRET;
     if (!secret) {
       return true;
     }
@@ -37,16 +40,19 @@ export class DosOrgSyncWebhookController {
       return false;
     }
 
+    const cleanSignature = signatureHeader.replace(/^sha256=/, '').trim();
     const expected = createHmac('sha256', secret)
       .update(rawBody)
       .digest('hex');
 
-    const provided = signatureHeader.replace(/^sha256=/, '');
-    if (provided.length !== expected.length) {
+    if (cleanSignature.length !== expected.length) {
       return false;
     }
 
-    return timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+    return timingSafeEqual(
+      Buffer.from(cleanSignature, 'hex'),
+      Buffer.from(expected, 'hex')
+    );
   }
 
   @Post('/dos-org-sync')
@@ -62,9 +68,9 @@ export class DosOrgSyncWebhookController {
     }
 
     const { event, data } = payload;
-    const { org_id, org_name, user_id, user_email, user_name, role } = data;
+    const { org_id, org_name, user_id, user_email, user_name, role } = data || {};
 
-    let targetOrg = await this._orgService.getOrgById(org_id);
+    let targetOrg = org_id ? await this._orgService.getOrgById(org_id) : null;
     if (!targetOrg && org_name) {
       targetOrg = await this._orgService.findOrgByName(org_name);
     }
@@ -78,13 +84,15 @@ export class DosOrgSyncWebhookController {
     }
 
     switch (event) {
-      case DosSyncEvent.ORG_CREATED: {
+      case DosSyncEvent.ORG_CREATED:
+      case DosSyncEvent.ORGANIZATION_CREATED: {
         if (!targetOrg) {
           if (targetUser) {
             await this._orgService.createOrgForExistingUser(
               targetUser.id,
               org_name || 'Organization',
-              'SUPERADMIN'
+              'SUPERADMIN',
+              org_id
             );
           } else if (user_email) {
             const created = await this._orgService.createOrgAndUser(
@@ -110,21 +118,24 @@ export class DosOrgSyncWebhookController {
         return { success: true, event, status: 'processed' };
       }
 
-      case DosSyncEvent.ORG_UPDATED: {
+      case DosSyncEvent.ORG_UPDATED:
+      case DosSyncEvent.ORGANIZATION_UPDATED: {
         if (targetOrg && org_name) {
           await this._orgService.updateOrganizationName(targetOrg.id, org_name);
         }
         return { success: true, event, status: 'processed' };
       }
 
-      case DosSyncEvent.ORG_DELETED: {
+      case DosSyncEvent.ORG_DELETED:
+      case DosSyncEvent.ORGANIZATION_DELETED: {
         if (targetOrg) {
           await this._orgService.deleteOrganization(targetOrg.id);
         }
         return { success: true, event, status: 'processed' };
       }
 
-      case DosSyncEvent.ORG_MEMBER_ADDED: {
+      case DosSyncEvent.ORG_MEMBER_ADDED:
+      case DosSyncEvent.ORGANIZATION_MEMBER_ADDED: {
         if (targetOrg && targetUser) {
           const appRole = role === 'MEMBER' ? 'USER' : 'ADMIN';
           await this._orgService.addUserToOrg(
@@ -148,6 +159,12 @@ export class DosOrgSyncWebhookController {
               '127.0.0.1',
               'dos-webhook-sync'
             );
+            if (user_name) {
+              await this._userService.changePersonal(
+                created.users[0].user.id,
+                { fullname: user_name, bio: '' }
+              );
+            }
             const appRole = role === 'MEMBER' ? 'USER' : 'ADMIN';
             await this._orgService.addUserToOrg(
               created.users[0].user.id,
@@ -160,10 +177,11 @@ export class DosOrgSyncWebhookController {
         return { success: true, event, status: 'processed' };
       }
 
-      case DosSyncEvent.ORG_MEMBER_REMOVED: {
+      case DosSyncEvent.ORG_MEMBER_REMOVED:
+      case DosSyncEvent.ORGANIZATION_MEMBER_REMOVED: {
         if (targetOrg && targetUser) {
           await this._orgService.deleteTeamMember(
-            targetOrg as any,
+            targetOrg.id,
             targetUser.id
           );
         }

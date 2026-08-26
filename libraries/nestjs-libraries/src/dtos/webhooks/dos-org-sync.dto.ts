@@ -14,6 +14,15 @@ export enum DosSyncEvent {
   ORG_DELETED = 'org.deleted',
   ORG_MEMBER_ADDED = 'org.member_added',
   ORG_MEMBER_REMOVED = 'org.member_removed',
+  ORGANIZATION_CREATED = 'organization.created',
+  ORGANIZATION_UPDATED = 'organization.updated',
+  ORGANIZATION_DELETED = 'organization.deleted',
+  ORGANIZATION_MEMBER_ADDED = 'organization.member.added',
+  ORGANIZATION_MEMBER_REMOVED = 'organization.member.removed',
+  CUSTOMER_CREATED = 'customer.created',
+  CUSTOMER_UPDATED = 'customer.updated',
+  COMPANY_CREATED = 'company.created',
+  COMPANY_UPDATED = 'company.updated',
 }
 
 export class DosOrgSyncDataDto {

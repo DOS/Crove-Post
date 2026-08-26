@@ -218,6 +218,47 @@ export class OrganizationService {
     return this._organizationRepository.deleteOrganization(orgId);
   }
 
+  async createOrgForUser(
+    userId: string,
+    body: { name?: string },
+    userAuthHeader?: string
+  ) {
+    let orgId: string | undefined;
+    let orgName = body.name || 'New Organization';
+
+    // If user is authenticated via DOS ID, delegate creation to api.dos.me (Method 3: Delegated Creation)
+    const apiUrl = process.env.POSTIZ_OAUTH_URL || 'https://api.dos.me';
+    if (userAuthHeader && userAuthHeader.startsWith('Bearer ')) {
+      try {
+        const response = await fetch(`${apiUrl}/organizations`, {
+          method: 'POST',
+          headers: {
+            Authorization: userAuthHeader,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: orgName,
+          }),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data?.id) {
+            orgId = data.id;
+            orgName = data.name || orgName;
+          }
+        }
+      } catch (err) {
+        // Fallback to local creation if remote call fails
+      }
+    }
+
+    return this._organizationRepository.createOrgForUser(userId, orgName, orgId);
+  }
+
+  async getOrganizationName(orgId: string) {
+    return this._organizationRepository.getOrganizationName(orgId);
+  }
+
   async findOrgByName(name: string) {
     return this._organizationRepository.findOrgByName(name);
   }

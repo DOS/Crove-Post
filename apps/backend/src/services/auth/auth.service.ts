@@ -11,6 +11,7 @@ import { NotificationService } from '@gitroom/nestjs-libraries/database/prisma/n
 import { ForgotReturnPasswordDto } from '@gitroom/nestjs-libraries/dtos/auth/forgot-return.password.dto';
 import { EmailService } from '@gitroom/nestjs-libraries/services/email.service';
 import { NewsletterService } from '@gitroom/nestjs-libraries/newsletter/newsletter.service';
+import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 
 @Injectable()
 export class AuthService {
@@ -158,6 +159,28 @@ export class AuthService {
           bio: user.bio || '',
         });
       }
+
+      if (providerUser.organizations && providerUser.organizations.length > 0) {
+        const userOrgs = await this._organizationService.getOrgsByUserId(user.id);
+        const existingOrgIds = new Set(userOrgs.map((o) => o.id));
+
+        for (const orgInfo of providerUser.organizations) {
+          if (!existingOrgIds.has(orgInfo.id)) {
+            const role = orgInfo.role === 'MEMBER' ? 'USER' : 'ADMIN';
+            const orgExists = await this._organizationService.getOrgById(orgInfo.id);
+            if (orgExists) {
+              await this._organizationService
+                .addUserToOrg(user.id, makeId(5), orgInfo.id, role)
+                .catch(() => {});
+            } else {
+              await this._organizationService
+                .createOrgForExistingUser(user.id, orgInfo.name, role === 'ADMIN' ? 'ADMIN' : 'USER', orgInfo.id)
+                .catch(() => {});
+            }
+          }
+        }
+      }
+
       return user;
     }
 
@@ -165,23 +188,56 @@ export class AuthService {
       throw new Error('Registration is disabled');
     }
 
+    const firstOrg = providerUser.organizations && providerUser.organizations[0];
     const companyName =
-      (providerUser.organizations && providerUser.organizations[0]?.name) ||
+      firstOrg?.name ||
       body.company ||
       (providerUser.name ? `${providerUser.name}'s Organization` : providerUser.email.split('@')[0]);
 
-    const create = await this._organizationService.createOrgAndUser(
-      {
-        company: companyName,
-        email: providerUser.email,
-        password: '',
-        provider,
-        providerId: providerUser.id,
-        datafast_visitor_id: body.datafast_visitor_id || '',
-      },
-      ip,
-      userAgent
-    );
+    let create: any;
+    if (firstOrg?.id) {
+      const orgExists = await this._organizationService.getOrgById(firstOrg.id);
+      if (!orgExists) {
+        create = await this._organizationService.createOrgAndUser(
+          {
+            company: companyName,
+            email: providerUser.email,
+            password: '',
+            provider,
+            providerId: providerUser.id,
+            datafast_visitor_id: body.datafast_visitor_id || '',
+          },
+          ip,
+          userAgent
+        );
+      } else {
+        create = await this._organizationService.createOrgAndUser(
+          {
+            company: companyName,
+            email: providerUser.email,
+            password: '',
+            provider,
+            providerId: providerUser.id,
+            datafast_visitor_id: body.datafast_visitor_id || '',
+          },
+          ip,
+          userAgent
+        );
+      }
+    } else {
+      create = await this._organizationService.createOrgAndUser(
+        {
+          company: companyName,
+          email: providerUser.email,
+          password: '',
+          provider,
+          providerId: providerUser.id,
+          datafast_visitor_id: body.datafast_visitor_id || '',
+        },
+        ip,
+        userAgent
+      );
+    }
 
     if (providerUser.name) {
       await this._userService.changePersonal(create.users[0].user.id, {
@@ -194,11 +250,21 @@ export class AuthService {
       for (let i = 1; i < providerUser.organizations.length; i++) {
         const orgInfo = providerUser.organizations[i];
         const role = orgInfo.role === 'MEMBER' ? 'USER' : 'ADMIN';
-        await this._organizationService.createOrgForExistingUser(
-          create.users[0].user.id,
-          orgInfo.name,
-          role
-        ).catch(() => {});
+        const orgExists = await this._organizationService.getOrgById(orgInfo.id);
+        if (orgExists) {
+          await this._organizationService
+            .addUserToOrg(create.users[0].user.id, makeId(5), orgInfo.id, role)
+            .catch(() => {});
+        } else {
+          await this._organizationService
+            .createOrgForExistingUser(
+              create.users[0].user.id,
+              orgInfo.name,
+              role === 'ADMIN' ? 'ADMIN' : 'USER',
+              orgInfo.id
+            )
+            .catch(() => {});
+        }
       }
     }
 

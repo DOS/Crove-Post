@@ -199,12 +199,14 @@ export class OrganizationService {
   async createOrgForExistingUser(
     userId: string,
     orgName: string,
-    role: 'SUPERADMIN' | 'ADMIN' | 'USER' = 'SUPERADMIN'
+    role: 'SUPERADMIN' | 'ADMIN' | 'USER' = 'SUPERADMIN',
+    orgId?: string
   ) {
     return this._organizationRepository.createOrgForExistingUser(
       userId,
       orgName,
-      role
+      role,
+      orgId
     );
   }
 

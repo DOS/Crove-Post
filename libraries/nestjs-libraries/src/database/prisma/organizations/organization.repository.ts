@@ -428,10 +428,12 @@ export class OrganizationRepository {
   async createOrgForExistingUser(
     userId: string,
     orgName: string,
-    role: 'SUPERADMIN' | 'ADMIN' | 'USER' = 'SUPERADMIN'
+    role: 'SUPERADMIN' | 'ADMIN' | 'USER' = 'SUPERADMIN',
+    orgId?: string
   ) {
     return this._organization.model.organization.create({
       data: {
+        ...(orgId ? { id: orgId } : {}),
         name: orgName,
         apiKey: AuthService.fixedEncryption(makeId(20)),
         allowTrial: true,

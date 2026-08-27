@@ -32,11 +32,7 @@ export class DosOrgSyncWebhookController {
       process.env.DOS_SYNC_WEBHOOK_SECRET ||
       process.env.DOS_WEBHOOK_SECRET ||
       process.env.JWT_SECRET;
-    if (!secret) {
-      return true;
-    }
-
-    if (!signatureHeader) {
+    if (!secret || !signatureHeader) {
       return false;
     }
 

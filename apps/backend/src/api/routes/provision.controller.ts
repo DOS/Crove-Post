@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
+import { timingSafeEqual } from 'crypto';
 import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service';
 import { UsersService } from '@gitroom/nestjs-libraries/database/prisma/users/users.service';
 import { AuthService } from '@gitroom/backend/services/auth/auth.service';
@@ -19,6 +20,7 @@ import { getCookieUrlFromDomain } from '@gitroom/helpers/subdomain/subdomain.man
 import { ProvisionUserDto } from '@gitroom/nestjs-libraries/dtos/provision/provision-user.dto';
 import { ConsumeTicketDto } from '@gitroom/nestjs-libraries/dtos/provision/consume-ticket.dto';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
+import { ioRedis } from '@gitroom/nestjs-libraries/redis/redis.service';
 import { Provider } from '@prisma/client';
 
 @ApiTags('Provisioning')
@@ -35,19 +37,24 @@ export class ProvisionController {
       process.env.PROVISIONING_SECRET_KEY ||
       process.env.DOS_PROVISIONING_SECRET ||
       process.env.DOS_SYNC_WEBHOOK_SECRET ||
-      process.env.INTERNAL_API_KEY ||
-      process.env.JWT_SECRET;
+      process.env.INTERNAL_API_KEY;
 
-    if (!secret) {
-      return true;
-    }
-
-    if (!authHeader) {
+    if (!secret || !authHeader) {
       return false;
     }
 
     const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-    return token === secret;
+    if (!token) {
+      return false;
+    }
+
+    const expected = Buffer.from(secret);
+    const provided = Buffer.from(token);
+    if (expected.length !== provided.length) {
+      return false;
+    }
+
+    return timingSafeEqual(provided, expected);
   }
 
   @Post('/provision')
@@ -137,13 +144,23 @@ export class ProvisionController {
       targetOrg = userOrgs[0] || { id: orgId || makeId(10), name: effectiveOrgName };
     }
 
-    // 3. Issue one-time login ticket (valid for 5 minutes)
+    // 3. Issue one-time login ticket (single-use, valid for 5 minutes)
+    const ticketId = makeId(32);
     const ticket = AuthChecker.signJWT({
+      jti: ticketId,
       userId: user.id,
       orgId: targetOrg.id,
       type: 'one_time_ticket',
       exp: Math.floor(Date.now() / 1000) + 300,
     });
+
+    // Store in Redis with 300s TTL for single-use / replay protection
+    await ioRedis.set(
+      `ticket:${ticketId}`,
+      JSON.stringify({ userId: user.id, orgId: targetOrg.id }),
+      'EX',
+      300
+    );
 
     const loginUrl = `${process.env.FRONTEND_URL}/auth/ticket?ticket=${ticket}`;
 
@@ -180,9 +197,20 @@ export class ProvisionController {
       throw new HttpException('Invalid or expired ticket', HttpStatus.BAD_REQUEST);
     }
 
-    if (payload?.type !== 'one_time_ticket' || !payload?.userId) {
+    if (payload?.type !== 'one_time_ticket' || !payload?.userId || !payload?.jti) {
       throw new HttpException('Invalid ticket type', HttpStatus.BAD_REQUEST);
     }
+
+    // Atomic consume & replay protection: verify ticket exists in Redis then delete immediately
+    const ticketKey = `ticket:${payload.jti}`;
+    const storedTicket = await ioRedis.get(ticketKey);
+    if (!storedTicket) {
+      throw new HttpException(
+        'Ticket has already been used or has expired',
+        HttpStatus.BAD_REQUEST
+      );
+    }
+    await ioRedis.del(ticketKey);
 
     const user = await this._userService.getUserById(payload.userId);
     if (!user || !user.activated) {

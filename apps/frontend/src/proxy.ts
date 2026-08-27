@@ -105,8 +105,8 @@ export async function proxy(request: NextRequest) {
     );
   }
 
-  // If the url is /auth and the cookie exists, redirect to /
-  if (nextUrl.pathname.startsWith('/auth') && authCookie) {
+  // If the url is /auth (except ticket consumption) and the cookie exists, redirect to /
+  if (nextUrl.pathname.startsWith('/auth') && !nextUrl.pathname.startsWith('/auth/ticket') && authCookie) {
     return NextResponse.redirect(new URL(`/${url}`, nextUrl.href));
   }
   if (nextUrl.pathname.startsWith('/auth') && !authCookie) {

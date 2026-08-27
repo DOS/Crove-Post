@@ -1,21 +1,21 @@
-# First-Party Provisioning API
+# First-Party Headless Provisioning & One-Time Ticket API
 
-## 1. Mục Đích
-
-Cung cấp API cấp phát tài khoản tự động (`/v1/provision`) cho phép hệ sinh thái dịch vụ của Crove tự động tạo tài khoản người dùng, thiết lập tổ chức mặc định và cấu hình gói thuê bao mà không cần thao tác thủ công trên giao diện.
+## 1. Overview
+Enables zero-friction autonomous connections (e.g. DOSClaw AI agents, ecosystem connectors) to provision local user and workspace projections in Crove Post and receive a one-time authentication ticket without requiring interactive registration or company setup forms.
 
 ---
 
-## 2. Đặc Tả Kỹ Thuật
+## 2. API Specifications
 
-- **Giao thức**: HTTPS REST API
-- **Xác thực**: Bearer Token thông qua khóa bí mật nội bộ (`PROVISIONING_SECRET_KEY`).
-- **Idempotency**: Hỗ trợ gọi nhiều lần cho cùng một người dùng (idempotent create-or-update).
+### 2.1. Headless Provisioning: `POST /v1/provision`
 
-### Endpoint: `POST /v1/provision`
+- **Authentication**: `Authorization: Bearer <PROVISIONING_SECRET_KEY>`
+- **Idempotency**: Idempotent create-or-update based on `userId` (DOS ID) and `orgId`.
 
-#### Headers:
+#### Request Headers:
 ```http
+POST /v1/provision HTTP/1.1
+Host: post.crove.com
 Authorization: Bearer <PROVISIONING_SECRET_KEY>
 Content-Type: application/json
 ```
@@ -23,14 +23,12 @@ Content-Type: application/json
 #### Request Body:
 ```json
 {
-  "userId": "usr_948194812",
-  "email": "user@domain.com",
-  "name": "Nguyen Van A",
-  "orgName": "My Team",
-  "plan": "PRO",
-  "metadata": {
-    "source": "crove-hub"
-  }
+  "userId": "48fc3631-ec8c-4e78-aa98-ec89c1c3624d",
+  "email": "joy@dos.ai",
+  "name": "JOY",
+  "orgId": "ca970340-c49d-4360-90e1-5c9fae597337",
+  "orgName": "Crove Corporation",
+  "role": "SUPERADMIN"
 }
 ```
 
@@ -38,21 +36,42 @@ Content-Type: application/json
 ```json
 {
   "success": true,
+  "ticket": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "loginUrl": "https://post.crove.com/auth/ticket?ticket=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "user": {
-    "id": "usr_948194812",
-    "email": "user@domain.com",
-    "name": "Nguyen Van A"
+    "id": "usr_...",
+    "email": "joy@dos.ai",
+    "name": "JOY"
   },
   "organization": {
-    "id": "org_1928374",
-    "name": "My Team"
+    "id": "ca970340-c49d-4360-90e1-5c9fae597337",
+    "name": "Crove Corporation"
   }
 }
 ```
 
 ---
 
-## 3. Quy Tắc Nghiệp Vụ
-1. Nếu người dùng chưa tồn tại trong cơ sở dữ liệu: Tạo User mới và Organization tương ứng.
-2. Nếu người dùng đã tồn tại: Cập nhật thông tin Profile và kích hoạt quyền truy cập tương ứng với gói thuê bao.
-3. Không làm lộ thông tin mật khẩu hoặc khóa nội bộ trong kết quả trả về.
+### 2.2. Ticket Consumption: `POST /v1/ticket/consume`
+
+- **Endpoint**: `POST /v1/ticket/consume`
+- **Purpose**: Consumes a valid one-time ticket, establishes secure authentication cookies (`auth`, `showorg`), and redirects directly to the target URL (e.g. OAuth authorize consent screen).
+
+#### Request Body:
+```json
+{
+  "ticket": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "redirect_to": "/oauth/authorize?client_id=pca_dosclaw_prod_18790ccb&response_type=code"
+}
+```
+
+#### Response (200 OK):
+```json
+{
+  "success": true,
+  "jwt": "...",
+  "userId": "usr_...",
+  "orgId": "ca970340-c49d-4360-90e1-5c9fae597337",
+  "redirect_to": "/oauth/authorize?client_id=pca_dosclaw_prod_18790ccb&response_type=code"
+}
+```

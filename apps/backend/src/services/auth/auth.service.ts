@@ -423,7 +423,7 @@ export class AuthService {
     return { token };
   }
 
-  private async jwt(user: User) {
+  async jwt(user: User) {
     if (user.password) {
       delete user.password;
     }

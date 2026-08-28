@@ -82,9 +82,9 @@ credentials-file: /etc/cloudflared/credentials.json
 ingress:
   # Production Routes
   - hostname: post.crove.com
-    service: http://postiz:5000
+    service: http://crove-post:5000
   - hostname: app.crove.com
-    service: http://postiz:5000
+    service: http://crove-post:5000
   - hostname: crove.com
     service: http://crove-web:3000
   - hostname: www.crove.com

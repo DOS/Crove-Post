@@ -13,14 +13,14 @@ tunnel: 41d183ca-1507-4092-a2e5-a5bd988282ee
 credentials-file: /etc/cloudflared/credentials.json
 
 ingress:
-  # 1. Production App Dashboard (Postiz)
+  # 1. Production App Dashboard (Crove Post)
   - hostname: post.crove.com
-    service: http://postiz:5000
+    service: http://crove-post:5000
     originRequest:
       httpHostHeader: post.crove.com
 
   - hostname: app.crove.com
-    service: http://postiz:5000
+    service: http://crove-post:5000
     originRequest:
       httpHostHeader: post.crove.com
 

@@ -1,23 +1,24 @@
-<!-- Remember to first apply via [the contribution form](https://contribute.postiz.com/p/postiz) and sign the [CLA](https://contribute.postiz.com/p/postiz/cla) before submitting a PR. -->
-
 # What kind of change does this PR introduce?
 
-eg: Bug fix, feature, docs update, ...
+<!-- [ ] Bug fix | [ ] Feature | [ ] Architecture & Docs | [ ] Refactor | [ ] CI/CD -->
 
 # Why was this change needed?
 
-Please link to related issues when possible, and explain WHY you changed things, not WHAT you changed.
+<!-- Please describe the problem solved or requirement fulfilled, focusing on WHY rather than just WHAT. -->
 
-# Other information:
+# Technical Details & Scope
 
-eg: Did you discuss this change with anybody before working on it (not required, but can be a good idea for bigger changes). Any plans for the future, etc?
+<!-- Summary of changes across backend, frontend, database schema, or infrastructure. -->
+
+# Verification & Testing
+
+<!-- Describe how this change was tested (e.g. Unit tests, Playwright E2E, manual API testing). -->
 
 # Checklist:
 
-Put a "X" in the boxes below to indicate you have followed the checklist;
-
-- [ ] I have read the [CONTRIBUTING](https://github.com/gitroomhq/postiz-app/blob/main/CONTRIBUTING.md) guide.
-- [ ] I have signed the [Contributor License Agreement (CLA)](https://contribute.postiz.com/p/postiz/cla) ([ICLA](https://github.com/gitroomhq/postiz-app/blob/main/ICLA.md) for individuals, [CCLA](https://github.com/gitroomhq/postiz-app/blob/main/CCLA.md) for entities).
-- [ ] I confirm I have not used AI to submit this PR or generate code for it.
-- [ ] I checked that there were no similar issues or PRs already open for this.
-- [ ] This PR fixes just ONE issue
+- [ ] My code follows the project's code style and architectural conventions.
+- [ ] Local build passes (`pnpm run build`).
+- [ ] Branding guard validation passes (`pnpm dlx tsx scripts/branding-guard.ts`).
+- [ ] Tests and typecheck have been verified without errors.
+- [ ] Documentation has been updated (if applicable).
+- [ ] No secrets or sensitive credentials are included in this PR.

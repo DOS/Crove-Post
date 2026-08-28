@@ -1,33 +1,31 @@
 # ==============================================================================
 # CROVE PRODUCTION DOCKER COMPOSE STACK (scripts/docker-compose.prod.yaml)
-# Hosts: app.crove.com (App), crove.com & www.crove.com (Landing Page)
+# Hosts: post.crove.com (App), crove.com & www.crove.com (Landing Page)
 # ==============================================================================
 
 services:
-  postiz:
-    # To use custom-built Crove container from GitHub Actions CI/CD:
-    # image: ghcr.io/dos/crove-post:latest
-    image: ghcr.io/gitroomhq/postiz-app:latest
-    container_name: postiz
+  crove-post:
+    image: ghcr.io/dos/crove-post:latest
+    container_name: crove-post
     restart: always
     env_file:
       - crove-server.env
     volumes:
-      - postiz-config:/config/
-      - postiz-uploads:/uploads/
+      - crove-post-config:/config/
+      - crove-post-uploads:/uploads/
     ports:
       - '127.0.0.1:5000:5000'
     networks:
       - postiz-network
       - temporal-network
     depends_on:
-      postiz-postgres:
+      crove-postgres:
         condition: service_healthy
-      postiz-redis:
+      crove-redis:
         condition: service_healthy
 
   crove-web:
-    image: ghcr.io/gitroomhq/crove-web:latest
+    image: ghcr.io/dos/crove-web:latest
     container_name: crove-web
     restart: always
     environment:
@@ -49,11 +47,11 @@ services:
     networks:
       - postiz-network
     depends_on:
-      - postiz
+      - crove-post
 
-  postiz-postgres:
+  crove-postgres:
     image: postgres:17-alpine
-    container_name: postiz-postgres
+    container_name: crove-postgres
     restart: always
     environment:
       POSTGRES_PASSWORD: postiz-password
@@ -69,9 +67,9 @@ services:
       timeout: 3s
       retries: 3
 
-  postiz-redis:
+  crove-redis:
     image: redis:7.2
-    container_name: postiz-redis
+    container_name: crove-redis
     restart: always
     healthcheck:
       test: redis-cli ping
@@ -79,7 +77,7 @@ services:
       timeout: 3s
       retries: 3
     volumes:
-      - postiz-redis-data:/data
+      - crove-redis-data:/data
     networks:
       - postiz-network
 
@@ -163,11 +161,11 @@ services:
 volumes:
   postgres-volume:
     external: false
-  postiz-redis-data:
+  crove-redis-data:
     external: false
-  postiz-config:
+  crove-post-config:
     external: false
-  postiz-uploads:
+  crove-post-uploads:
     external: false
   temporal-postgres-data:
     external: false

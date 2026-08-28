@@ -161,7 +161,7 @@ jobs:
             echo "Pushed ${IMAGE_NAME}:latest"
           fi
 
-          # 3. If dev branch, also push :dev
+          # 3. If dev branch, also push :dev and :beta
           if [ "${BRANCH}" = "dev" ]; then
             docker manifest rm ${IMAGE_NAME}:dev 2>/dev/null || true
             docker manifest create ${IMAGE_NAME}:dev \
@@ -169,6 +169,13 @@ jobs:
               --amend ${IMAGE_NAME}:${VERSION}-arm64
             docker manifest push ${IMAGE_NAME}:dev
             echo "Pushed ${IMAGE_NAME}:dev"
+
+            docker manifest rm ${IMAGE_NAME}:beta 2>/dev/null || true
+            docker manifest create ${IMAGE_NAME}:beta \
+              --amend ${IMAGE_NAME}:${VERSION}-amd64 \
+              --amend ${IMAGE_NAME}:${VERSION}-arm64
+            docker manifest push ${IMAGE_NAME}:beta
+            echo "Pushed ${IMAGE_NAME}:beta"
           fi
 
       - name: Verify Final Manifest

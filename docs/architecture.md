@@ -152,6 +152,7 @@ Previously, Cloudflare Workers were used as stateful intermediaries. All PKCE Br
 
 ### 4.2. Standard Environment Configuration for Satellite Apps
 
+#### Crove Post (Postiz Bridge Configuration):
 ```env
 # ================================================================
 # CROVE POST (POSTIZ) - CENTRALIZED GENERIC OAUTH 2.0 CONFIG
@@ -175,6 +176,14 @@ POSTIZ_OAUTH_CLIENT_SECRET=<CROVE_POSTIZ_OAUTH_CLIENT_SECRET>
 POSTIZ_OAUTH_SCOPE="openid profile email organizations offline_access"
 NEXT_PUBLIC_POSTIZ_OAUTH_DISPLAY_NAME="DOS ID"
 NEXT_PUBLIC_POSTIZ_OAUTH_LOGO_URL="/icons/generic-oauth.svg"
+```
+
+#### Ecosystem-wide Standard OAuth Parameters (Crove CRM, Desk, Sign):
+```env
+# Standardized naming across other Crove OS apps connecting via Supabase OAuth 2.1:
+CROVE_OAUTH_CLIENT_ID=18790ccb-4d71-48cd-ad24-aee5f3ced3da
+CROVE_OAUTH_CLIENT_SECRET=<CROVE_OAUTH_CLIENT_SECRET>
+# Token Auth Method: client_secret_basic (or client_secret_post)
 ```
 
 ---

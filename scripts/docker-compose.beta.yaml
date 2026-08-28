@@ -4,48 +4,48 @@
 # ==============================================================================
 
 services:
-  postiz-beta:
+  crove-post-beta:
     image: ghcr.io/dos/crove-post:beta
-    container_name: postiz-beta
+    container_name: crove-post-beta
     restart: always
     env_file:
       - crove-server.beta.env
     volumes:
-      - postiz-beta-config:/config/
-      - postiz-beta-uploads:/uploads/
+      - crove-post-beta-config:/config/
+      - crove-post-beta-uploads:/uploads/
     ports:
       - '127.0.0.1:5001:5000'
     networks:
-      - postiz-beta-network
+      - crove-post-beta-network
       - postiz-network
       - temporal-network
     depends_on:
-      postiz-postgres-beta:
+      crove-postgres-beta:
         condition: service_healthy
-      postiz-redis-beta:
+      crove-redis-beta:
         condition: service_healthy
 
-  postiz-postgres-beta:
+  crove-postgres-beta:
     image: postgres:17-alpine
-    container_name: postiz-postgres-beta
+    container_name: crove-postgres-beta
     restart: always
     environment:
       POSTGRES_PASSWORD: postiz-password
       POSTGRES_USER: postiz-user
       POSTGRES_DB: postiz-db-local
     volumes:
-      - postgres-beta-volume:/var/lib/postgresql/data
+      - crove-postgres-beta-volume:/var/lib/postgresql/data
     networks:
-      - postiz-beta-network
+      - crove-post-beta-network
     healthcheck:
       test: pg_isready -U postiz-user -d postiz-db-local
       interval: 10s
       timeout: 3s
       retries: 3
 
-  postiz-redis-beta:
+  crove-redis-beta:
     image: redis:7.2
-    container_name: postiz-redis-beta
+    container_name: crove-redis-beta
     restart: always
     healthcheck:
       test: redis-cli ping
@@ -53,22 +53,22 @@ services:
       timeout: 3s
       retries: 3
     volumes:
-      - postiz-redis-beta-data:/data
+      - crove-redis-beta-data:/data
     networks:
-      - postiz-beta-network
+      - crove-post-beta-network
 
 volumes:
-  postgres-beta-volume:
+  crove-postgres-beta-volume:
     external: false
-  postiz-redis-beta-data:
+  crove-redis-beta-data:
     external: false
-  postiz-beta-config:
+  crove-post-beta-config:
     external: false
-  postiz-beta-uploads:
+  crove-post-beta-uploads:
     external: false
 
 networks:
-  postiz-beta-network:
+  crove-post-beta-network:
     external: false
   postiz-network:
     external: true

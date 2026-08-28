@@ -19,53 +19,54 @@ Tài liệu này mô tả chi tiết kiến trúc phân chia 2 môi trường **
 
 ## 2. Cấu Trúc Docker Compose Môi Trường Beta
 
-Stack Beta chạy độc lập trên máy chủ GCP (`crove-server`), sử dụng mạng Docker `postiz-beta-network` riêng biệt để đảm bảo không xung đột dữ liệu với Production:
+Stack Beta chạy độc lập trên máy chủ GCP (`crove-server`), sử dụng mạng Docker `crove-post-beta-network` riêng biệt để đảm bảo không xung đột dữ liệu với Production:
 
 ```yaml
 services:
-  # 1. Postiz Core App (Beta)
-  postiz-beta:
-    image: ghcr.io/gitroomhq/postiz-app:beta
-    container_name: postiz-beta
+  # 1. Crove Post Core App (Beta)
+  crove-post-beta:
+    image: ghcr.io/dos/crove-post:beta
+    container_name: crove-post-beta
     restart: always
     env_file:
       - crove-server.beta.env
     volumes:
-      - postiz-beta-config:/config/
-      - postiz-beta-uploads:/uploads/
+      - crove-post-beta-config:/config/
+      - crove-post-beta-uploads:/uploads/
     ports:
       - '127.0.0.1:5001:5000'
     networks:
-      - postiz-beta-network
+      - crove-post-beta-network
+      - postiz-network
       - temporal-network
 
   # 2. Crove Landing Page (Beta)
   crove-web-beta:
-    image: ghcr.io/gitroomhq/crove-web:beta
+    image: ghcr.io/dos/crove-web:beta
     container_name: crove-web-beta
     restart: always
     ports:
       - '127.0.0.1:3001:3000'
     networks:
-      - postiz-beta-network
+      - crove-post-beta-network
 
   # 3. PostgreSQL Database (Beta)
-  postiz-postgres-beta:
+  crove-postgres-beta:
     image: postgres:17-alpine
-    container_name: postiz-postgres-beta
+    container_name: crove-postgres-beta
     volumes:
-      - postgres-beta-volume:/var/lib/postgresql/data
+      - crove-postgres-beta-volume:/var/lib/postgresql/data
     networks:
-      - postiz-beta-network
+      - crove-post-beta-network
 
   # 4. Redis Cache (Beta)
-  postiz-redis-beta:
+  crove-redis-beta:
     image: redis:7.2
-    container_name: postiz-redis-beta
+    container_name: crove-redis-beta
     volumes:
-      - postiz-redis-beta-data:/data
+      - crove-redis-beta-data:/data
     networks:
-      - postiz-beta-network
+      - crove-post-beta-network
 ```
 
 ---
@@ -91,9 +92,9 @@ ingress:
 
   # Beta Routes
   - hostname: beta-post.crove.com
-    service: http://postiz-beta:5000
+    service: http://crove-post-beta:5000
   - hostname: beta-app.crove.com
-    service: http://postiz-beta:5000
+    service: http://crove-post-beta:5000
   - hostname: beta.crove.com
     service: http://crove-web-beta:3000
 

@@ -103,3 +103,18 @@ To preserve 100% upstream code compatibility for Postiz, **`api.dos.me`** provid
 | :--- | :--- | :--- |
 | **Production** | `https://api.dos.me/sso/authorize` | `https://api.dos.me/sso/callback` |
 | **Beta** | `https://beta-api.dos.me/sso/authorize` | `https://beta-api.dos.me/sso/callback` |
+
+---
+
+## 5. Crove OAuth App Connection Specifications (Production & SSO Bridge)
+
+For all ecosystem applications (Crove Post, Crove CRM, Crove Desk, Crove Sign) connecting via DOS ID / Supabase OAuth:
+
+| Parameter | Value | Description |
+| :--- | :--- | :--- |
+| **Client ID** | `18790ccb-4d71-48cd-ad24-aee5f3ced3da` | Production OAuth Client ID on Supabase Auth |
+| **Client Secret** | `tQbSNFzbP03onxFrgScOfxYfzbvkjSou-gaPVtHh6fg` | Production Client Secret (stored in GCP Secret Manager) |
+| **Token Auth Method** | `client_secret_basic` (or `client_secret_post`) | HTTP Basic / Post authentication method for token endpoint |
+| **Recommended Env Vars** | `CROVE_OAUTH_CLIENT_ID`<br>`CROVE_OAUTH_CLIENT_SECRET` | Standardized environment variable naming convention across the Crove ecosystem |
+| **Postiz Specific Mapping** | `POSTIZ_OAUTH_CLIENT_ID=crove-postiz`<br>`POSTIZ_OAUTH_CLIENT_SECRET=<CROVE_POSTIZ_OAUTH_CLIENT_SECRET>` | Internal bridge client credentials connecting to `api.dos.me/sso/*` |
+

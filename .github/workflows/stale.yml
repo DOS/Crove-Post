@@ -1,13 +1,13 @@
-name: Close inactive issues
+name: Close Inactive Issues & PRs
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "0 0 * * 0" # Run once a week on Sunday at 00:00 UTC
 
 jobs:
   close-issues:
-    if: github.repository == 'gitroomhq/postiz-app'
+    if: github.repository == 'DOS/Crove-Post'
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -16,18 +16,18 @@ jobs:
       - uses: actions/stale@v9
         with:
           days-before-issue-stale: 90
-          days-before-issue-close: 7
+          days-before-issue-close: 14
           stale-issue-label: "stale"
-          stale-issue-message: "This issue is stale because it has been open for 90 days with no activity."
-          close-issue-message: "This issue was closed because it has been inactive for 7 days since being marked as stale." 
-          exempt-issue-labels: "no-stale-bot"
-          
-          days-before-pr-stale: 90
-          days-before-pr-close: 7
-          stale-pr-label: "stale" 
-          stale-pr-message: "This PR is stale because it has been open for 90 days with no activity."
-          close-pr-message: "This PR was closed because it has been inactive for 7 days since being marked as stale." 
-          exempt-pr-label: "no-stale-bot" 
-          
+          stale-issue-message: "This issue has been automatically marked as stale because it has had no activity for 90 days. It will be closed in 14 days if no further activity occurs."
+          close-issue-message: "This issue was automatically closed due to inactivity."
+          exempt-issue-labels: "no-stale-bot,pinned,security,enhancement"
+
+          days-before-pr-stale: 60
+          days-before-pr-close: 14
+          stale-pr-label: "stale"
+          stale-pr-message: "This PR has been automatically marked as stale because it has had no activity for 60 days. It will be closed in 14 days if no further activity occurs."
+          close-pr-message: "This PR was automatically closed due to inactivity."
+          exempt-pr-label: "no-stale-bot,pinned,work-in-progress"
+
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          operations-per-run: 180
+          operations-per-run: 50

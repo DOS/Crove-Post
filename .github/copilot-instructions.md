@@ -1,116 +1,64 @@
+# Copilot & AI Coding Agent Instructions for Crove Post
 
-# Copilot Coding Agent Instructions for Postiz
-
-## Project Architecture
-- Monorepo managed by NX, with apps in `apps/` and shared code in `libraries/`.
-- Main services: `frontend` (Next.js), `backend` (NestJS), `cron`, `commands`, `extension`, `sdk`, and `workers`.
-- Data layer uses Prisma ORM (`libraries/nestjs-libraries/src/database/prisma/schema.prisma`) with PostgreSQL as the default database.
-- Redis (BullMQ) is used for queues and caching.
-- Email notifications via Resend.
-- Social login integrations (Instagram, Facebook) and Make.com/N8N integrations.
-
-## Developer Workflows
-- Use Node.js 20.17.0 and pnpm 8+.
-- Install dependencies: `pnpm install`
-- Build all apps: `pnpm run build`
-- Run all apps in dev mode: `pnpm run dev`
-- Test: `pnpm test` (Jest, coverage enabled)
-- Individual app scripts are in each app's `package.json` (e.g., `pnpm --filter ./apps/backend run dev`).
-- Prisma DB commands: `pnpm run prisma-generate`, `pnpm run prisma-db-push`, `pnpm run prisma-reset`.
-- Docker: `docker compose -f ./docker-compose.dev.yaml up -d`
-
-## Conventions & Patterns
-- Use conventional commits (`feat:`, `fix:`, `chore:`).
-- PRs should include clear descriptions, related issue links, and UI screenshots/GIFs if relevant.
-- Comments are required for complex logic.
-- Shared code lives in `libraries/` (e.g., helpers, React shared libraries, NestJS modules).
-- Environment variables are managed via `.env` and referenced in Docker and scripts.
-- Make sure to keep the `.env.example` file updated with new environment variables.
-
-## Integration Points
-- External APIs: Social media (Instagram, Facebook), Make.com, N8N, Resend, Stripe, etc.
-- SDK (`apps/sdk`) provides programmatic access to Postiz features.
-- Extension (`apps/extension`) is built with Vite, React, TypeScript, and Tailwind CSS.
-
-## Key Files & Directories
-- `apps/` — Main services and applications
-- `libraries/` — Shared code and modules
-- `docker-compose.dev.yaml` — Local development Docker setup
-- `.env` — Environment configuration
-- `jest.config.ts` — Test configuration
-- `pnpm-workspace.yaml` — Workspace package management
-- `README.md` — General project overview
-- `libraries/nestjs-libraries/src/database/prisma/schema.prisma` — Database schema
-
-## Documentation
-- Main docs: https://docs.postiz.com/
-- Developer guide: https://docs.postiz.com/developer-guide
-- Public API: https://docs.postiz.com/public-api
+## 1. Project Overview & Context
+- **Crove Post** is the open-source social media management and scheduling platform of the **Crove OS** business ecosystem (based on Postiz).
+- Supports scheduling and publishing posts to 28+ channels (LinkedIn, X/Twitter, Facebook, Instagram, YouTube, TikTok, Threads, Pinterest, Reddit, Bluesky, Mastodon, Telegram, Discord, etc.).
+- Monorepo architecture managed via **PNPM Workspaces** (Node.js >= 22.12.0).
 
 ---
 
-# Logs
-
-- Where logs are used, ensure Sentry is imported using `import * as Sentry from "@sentry/nextjs"`
-- Enable logging in Sentry using `Sentry.init({ enableLogs: true })`
-- Reference the logger using `const { logger } = Sentry`
-- Sentry offers a `consoleLoggingIntegration` that can be used to log specific console error types automatically without instrumenting the individual logger calls
-
-## Configuration
-
-The Sentry initialization needs to be updated to enable the logs feature.
-
-### Baseline
-
-```javascript
-import * as Sentry from "@sentry/nextjs";
-
-Sentry.init({
-  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-
-  enableLogs: true,
-});
-```
-
-### Logger Integration
-
-```javascript
-Sentry.init({
-  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-  integrations: [
-    // send console.log, console.error, and console.warn calls as logs to Sentry
-    Sentry.consoleLoggingIntegration({ levels: ["log", "error", "warn"] }),
-  ],
-});
-```
-
-## Logger Examples
-
-`logger.fmt` is a template literal function that should be used to bring variables into the structured logs.
-
-```javascript
-import * as Sentry from "@sentry/nextjs";
-
-const { logger } = Sentry;
-
-logger.trace("Starting database connection", { database: "users" });
-logger.debug(logger.fmt`Cache miss for user: ${userId}`);
-logger.info("Updated profile", { profileId: 345 });
-logger.warn("Rate limit reached for endpoint", {
-  endpoint: "/api/results/",
-  isEnterprise: false,
-});
-logger.error("Failed to process payment", {
-  orderId: "order_123",
-  amount: 99.99,
-});
-logger.fatal("Database connection pool exhausted", {
-  database: "users",
-  activeConnections: 100,
-});
-```
+## 2. Monorepo Architecture & Key Directories
+- `apps/backend`: NestJS REST API Gateway, Controllers, OAuth & Webhook endpoints.
+- `apps/frontend`: Next.js 16 (App Router) + React 19 + Tailwind CSS 3 UI.
+- `apps/orchestrator`: Temporal Worker for scheduled posting workflows and background activities.
+- `apps/crove-sso`: Cloudflare Worker SSO bridge (optional edge fallback).
+- `libraries/nestjs-libraries`: Database layer (Prisma), 34+ Social Providers, Email, Notifications, Mastra MCP Server.
+- `libraries/helpers`: Runtime branding engine, Fetch wrappers, Subdomain management, Auth helper utilities.
+- `libraries/react-shared-libraries`: Reusable React components, translations, UI forms.
+- `docs/`: Technical specifications (`architecture.md`, `sso-architecture.md`, `first-party-provisioning.md`, `cicd.md`).
 
 ---
 
-For questions or unclear conventions, check the main README or ask for clarification in your PR description.
+## 3. Core Architectural Principles for AI Agents & Reviewers
 
+### A. Backend Layering Standard (Strict - No Shortcuts)
+Always adhere to the multi-tier architecture:
+`DTO` $\rightarrow$ `Controller` $\rightarrow$ `Service` $\rightarrow$ `Repository` (Prisma)
+- Validation: Decorated DTOs using `class-validator` and `class-transformer`.
+- Business Logic: Must reside in Services (`libraries/nestjs-libraries` or `apps/backend/src/services`), not in Controllers.
+- Generic Code: Provider-specific logic must be isolated in its provider implementation, never in generic routing code.
+
+### B. Database & Multi-Schema Standard
+- Database: PostgreSQL (Supabase pooler / direct connection) targeting schema `post`.
+- Always use **Prisma ORM** (`schema.prisma`). Never write raw SQL strings.
+- Support `DATABASE_URL` (connection pooler on port 6543) and `DATABASE_DIRECT_URL` (direct connection on port 5432 for migrations).
+
+### C. Authentication & Ecosystem SSO Standard
+- Central Identity Provider: **DOS ID** (`api.dos.me` / Supabase Auth OAuth 2.1 PKCE).
+- Generic OAuth Bridge: Postiz connects to `https://api.dos.me/sso/authorize`, `POST /sso/token`, `GET /sso/userinfo`.
+- First-Party Headless Provisioning: `POST /v1/provision` creates/updates local `User` and `Organization` projections from DOS ID and issues single-use tickets (`ticket:${jti}` in Redis).
+- Ticket Consumption: `POST /v1/ticket/consume` validates and atomically deletes the ticket to prevent replay attacks, establishing session cookies (`auth`, `showorg`).
+- Token Revocation: Full RFC 7009 compliance via `POST /oauth/revoke`.
+
+### D. 2-Tier Synchronization Standard
+- **Tier 1 (Database Mirror & Webhooks)**: Real-time inbound webhook sync (`POST /api/webhooks/dos-org-sync`) signed via constant-time HMAC-SHA256 (`crypto.timingSafeEqual`).
+- **Tier 2 (Agentic MCP Protocols)**: Model Context Protocol server exposing aliased tools (`schedule_post`, `list_channels`, `list_posts`, `upload_from_url`) via `/api/mcp`.
+
+---
+
+## 4. Frontend & UI Guidelines
+- Framework: Next.js 16 App Router with React 19.
+- Styling: Tailwind CSS 3 with system color tokens in `apps/frontend/src/app/colors.scss` and `global.scss`. Do NOT use deprecated `--color-custom*` classes.
+- State & Data Fetching: Always use SWR via the custom `useFetch` hook (`@gitroom/helpers/utils/custom.fetch`).
+- Hooks Rule: Each SWR call must be encapsulated in its own hook and adhere to React hooks rules.
+- Native Components: Prefer writing native components over adding third-party UI dependencies.
+
+---
+
+## 5. Developer Workflows & Commands
+- Dependency Manager: **PNPM ONLY** (`pnpm install`). Never use npm or yarn.
+- Build: `pnpm run build` (builds frontend, backend, orchestrator).
+- Branding Guard: `pnpm dlx tsx scripts/branding-guard.ts` (validates contracts and branding tokens).
+- Development: `pnpm run dev`
+- Tests: `pnpm test`
+- Commits: Follow Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`).

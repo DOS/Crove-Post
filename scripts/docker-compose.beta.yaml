@@ -5,7 +5,7 @@
 
 services:
   postiz-beta:
-    image: ghcr.io/gitroomhq/postiz-app:latest
+    image: ghcr.io/dos/crove-post:beta
     container_name: postiz-beta
     restart: always
     env_file:

@@ -201,16 +201,24 @@ export class ProvisionController {
       throw new HttpException('Invalid ticket type', HttpStatus.BAD_REQUEST);
     }
 
-    // Atomic consume & replay protection: verify ticket exists in Redis then delete immediately
+    // Atomic consume & replay protection: verify ticket exists and delete in single atomic Redis transaction (Lua)
     const ticketKey = `ticket:${payload.jti}`;
-    const storedTicket = await ioRedis.get(ticketKey);
+    const luaScript = `
+      local val = redis.call('GET', KEYS[1])
+      if val then
+        redis.call('DEL', KEYS[1])
+        return val
+      else
+        return nil
+      end
+    `;
+    const storedTicket = (await ioRedis.eval(luaScript, 1, ticketKey)) as string | null;
     if (!storedTicket) {
       throw new HttpException(
         'Ticket has already been used or has expired',
         HttpStatus.BAD_REQUEST
       );
     }
-    await ioRedis.del(ticketKey);
 
     const user = await this._userService.getUserById(payload.userId);
     if (!user || !user.activated) {

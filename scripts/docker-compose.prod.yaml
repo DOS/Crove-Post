@@ -11,13 +11,16 @@ services:
     env_file:
       - crove-server.env
     volumes:
-      - crove-post-config:/config/
-      - crove-post-uploads:/uploads/
+      - postiz-config:/config/
+      - postiz-uploads:/uploads/
     ports:
       - '127.0.0.1:5000:5000'
     networks:
-      - postiz-network
-      - temporal-network
+      postiz-network:
+        aliases:
+          - crove-post
+          - postiz
+      temporal-network:
     depends_on:
       crove-postgres:
         condition: service_healthy
@@ -77,7 +80,7 @@ services:
       timeout: 3s
       retries: 3
     volumes:
-      - crove-redis-data:/data
+      - postiz-redis-data:/data
     networks:
       - postiz-network
 
@@ -160,22 +163,22 @@ services:
 
 volumes:
   postgres-volume:
-    external: false
-  crove-redis-data:
-    external: false
-  crove-post-config:
-    external: false
-  crove-post-uploads:
-    external: false
+    name: crove_postgres-volume
+  postiz-redis-data:
+    name: crove_postiz-redis-data
+  postiz-config:
+    name: crove_postiz-config
+  postiz-uploads:
+    name: crove_postiz-uploads
   temporal-postgres-data:
-    external: false
+    name: crove_temporal-postgres-data
   temporal-elasticsearch-data:
-    external: false
+    name: crove_temporal-elasticsearch-data
   crove-web-data:
-    external: false
+    name: crove_crove-web-data
 
 networks:
   postiz-network:
-    external: false
+    name: crove_postiz-network
   temporal-network:
-    external: false
+    name: crove_temporal-network

@@ -1,6 +1,10 @@
 import * as Sentry from '@sentry/nextjs';
 
-export const initializeSentryBasic = (environment: string, dsn: string, extension: any) => {
+export const initializeSentryBasic = (
+  environment: string,
+  dsn: string,
+  extension: any
+) => {
   if (!dsn) {
     return;
   }
@@ -30,7 +34,9 @@ export const initializeSentryBasic = (environment: string, dsn: string, extensio
         },
       },
       integrations: [
-        Sentry.consoleLoggingIntegration({ levels: ['log', 'info', 'warn', 'error', 'debug', 'assert', 'trace'] }),
+        Sentry.consoleLoggingIntegration({
+          levels: ['log', 'info', 'warn', 'error', 'debug', 'assert', 'trace'],
+        }),
       ],
       environment: environment || 'development',
       spotlight: process.env.SENTRY_SPOTLIGHT === '1',
@@ -40,7 +46,24 @@ export const initializeSentryBasic = (environment: string, dsn: string, extensio
       debug: environment === 'development',
       tracesSampleRate: 1.0,
 
+      // Server tracing starts before the proxy exchanges the launch ticket.
+      beforeSendTransaction(event) {
+        if (
+          /\/(?:internal\/first-party\/bootstrap|v1\/ticket\/consume|oauth\/authorize)(?:\?|$)/.test(
+            event.request?.url || event.transaction || ''
+          )
+        )
+          return null;
+        return event;
+      },
+
       beforeSend(event, hint) {
+        if (
+          /\/(?:internal\/first-party\/bootstrap|v1\/ticket\/consume|oauth\/authorize)(?:\?|$)/.test(
+            event.request?.url || ''
+          )
+        )
+          return null;
         if (event.exception && event.exception.values) {
           for (const exception of event.exception.values) {
             if (exception.value) {
@@ -69,7 +92,10 @@ export const initializeSentryBasic = (environment: string, dsn: string, extensio
                 })
                 .catch((importErr) => {
                   // eslint-disable-next-line no-console
-                  console.error('Failed to import @sentry/react for report dialog:', importErr);
+                  console.error(
+                    'Failed to import @sentry/react for report dialog:',
+                    importErr
+                  );
                 });
             }
           }

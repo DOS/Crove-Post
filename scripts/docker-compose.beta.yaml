@@ -5,20 +5,29 @@
 
 services:
   crove-post-beta:
-    image: ghcr.io/dos/crove-post:beta
+    image: ${CROVE_POST_BETA_IMAGE:-ghcr.io/dos/crove-post:beta}
     container_name: crove-post-beta
     restart: always
+    pull_policy: always
+    # Schema changes are a separate reviewed operation. Never introspect/drop
+    # dynamic Mastra tables or run db push --accept-data-loss at app startup.
+    command: ["sh", "-c", "nginx && pnpm exec pm2 ping && pnpm run --parallel pm2 && pnpm exec pm2 logs"]
     env_file:
       - crove-server.beta.env
+    environment:
+      MASTRA_DISABLE_STORAGE_INIT: 'true'
     volumes:
-      - crove-post-beta-config:/config/
-      - crove-post-beta-uploads:/uploads/
+      - postiz-beta-config:/config/
+      - postiz-beta-uploads:/uploads/
     ports:
       - '127.0.0.1:5001:5000'
     networks:
-      - crove-post-beta-network
-      - postiz-network
-      - temporal-network
+      crove-post-beta-network:
+      postiz-network:
+        aliases:
+          - crove-post-beta
+          - postiz-beta
+      temporal-network:
     depends_on:
       crove-postgres-beta:
         condition: service_healthy
@@ -34,7 +43,7 @@ services:
       POSTGRES_USER: postiz-user
       POSTGRES_DB: postiz-db-local
     volumes:
-      - crove-postgres-beta-volume:/var/lib/postgresql/data
+      - postgres-beta-volume:/var/lib/postgresql/data
     networks:
       - crove-post-beta-network
     healthcheck:
@@ -53,19 +62,19 @@ services:
       timeout: 3s
       retries: 3
     volumes:
-      - crove-redis-beta-data:/data
+      - postiz-redis-beta-data:/data
     networks:
       - crove-post-beta-network
 
 volumes:
-  crove-postgres-beta-volume:
-    external: false
-  crove-redis-beta-data:
-    external: false
-  crove-post-beta-config:
-    external: false
-  crove-post-beta-uploads:
-    external: false
+  postgres-beta-volume:
+    name: crove_postgres-beta-volume
+  postiz-redis-beta-data:
+    name: crove_postiz-redis-beta-data
+  postiz-beta-config:
+    name: crove_postiz-beta-config
+  postiz-beta-uploads:
+    name: crove_postiz-beta-uploads
 
 networks:
   crove-post-beta-network:

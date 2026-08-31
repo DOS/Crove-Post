@@ -1,19 +1,31 @@
-# ==============================================================================
-# CLOUDFLARE TUNNEL CONFIGURATION (scripts/tunnel-config.yml)
-# Tunnel ID: 41d183ca-1507-4092-a2e5-a5bd988282ee
-# Routes:
-#   - app.crove.com        -> Postiz App (Prod)
-#   - crove.com            -> Crove Landing Page (Prod)
-#   - www.crove.com        -> Crove Landing Page (Prod)
-#   - beta-app.crove.com   -> Postiz App (Beta)
-#   - beta.crove.com       -> Crove Landing Page (Beta)
-# ==============================================================================
-
 tunnel: 41d183ca-1507-4092-a2e5-a5bd988282ee
 credentials-file: /etc/cloudflared/credentials.json
 
 ingress:
-  # 1. Production App Dashboard (Crove Post)
+  # 1. Crove CRM on crove.io (Clean Multi-tenant: app.crove.io, *.crove.io)
+  - hostname: crove.io
+    service: http://crm-server:3000
+    originRequest:
+      httpHostHeader: crove.io
+
+  - hostname: "*.crove.io"
+    service: http://crm-server:3000
+
+  # Crove CRM on crm.crove.com (Fallback / Legacy)
+  - hostname: crm.crove.com
+    service: http://crm-server:3000
+    originRequest:
+      httpHostHeader: crm.crove.com
+
+  - hostname: "*.crm.crove.com"
+    service: http://crm-server:3000
+
+  - hostname: beta-crm.crove.com
+    service: http://crm-server:3000
+    originRequest:
+      httpHostHeader: crm.crove.com
+
+  # 2. Production App Dashboard (Crove Post)
   - hostname: post.crove.com
     service: http://crove-post:5000
     originRequest:
@@ -24,7 +36,7 @@ ingress:
     originRequest:
       httpHostHeader: post.crove.com
 
-  # 2. Production Landing Page
+  # 3. Production Landing Page
   - hostname: crove.com
     service: http://crove-web:3000
     originRequest:
@@ -35,7 +47,7 @@ ingress:
     originRequest:
       httpHostHeader: www.crove.com
 
-  # 3. Beta App Dashboard
+  # 4. Beta App Dashboard (Crove Post Beta)
   - hostname: beta-post.crove.com
     service: http://crove-post-beta:5000
     originRequest:
@@ -46,11 +58,33 @@ ingress:
     originRequest:
       httpHostHeader: beta-post.crove.com
 
-  # 4. Beta Landing Page
+  # 5. Beta Landing Page
   - hostname: beta.crove.com
     service: http://crove-web-beta:3000
     originRequest:
       httpHostHeader: beta.crove.com
 
-  # Fallback 404
+  # 6. Crove Cal (Cal.com)
+  - hostname: cal.crove.com
+    service: http://crove-cal:3000
+    originRequest:
+      httpHostHeader: cal.crove.com
+
+  # 7. Crove Sign (Documenso)
+  - hostname: sign.crove.com
+    service: http://crove-sign:3000
+    originRequest:
+      httpHostHeader: sign.crove.com
+
+  # 8. Crove Desk (AgentDesk)
+  - hostname: desk.crove.com
+    service: http://desk-server:8083
+    originRequest:
+      httpHostHeader: desk.crove.com
+
+  - hostname: beta-desk.crove.com
+    service: http://desk-server:8083
+    originRequest:
+      httpHostHeader: desk.crove.com
+
   - service: http_status:404

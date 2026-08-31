@@ -5,7 +5,10 @@ import { FetchWrapperComponent } from '@gitroom/helpers/utils/custom.fetch';
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import { useReturnUrl } from '@gitroom/frontend/app/(app)/auth/return.url.component';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
-import { shouldPreserveOAuthConsentUnauthorized } from './oauth-consent-unauthorized';
+import {
+  shouldHandleGlobalLogout,
+  shouldPreserveOAuthConsentUnauthorized,
+} from './oauth-consent-unauthorized';
 export default function LayoutContext(params: { children: ReactNode }) {
   if (params?.children) {
     // eslint-disable-next-line react/no-children-prop
@@ -43,6 +46,15 @@ function LayoutContextInner(params: { children: ReactNode }) {
         response?.headers?.get('Impersonate');
       const logout =
         response?.headers?.get('logout') || response?.headers?.get('Logout');
+      if (
+        shouldPreserveOAuthConsentUnauthorized(
+          url,
+          options.method,
+          response.status
+        )
+      ) {
+        return true;
+      }
       if (headerAuth) {
         setCookie('auth', headerAuth, 365);
       }
@@ -52,7 +64,15 @@ function LayoutContextInner(params: { children: ReactNode }) {
       if (impersonate) {
         setCookie('impersonate', impersonate, 365);
       }
-      if (logout && !isSecured) {
+      if (
+        shouldHandleGlobalLogout(
+          url,
+          options.method,
+          response.status,
+          Boolean(logout)
+        ) &&
+        !isSecured
+      ) {
         setCookie('auth', '', -10);
         setCookie('showorg', '', -10);
         setCookie('impersonate', '', -10);
@@ -82,11 +102,12 @@ function LayoutContextInner(params: { children: ReactNode }) {
       }
 
       if (
-        (response.status === 401 || response?.headers?.get('logout')) &&
-        !shouldPreserveOAuthConsentUnauthorized(
+        response.status === 401 ||
+        shouldHandleGlobalLogout(
           url,
+          options.method,
           response.status,
-          Boolean(response?.headers?.get('logout'))
+          Boolean(logout)
         )
       ) {
         if (!isSecured) {

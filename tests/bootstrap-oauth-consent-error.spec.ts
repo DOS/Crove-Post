@@ -2,7 +2,10 @@ import {
   authorizationActionResult,
   CONSENT_SESSION_ERROR,
 } from '../apps/frontend/src/app/(app)/oauth/authorize/authorization-action-result';
-import { shouldPreserveOAuthConsentUnauthorized } from '../apps/frontend/src/components/layout/oauth-consent-unauthorized';
+import {
+  shouldHandleGlobalLogout,
+  shouldPreserveOAuthConsentUnauthorized,
+} from '../apps/frontend/src/components/layout/oauth-consent-unauthorized';
 
 describe('First-party OAuth consent error UI', () => {
   it('keeps superseded tab A on a visible safe error instead of redirecting', () => {
@@ -23,20 +26,32 @@ describe('First-party OAuth consent error UI', () => {
 
   it('keeps a failed consent POST on the OAuth page instead of sending it to launches', () => {
     expect(
-      shouldPreserveOAuthConsentUnauthorized('/oauth/authorize', 401, false)
+      shouldPreserveOAuthConsentUnauthorized('/oauth/authorize', 'POST', 401)
     ).toBe(true);
     expect(
       shouldPreserveOAuthConsentUnauthorized(
-        '/oauth/authorize?state=test',
-        401,
-        false
+        'https://beta-post.crove.com/oauth/authorize?state=test',
+        'POST',
+        401
       )
     ).toBe(true);
     expect(
-      shouldPreserveOAuthConsentUnauthorized('/user/profile', 401, false)
+      shouldPreserveOAuthConsentUnauthorized('/oauth/authorize', 'GET', 401)
     ).toBe(false);
     expect(
-      shouldPreserveOAuthConsentUnauthorized('/oauth/authorize', 401, true)
+      shouldPreserveOAuthConsentUnauthorized('/user/profile', 'POST', 401)
     ).toBe(false);
+    expect(
+      shouldPreserveOAuthConsentUnauthorized('/oauth/authorize', 'POST', 500)
+    ).toBe(false);
+    expect(
+      shouldHandleGlobalLogout('/oauth/authorize', 'POST', 401, true)
+    ).toBe(false);
+    expect(shouldHandleGlobalLogout('/oauth/authorize', 'GET', 401, true)).toBe(
+      true
+    );
+    expect(shouldHandleGlobalLogout('/user/profile', 'POST', 401, true)).toBe(
+      true
+    );
   });
 });

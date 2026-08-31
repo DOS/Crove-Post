@@ -7,6 +7,61 @@ Enables zero-friction autonomous connections (e.g. DOSClaw AI agents, ecosystem 
 
 ## 2. API Specifications
 
+### DOS-Me first-party bootstrap
+
+`POST /api/internal/first-party/bootstrap` is exposed publicly through nginx;
+Nest receives `/internal/first-party/bootstrap`. It authenticates the exact raw
+JSON bytes with HMAC SHA256 over
+`timestamp.nonce.POST./api/internal/first-party/bootstrap.rawBody`, using
+`X-DOS-Timestamp`, a 16-byte hex `X-DOS-Nonce`, and `X-DOS-Signature: sha256=<hex>`.
+The secret is `CROVE_POST_BOOTSTRAP_SIGNING_SECRET`, falling back only to
+`CROVE_POST_CLIENT_SECRET`. Missing secrets, Redis or headers fail closed.
+`ENABLE_ECOSYSTEM_SYNC=false` explicitly disables the endpoint.
+
+The nested `user`, `organization`, and `oauth` payload matches DOS-Me's
+`docs/platform/FIRST-PARTY-PROVISIONING.md`. Timestamps allow five minutes of skew;
+Redis claims nonces atomically for 601 seconds to cover future-dated requests.
+Only registered static OAuth clients are supported by this contract.
+
+Prisma projects canonical user and organization UUIDs and upserts membership in
+one serializable transaction with bounded conflict retries. Existing GENERIC
+users already linked to the exact DOS provider ID retain their local ID to
+preserve foreign keys. Email alone never links accounts. OWNER maps to
+SUPERADMIN, ADMIN to ADMIN, MEMBER/USER to USER. Deleted/inactive identities and
+deleted organizations are rejected. The existing Organization schema has no slug
+column; slug is validated but not persisted or used for authorization. No schema
+change is required.
+
+The response contains only `launch_url`, at the exact configured HTTPS
+`FRONTEND_URL` origin (`beta-post.crove.com` or `post.crove.com`), with one opaque
+256-bit ticket. Redis retains a hash of the ticket for 60 seconds, bound to DOS
+subject, local user, org, client ID and state. No session/access token or state is
+included in the launch URL. `/oauth/authorize?ticket=...` exchanges the ticket
+server-side before rendering the app, sets HttpOnly Secure cookies, removes the
+ticket via a 303 redirect, and shows the existing consent screen. Caller-supplied
+client/state/redirect overrides cannot override the stored ticket context.
+`POST /v1/ticket/consume` supports these tickets with an atomic Redis consume;
+its new ticket response does not contain a JWT. Existing legacy JWT ticket and
+`/v1/provision` behavior is unchanged.
+
+Beta deployment must use the command override in `scripts/docker-compose.beta.yaml`
+to start the application without running Prisma `db push --accept-data-loss`.
+Beta already has the application schema; dynamic Mastra tables belong to Mastra
+and must not be reconciled or deleted during application startup. Preserve the
+existing volumes and deploy only the app service with an immutable image digest.
+
+#### Local integration verification
+
+Use disposable local PostgreSQL 17 and Redis 7.2 instances at ports 15491 and
+16391. Set `DATABASE_URL` and `DATABASE_DIRECT_URL` to the local PostgreSQL
+database, and `REDIS_URL=redis://127.0.0.1:16391`. Run
+`pnpm exec prisma db push --schema libraries/nestjs-libraries/src/database/prisma/schema.prisma --skip-generate`
+against that empty local database only, then
+`pnpm exec jest --config tests/bootstrap.jest.cjs --runInBand`.
+The suite refuses other database/Redis targets and tests HTTP authentication,
+raw bytes, skew, nonce replay/concurrency, transactional idempotency, identity
+collisions, safe launch URLs, ticket binding, expiry and concurrent consumption.
+
 ### 2.1. Headless Provisioning: `POST /v1/provision`
 
 - **Authentication**: `Authorization: Bearer <PROVISIONING_SECRET_KEY>`

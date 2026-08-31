@@ -21,3 +21,12 @@ dist
 .git
 .github
 reports
+.codex
+.claude
+.cursor
+.artifacts
+.codex-artifacts
+.env*
+**/*.env
+.secrets
+tests

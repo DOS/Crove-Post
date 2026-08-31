@@ -13,6 +13,53 @@ acceptLanguage.languages(languages);
 // This function can be marked `async` if using `await` inside
 export async function proxy(request: NextRequest) {
   const nextUrl = request.nextUrl;
+  if (
+    nextUrl.pathname === '/oauth/authorize' &&
+    nextUrl.searchParams.has('ticket')
+  ) {
+    // Exchange server-side before rendering analytics or any page with the ticket URL.
+    // Query overrides (client_id/state/redirect_to) are deliberately ignored.
+    try {
+      const ticket = nextUrl.searchParams.get('ticket');
+      if (!/^fpt_[a-f0-9]{64}$/.test(ticket || '')) throw new Error();
+      const exchange = await fetch(
+        `${process.env.BACKEND_INTERNAL_URL}/v1/ticket/consume`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticket }),
+          cache: 'no-store',
+          redirect: 'error',
+        }
+      );
+      if (!exchange.ok) throw new Error();
+      const result = await exchange.json();
+      const destination = new URL(result.redirect_to, process.env.FRONTEND_URL);
+      if (
+        destination.origin !== new URL(process.env.FRONTEND_URL).origin ||
+        destination.pathname !== '/oauth/authorize'
+      )
+        throw new Error();
+      const response = NextResponse.redirect(destination, 303);
+      for (const cookie of exchange.headers.getSetCookie())
+        response.headers.append('Set-Cookie', cookie);
+      response.headers.set('Cache-Control', 'no-store');
+      response.headers.set('Referrer-Policy', 'no-referrer');
+      return response;
+    } catch {
+      return new NextResponse(
+        'Invalid or expired authorization ticket. Start the connection again.',
+        {
+          status: 400,
+          headers: {
+            'Cache-Control': 'no-store',
+            'Referrer-Policy': 'no-referrer',
+            'Content-Type': 'text/plain',
+          },
+        }
+      );
+    }
+  }
   const authCookie =
     request.cookies.get('auth') ||
     request.headers.get('auth') ||
@@ -106,7 +153,11 @@ export async function proxy(request: NextRequest) {
   }
 
   // If the url is /auth (except ticket consumption) and the cookie exists, redirect to /
-  if (nextUrl.pathname.startsWith('/auth') && !nextUrl.pathname.startsWith('/auth/ticket') && authCookie) {
+  if (
+    nextUrl.pathname.startsWith('/auth') &&
+    !nextUrl.pathname.startsWith('/auth/ticket') &&
+    authCookie
+  ) {
     return NextResponse.redirect(new URL(`/${url}`, nextUrl.href));
   }
   if (nextUrl.pathname.startsWith('/auth') && !authCookie) {

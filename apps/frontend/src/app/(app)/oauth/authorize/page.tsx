@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { Logo } from '@gitroom/frontend/components/new-layout/logo';
+import { authorizationActionResult } from './authorization-action-result';
 
 export default function OAuthAuthorizePage() {
   const searchParams = useSearchParams();
@@ -63,25 +64,31 @@ export default function OAuthAuthorizePage() {
     async (action: 'approve' | 'deny') => {
       setSubmitting(true);
       try {
-        const result = await (
-          await fetch('/oauth/authorize', {
-            method: 'POST',
-            body: JSON.stringify({
-              client_id: clientId,
-              state,
-              action,
-              ...(redirectUri ? { redirect_uri: redirectUri } : {}),
-              ...(codeChallenge ? { code_challenge: codeChallenge } : {}),
-              ...(codeChallengeMethod
-                ? { code_challenge_method: codeChallengeMethod }
-                : {}),
-            }),
-          })
-        ).json();
+        const response = await fetch('/oauth/authorize', {
+          method: 'POST',
+          body: JSON.stringify({
+            client_id: clientId,
+            state,
+            action,
+            ...(redirectUri ? { redirect_uri: redirectUri } : {}),
+            ...(codeChallenge ? { code_challenge: codeChallenge } : {}),
+            ...(codeChallengeMethod
+              ? { code_challenge_method: codeChallengeMethod }
+              : {}),
+          }),
+        });
+        const result = authorizationActionResult(
+          response.ok,
+          await response.json().catch(() => null)
+        );
 
-        if (result.redirect) {
-          window.location.href = result.redirect;
+        if (result.error) {
+          setError(result.error);
+          setSubmitting(false);
+          return;
         }
+
+        window.location.href = result.redirect;
       } catch {
         setError('Failed to process authorization');
         setSubmitting(false);

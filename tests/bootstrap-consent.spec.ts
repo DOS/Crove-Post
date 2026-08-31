@@ -287,9 +287,11 @@ describe('Bootstrap consent binding with real HTTP, OAuth issuance, PostgreSQL a
     });
     expect(b.claims.firstPartyConsentId).not.toBe(a.claims.firstPartyConsentId);
     const count = await codes();
-    expect(
-      (await approve(b.cookie, { state: a.body.oauth.state })).status
-    ).toBe(401);
+    const stale = await approve(b.cookie, { state: a.body.oauth.state });
+    expect(stale.status).toBe(401);
+    expect((await stale.json()).message).toBe(
+      'Consent session changed or expired; reconnect to continue'
+    );
     expect(await codes()).toBe(count);
     expect(
       (await approve(b.cookie, { state: b.body.oauth.state })).status

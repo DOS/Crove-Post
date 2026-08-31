@@ -2,6 +2,7 @@ import {
   authorizationActionResult,
   CONSENT_SESSION_ERROR,
 } from '../apps/frontend/src/app/(app)/oauth/authorize/authorization-action-result';
+import { shouldPreserveOAuthConsentUnauthorized } from '../apps/frontend/src/components/layout/oauth-consent-unauthorized';
 
 describe('First-party OAuth consent error UI', () => {
   it('keeps superseded tab A on a visible safe error instead of redirecting', () => {
@@ -18,5 +19,24 @@ describe('First-party OAuth consent error UI', () => {
       error: CONSENT_SESSION_ERROR,
       redirect: null,
     });
+  });
+
+  it('keeps a failed consent POST on the OAuth page instead of sending it to launches', () => {
+    expect(
+      shouldPreserveOAuthConsentUnauthorized('/oauth/authorize', 401, false)
+    ).toBe(true);
+    expect(
+      shouldPreserveOAuthConsentUnauthorized(
+        '/oauth/authorize?state=test',
+        401,
+        false
+      )
+    ).toBe(true);
+    expect(
+      shouldPreserveOAuthConsentUnauthorized('/user/profile', 401, false)
+    ).toBe(false);
+    expect(
+      shouldPreserveOAuthConsentUnauthorized('/oauth/authorize', 401, true)
+    ).toBe(false);
   });
 });

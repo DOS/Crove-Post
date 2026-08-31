@@ -12,7 +12,10 @@ export const setSentryUserContext = (params: {
   try {
     Sentry.setUser(
       params.userId
-        ? { id: params.userId, ...(params.email ? { email: params.email } : {}) }
+        ? {
+            id: params.userId,
+            ...(params.email ? { email: params.email } : {}),
+          }
         : null
     );
     if (params.orgId) {
@@ -52,7 +55,9 @@ export const initializeSentry = (appName: string, allowLogs = false) => {
       integrations: [
         // Add our Profiling integration
         nodeProfilingIntegration(),
-        Sentry.consoleLoggingIntegration({ levels: ['log', 'info', 'warn', 'error', 'debug', 'assert', 'trace'] }),
+        Sentry.consoleLoggingIntegration({
+          levels: ['log', 'info', 'warn', 'error', 'debug', 'assert', 'trace'],
+        }),
         Sentry.openAIIntegration({
           recordInputs: true,
           recordOutputs: true,
@@ -60,9 +65,29 @@ export const initializeSentry = (appName: string, allowLogs = false) => {
       ],
       tracesSampleRate: 1.0,
       enableLogs: true,
+      // Bootstrap payloads and ticket exchanges must not enter telemetry.
+      beforeSend(event) {
+        if (
+          /\/(?:internal\/first-party\/bootstrap|v1\/ticket\/consume)(?:\?|$)/.test(
+            event.request?.url || ''
+          )
+        )
+          return null;
+        return event;
+      },
+      beforeSendTransaction(event) {
+        if (
+          /\/(?:internal\/first-party\/bootstrap|v1\/ticket\/consume)(?:\?|$)/.test(
+            event.request?.url || event.transaction || ''
+          )
+        )
+          return null;
+        return event;
+      },
 
       // Profiling
-      profileSessionSampleRate: process.env.NODE_ENV === 'development' ? 1.0 : 0.3,
+      profileSessionSampleRate:
+        process.env.NODE_ENV === 'development' ? 1.0 : 0.3,
       profileLifecycle: 'trace',
     });
   } catch (err) {

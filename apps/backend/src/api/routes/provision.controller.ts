@@ -209,6 +209,7 @@ export class ProvisionController {
       const jwt = await this._authService.jwt(exchange.user);
       // First-party tickets never return a reusable session token in JSON.
       const options = {
+        domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
         secure: true,
         httpOnly: true,
         sameSite: 'lax' as const,

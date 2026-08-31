@@ -11,6 +11,22 @@ import { BootstrapRepository } from '../libraries/nestjs-libraries/src/database/
 import { PrismaService } from '../libraries/nestjs-libraries/src/database/prisma/prisma.service';
 import { ioRedis } from '../libraries/nestjs-libraries/src/redis/redis.service';
 import { OAuthService } from '../libraries/nestjs-libraries/src/database/prisma/oauth/oauth.service';
+import { ProvisionController } from '../apps/backend/src/api/routes/provision.controller';
+import { OrganizationService } from '../libraries/nestjs-libraries/src/database/prisma/organizations/organization.service';
+import { UsersService } from '../libraries/nestjs-libraries/src/database/prisma/users/users.service';
+import { AuthService } from '../apps/backend/src/services/auth/auth.service';
+
+jest.mock(
+  '../libraries/nestjs-libraries/src/database/prisma/organizations/organization.service',
+  () => ({ OrganizationService: class OrganizationService {} })
+);
+jest.mock(
+  '../libraries/nestjs-libraries/src/database/prisma/users/users.service',
+  () => ({ UsersService: class UsersService {} })
+);
+jest.mock('../apps/backend/src/services/auth/auth.service', () => ({
+  AuthService: class AuthService {},
+}));
 
 jest.mock(
   '../libraries/nestjs-libraries/src/database/prisma/oauth/oauth.service',
@@ -22,13 +38,19 @@ const oauth = {
   validateAuthorizationRequest: jest.fn(async () => ({ dynamic: false })),
 };
 @Module({
-  controllers: [BootstrapController],
+  controllers: [BootstrapController, ProvisionController],
   providers: [
     BootstrapService,
     BootstrapGuard,
     BootstrapRepository,
     PrismaService,
     { provide: OAuthService, useValue: oauth },
+    { provide: OrganizationService, useValue: {} },
+    { provide: UsersService, useValue: {} },
+    {
+      provide: AuthService,
+      useValue: { jwt: async () => 'session-test-never-return-in-json' },
+    },
   ],
 })
 class TestModule {}
@@ -274,6 +296,61 @@ describe('First-party bootstrap over HTTP with real PostgreSQL and Redis', () =>
   it('rejects malformed payload after authentication', async () => {
     expect(
       (await send(signed({ user: {}, oauth: {}, organization: {} }))).status
+    ).toBe(400);
+  });
+
+  it('consumes over HTTP with secure cookies and no JWT or caller redirect override', async () => {
+    const payload = body();
+    const launch = await (await send(signed(payload))).json();
+    const ticket = new URL(launch.launch_url).searchParams.get('ticket');
+    const request = {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ticket, redirect_to: 'https://evil.test' }),
+    };
+    const response = await fetch(`${base}/v1/ticket/consume`, request);
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(Object.keys(data).sort()).toEqual(['redirect_to', 'success']);
+    expect(JSON.stringify(data)).not.toContain(
+      'session-test-never-return-in-json'
+    );
+    expect(
+      new URL(data.redirect_to, 'https://beta-post.crove.com').searchParams.get(
+        'state'
+      )
+    ).toBe(payload.oauth.state);
+    expect(response.headers.get('set-cookie')).toContain('HttpOnly');
+    expect(response.headers.get('set-cookie')).toContain('Secure');
+    // Match login/logout cookie scope so a pre-existing session is overwritten.
+    expect(response.headers.get('set-cookie')).toContain('Domain=.crove.com');
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect((await fetch(`${base}/v1/ticket/consume`, request)).status).toBe(
+      400
+    );
+  });
+
+  it('preserves legacy provisioning authentication and invalid legacy ticket responses', async () => {
+    expect(
+      (
+        await fetch(`${base}/v1/provision`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            userId: randomUUID(),
+            email: 'legacy@example.test',
+          }),
+        })
+      ).status
+    ).toBe(401);
+    expect(
+      (
+        await fetch(`${base}/v1/ticket/consume`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ ticket: 'not-a-legacy-jwt' }),
+        })
+      ).status
     ).toBe(400);
   });
 });

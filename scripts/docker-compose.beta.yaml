@@ -14,14 +14,17 @@ services:
     env_file:
       - crove-server.beta.env
     volumes:
-      - crove-post-beta-config:/config/
-      - crove-post-beta-uploads:/uploads/
+      - postiz-beta-config:/config/
+      - postiz-beta-uploads:/uploads/
     ports:
       - '127.0.0.1:5001:5000'
     networks:
-      - crove-post-beta-network
-      - postiz-network
-      - temporal-network
+      crove-post-beta-network:
+      postiz-network:
+        aliases:
+          - crove-post-beta
+          - postiz-beta
+      temporal-network:
     depends_on:
       crove-postgres-beta:
         condition: service_healthy
@@ -37,7 +40,7 @@ services:
       POSTGRES_USER: postiz-user
       POSTGRES_DB: postiz-db-local
     volumes:
-      - crove-postgres-beta-volume:/var/lib/postgresql/data
+      - postgres-beta-volume:/var/lib/postgresql/data
     networks:
       - crove-post-beta-network
     healthcheck:
@@ -56,19 +59,19 @@ services:
       timeout: 3s
       retries: 3
     volumes:
-      - crove-redis-beta-data:/data
+      - postiz-redis-beta-data:/data
     networks:
       - crove-post-beta-network
 
 volumes:
-  crove-postgres-beta-volume:
-    external: false
-  crove-redis-beta-data:
-    external: false
-  crove-post-beta-config:
-    external: false
-  crove-post-beta-uploads:
-    external: false
+  postgres-beta-volume:
+    name: crove_postgres-beta-volume
+  postiz-redis-beta-data:
+    name: crove_postiz-redis-beta-data
+  postiz-beta-config:
+    name: crove_postiz-beta-config
+  postiz-beta-uploads:
+    name: crove_postiz-beta-uploads
 
 networks:
   crove-post-beta-network:

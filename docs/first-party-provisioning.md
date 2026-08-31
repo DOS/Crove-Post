@@ -152,6 +152,13 @@ ordinary OAuth. Approval or denial atomically compares and deletes the tuple,
 including the launch ID, current authoritative subject, user, organization,
 client, state, app ID and registered redirect. A later tab's cookie cannot approve
 an earlier tab's state, including launches for the same user and organization.
+Creation also atomically updates the latest consent ID for the DOS subject.
+Approval compares this pointer as well as the tuple, so starting a newer launch
+supersedes the older launch on the server, even if its signed JWT was retained.
+This applies across tabs and devices for that subject. A consumed newer launch
+does not restore any earlier binding. When bootstrap signing is configured but
+the first-party client ID is missing, OAuth approval fails closed with HTTP 503
+instead of silently falling back to legacy behavior.
 This static bootstrap contract does not include PKCE: injecting a challenge or
 challenge method is rejected. An explicit redirect URI must exactly match the
 captured registered redirect.

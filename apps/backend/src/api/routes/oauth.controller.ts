@@ -10,6 +10,7 @@ import {
   Query,
   Req,
   Res,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { BootstrapService } from '@gitroom/backend/ecosystem/bootstrap.service';
@@ -114,6 +115,15 @@ export class OAuthAuthorizedController {
     @Req() request: Request & { firstPartyConsentId?: string },
     @Res({ passthrough: true }) response: Response
   ) {
+    if (
+      !process.env.CROVE_POST_CLIENT_ID?.trim() &&
+      (process.env.CROVE_POST_BOOTSTRAP_SIGNING_SECRET?.trim() ||
+        process.env.CROVE_POST_CLIENT_SECRET?.trim())
+    ) {
+      throw new ServiceUnavailableException(
+        'First-party OAuth is not configured'
+      );
+    }
     const app = await this._oauthService.validateAuthorizationRequest(
       body.client_id,
       {

@@ -324,6 +324,55 @@ describe('Bootstrap consent binding with real HTTP, OAuth issuance, PostgreSQL a
     expect(await codes()).toBe(count);
   });
 
+  it('revokes an older launch server-side even when its original signed JWT is retained', async () => {
+    const a = await launch();
+    const b = await launch({
+      ...a.body,
+      oauth: { client_id: clientId, state: randomUUID() },
+    });
+    const count = await codes();
+    expect(
+      (await approve(a.cookie, { state: a.body.oauth.state })).status
+    ).toBe(401);
+    expect(await codes()).toBe(count);
+    expect(
+      (await approve(b.cookie, { state: b.body.oauth.state })).status
+    ).toBe(201);
+    expect(
+      (await approve(a.cookie, { state: a.body.oauth.state })).status
+    ).toBe(401);
+  });
+
+  it('fails closed for ordinary sessions when the configured first-party client ID is missing', async () => {
+    const a = await launch();
+    const ordinary = `auth=${sign(
+      { id: a.body.user.id },
+      jwtSecret
+    )}; showorg=${a.body.organization.id}`;
+    const count = await codes();
+    delete process.env.CROVE_POST_CLIENT_ID;
+    try {
+      expect(
+        (await approve(ordinary, { state: a.body.oauth.state })).status
+      ).toBe(503);
+      expect(await codes()).toBe(count);
+    } finally {
+      process.env.CROVE_POST_CLIENT_ID = clientId;
+    }
+  });
+
+  it('rejects consent when the integration is explicitly disabled after launch', async () => {
+    const a = await launch();
+    process.env.ENABLE_ECOSYSTEM_SYNC = 'false';
+    try {
+      expect(
+        (await approve(a.cookie, { state: a.body.oauth.state })).status
+      ).toBe(401);
+    } finally {
+      delete process.env.ENABLE_ECOSYSTEM_SYNC;
+    }
+  });
+
   it.each([
     {},
     { state: '' },

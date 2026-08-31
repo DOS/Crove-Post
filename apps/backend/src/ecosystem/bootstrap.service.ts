@@ -15,6 +15,10 @@ const PATH = '/api/internal/first-party/bootstrap';
 const ticketKey = (ticket: string) =>
   `first-party:ticket:${createHash('sha256').update(ticket).digest('hex')}`;
 const consentKey = (id: string) => `first-party:consent:${id}`;
+const activeConsentKey = (subject: string) =>
+  `first-party:active-consent:${createHash('sha256')
+    .update(subject)
+    .digest('hex')}`;
 
 type ConsentBinding = {
   consentId: string;
@@ -207,16 +211,16 @@ export class BootstrapService {
         codeChallengeMethod: null,
       };
       const bound = await this.redis(() =>
-        ioRedis.set(
+        ioRedis.eval(
+          "local stored = redis.call('SET', KEYS[1], ARGV[1], 'EX', 300, 'NX'); if not stored then return 0; end; redis.call('SET', KEYS[2], ARGV[2], 'EX', 300); return 1",
+          2,
           consentKey(consentId),
+          activeConsentKey(payload.subject),
           JSON.stringify(binding),
-          'EX',
-          300,
-          'NX'
+          consentId
         )
       );
-      if (bound !== 'OK')
-        throw new BadRequestException('Invalid consent session');
+      if (bound !== 1) throw new BadRequestException('Invalid consent session');
       const query = new URLSearchParams({
         client_id: payload.clientId,
         state: payload.state,
@@ -271,6 +275,7 @@ export class BootstrapService {
         'Consent session changed or expired; reconnect to continue'
       );
     if (
+      process.env.ENABLE_ECOSYSTEM_SYNC === 'false' ||
       !input.consentId ||
       !/^[a-f0-9]{64}$/.test(input.consentId) ||
       !input.state ||
@@ -304,10 +309,12 @@ export class BootstrapService {
     };
     const consumed = await this.redis(() =>
       ioRedis.eval(
-        "local v = redis.call('GET', KEYS[1]); if v == ARGV[1] then redis.call('DEL', KEYS[1]); return 1; end; return 0",
-        1,
+        "local v = redis.call('GET', KEYS[1]); local active = redis.call('GET', KEYS[2]); if v == ARGV[1] and active == ARGV[2] then redis.call('DEL', KEYS[1], KEYS[2]); return 1; end; return 0",
+        2,
         consentKey(input.consentId),
-        JSON.stringify(expected)
+        activeConsentKey(user.providerId),
+        JSON.stringify(expected),
+        input.consentId
       )
     );
     if (consumed !== 1) throw invalid();

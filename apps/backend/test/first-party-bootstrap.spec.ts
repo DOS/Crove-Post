@@ -141,6 +141,7 @@ describe('First-party M2M bootstrap (real HTTP, PostgreSQL and Redis)', () => {
   let prisma: PrismaService;
   let service: FirstPartyBootstrapService;
   let oauthAppId: string;
+  let otherAppId: string;
   const userIds: string[] = [];
   const orgIds: string[] = [];
 
@@ -224,6 +225,16 @@ describe('First-party M2M bootstrap (real HTTP, PostgreSQL and Redis)', () => {
         },
       })
     ).id;
+    otherAppId = (
+      await prisma.oAuthApp.create({
+        data: {
+          name: 'Other client',
+          clientId: clientId + '-other',
+          redirectUrl: 'https://example.test/other',
+          dynamic: false,
+        },
+      })
+    ).id;
   });
   afterAll(async () => {
     await prisma.userOrganization.deleteMany({
@@ -232,6 +243,7 @@ describe('First-party M2M bootstrap (real HTTP, PostgreSQL and Redis)', () => {
     await prisma.organization.deleteMany({ where: { id: { in: orgIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     await prisma.oAuthApp.delete({ where: { id: oauthAppId } });
+    await prisma.oAuthApp.delete({ where: { id: otherAppId } });
     await app.close();
     await ioRedis.quit();
   });
@@ -612,5 +624,20 @@ describe('First-party M2M bootstrap (real HTTP, PostgreSQL and Redis)', () => {
       userId: body.user.id,
       organizationId: body.organization.id,
     });
+  });
+
+  it('allows unrelated OAuth clients but rejects changing a bound bootstrap client', async () => {
+    const { body, url } = await launch();
+    const cookie = cookieHeader(await consume(url));
+    const count = issuedCodes.length;
+    expect(
+      (await approve(cookie, body.oauth.state, clientId + '-other')).status
+    ).toBe(401);
+    expect(issuedCodes).toHaveLength(count);
+    expect((await approve(cookie, body.oauth.state)).ok).toBe(true);
+    expect(
+      (await approve(cookie, 'unrelated-flow-state', clientId + '-other')).ok
+    ).toBe(true);
+    expect(issuedCodes).toHaveLength(count + 2);
   });
 });

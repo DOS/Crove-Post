@@ -372,10 +372,13 @@ export class FirstPartyBootstrapService {
     userId: string,
     organizationId: string,
     clientId: string,
-    state?: string
+    state?: string,
+    required = true
   ): Promise<void> {
-    if (!state || state.length > 2048)
+    if (!state || state.length > 2048) {
+      if (!required) return;
       throw new UnauthorizedException('Invalid consent session');
+    }
     const expected = JSON.stringify({
       userId,
       organizationId,
@@ -384,12 +387,13 @@ export class FirstPartyBootstrapService {
     });
     const consumed = await this.redis(() =>
       ioRedis.eval(
-        "local v = redis.call('GET', KEYS[1]); if v == ARGV[1] then redis.call('DEL', KEYS[1]); return 1; end; return 0",
+        "local v = redis.call('GET', KEYS[1]); if not v then return -1; end; if v == ARGV[1] then redis.call('DEL', KEYS[1]); return 1; end; return 0",
         1,
         this.consentKey(state),
         expected
       )
     );
+    if (consumed === -1 && !required) return;
     if (consumed !== 1)
       throw new UnauthorizedException(
         'Consent session changed or expired; reconnect to continue'

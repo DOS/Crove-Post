@@ -116,8 +116,12 @@ export class OAuthAuthorizedController {
       }
     );
 
-    if (request.firstPartySession) {
-      await this.bootstrap.consumeConsent(user.id, org.id, body.client_id, body.state);
+    const firstPartyClient = body.client_id === process.env.CROVE_POST_CLIENT_ID?.trim();
+    if (request.firstPartySession || firstPartyClient) {
+      await this.bootstrap.consumeConsent(
+        user.id, org.id, body.client_id, body.state,
+        request.firstPartySession === true && firstPartyClient
+      );
     }
 
     // Dynamic clients redirect to their validated redirect_uri,

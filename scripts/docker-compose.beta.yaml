@@ -8,6 +8,9 @@ services:
     image: ghcr.io/dos/crove-post:beta
     container_name: crove-post-beta
     restart: always
+    # Schema changes are a separate reviewed operation. Never introspect/drop
+    # dynamic Mastra tables or run db push --accept-data-loss at app startup.
+    command: ["sh", "-c", "nginx && pnpm run --parallel pm2 && pnpm exec pm2 logs"]
     env_file:
       - crove-server.beta.env
     volumes:

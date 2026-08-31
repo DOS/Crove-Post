@@ -23,6 +23,7 @@ import { ConsumeTicketDto } from '@gitroom/nestjs-libraries/dtos/provision/consu
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { ioRedis } from '@gitroom/nestjs-libraries/redis/redis.service';
 import { Provider } from '@prisma/client';
+import { BootstrapService } from '@gitroom/backend/ecosystem/bootstrap.service';
 
 @ApiTags('Provisioning')
 @Controller('/v1')
@@ -30,7 +31,8 @@ export class ProvisionController {
   constructor(
     private _orgService: OrganizationService,
     private _userService: UsersService,
-    private _authService: AuthService
+    private _authService: AuthService,
+    private readonly bootstrapService: BootstrapService
   ) {}
 
   private verifyAuth(authHeader?: string): boolean {
@@ -75,7 +77,10 @@ export class ProvisionController {
     const { userId, email, name, orgId, orgName, role } = body;
 
     // 1. Find or create user
-    let user = await this._userService.getUserByProvider(userId, Provider.GENERIC);
+    let user = await this._userService.getUserByProvider(
+      userId,
+      Provider.GENERIC
+    );
     if (!user && email) {
       user = await this._userService.getUserByEmail(email);
     }
@@ -86,7 +91,8 @@ export class ProvisionController {
     }
 
     const effectiveOrgName =
-      orgName || (name ? `${name}'s Workspace` : `${email.split('@')[0]} Workspace`);
+      orgName ||
+      (name ? `${name}'s Workspace` : `${email.split('@')[0]} Workspace`);
 
     if (!user) {
       // Create user and initial organization
@@ -146,7 +152,10 @@ export class ProvisionController {
 
     if (!targetOrg) {
       const userOrgs = await this._orgService.getOrgsByUserId(user.id);
-      targetOrg = userOrgs[0] || { id: orgId || makeId(10), name: effectiveOrgName };
+      targetOrg = userOrgs[0] || {
+        id: orgId || makeId(10),
+        name: effectiveOrgName,
+      };
     }
 
     // 3. Issue one-time login ticket (single-use, valid for 5 minutes)
@@ -195,14 +204,40 @@ export class ProvisionController {
       throw new HttpException('Ticket is required', HttpStatus.BAD_REQUEST);
     }
 
+    if (body.ticket.startsWith('fpt_')) {
+      const exchange = await this.bootstrapService.consume(body.ticket);
+      const jwt = await this._authService.jwt(exchange.user);
+      // First-party tickets never return a reusable session token in JSON.
+      const options = {
+        domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
+        secure: true,
+        httpOnly: true,
+        sameSite: 'lax' as const,
+        path: '/',
+        expires: new Date(Date.now() + 1000 * 60 * 60 * 24),
+      };
+      response.cookie('auth', jwt, options);
+      response.cookie('showorg', exchange.orgId, options);
+      response.header('Cache-Control', 'no-store');
+      response.header('Referrer-Policy', 'no-referrer');
+      return response.json({ success: true, redirect_to: exchange.redirectTo });
+    }
+
     let payload: any;
     try {
       payload = AuthChecker.verifyJWT(body.ticket);
     } catch (e) {
-      throw new HttpException('Invalid or expired ticket', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Invalid or expired ticket',
+        HttpStatus.BAD_REQUEST
+      );
     }
 
-    if (payload?.type !== 'one_time_ticket' || !payload?.userId || !payload?.jti) {
+    if (
+      payload?.type !== 'one_time_ticket' ||
+      !payload?.userId ||
+      !payload?.jti
+    ) {
       throw new HttpException('Invalid ticket type', HttpStatus.BAD_REQUEST);
     }
 
@@ -217,7 +252,9 @@ export class ProvisionController {
         return nil
       end
     `;
-    const storedTicket = (await ioRedis.eval(luaScript, 1, ticketKey)) as string | null;
+    const storedTicket = (await ioRedis.eval(luaScript, 1, ticketKey)) as
+      | string
+      | null;
     if (!storedTicket) {
       throw new HttpException(
         'Ticket has already been used or has expired',
@@ -227,7 +264,10 @@ export class ProvisionController {
 
     const user = await this._userService.getUserById(payload.userId);
     if (!user || !user.activated) {
-      throw new HttpException('User not found or inactive', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        'User not found or inactive',
+        HttpStatus.NOT_FOUND
+      );
     }
 
     const jwt = await this._authService.jwt(user);

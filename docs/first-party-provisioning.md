@@ -130,3 +130,48 @@ Content-Type: application/json
   "redirect_to": "/oauth/authorize?client_id=pca_dosclaw_prod_18790ccb&response_type=code"
 }
 ```
+# Consent binding after ticket exchange
+
+For canonical bootstrap, `CROVE_POST_CLIENT_ID` must be configured to the existing
+DOS-Me static OAuth client, and `JWT_SECRET` must be available. Other clients
+cannot use this bootstrap endpoint. The ticket captures the registered OAuth app
+ID and redirect URL in addition to the DOS subject, local user, organization,
+client ID and state. Changing the registered redirect invalidates outstanding
+tickets and consent requests rather than redirecting an existing flow elsewhere.
+
+Ticket exchange creates a distinct random `firstPartyConsentId` and stores the
+complete consent tuple in Redis for five minutes. The ID appears only in the
+signed, HTTP-only auth cookie. AuthMiddleware passes it to the consent controller
+only after JWT verification, including requests made through the internal auth
+header. Request-supplied marker headers are ignored. Existing cookie names,
+domain and logout behavior remain unchanged.
+
+The configured first-party client always requires this marker and a live Redis
+binding. A missing, used, expired or mismatched binding never falls back to
+ordinary OAuth. Approval or denial atomically compares and deletes the tuple,
+including the launch ID, current authoritative subject, user, organization,
+client, state, app ID and registered redirect. A later tab's cookie cannot approve
+an earlier tab's state, including launches for the same user and organization.
+Creation also atomically updates the latest consent ID for the DOS subject.
+Approval compares this pointer as well as the tuple, so starting a newer launch
+supersedes the older launch on the server, even if its signed JWT was retained.
+This applies across tabs and devices for that subject. A consumed newer launch
+does not restore any earlier binding. When bootstrap signing is configured but
+the first-party client ID is missing, OAuth approval fails closed with HTTP 503
+instead of silently falling back to legacy behavior.
+This static bootstrap contract does not include PKCE: injecting a challenge or
+challenge method is rejected. An explicit redirect URI must exactly match the
+captured registered redirect.
+
+After successful approval or denial, the auth cookie becomes an ordinary session
+without the launch marker. Legacy OAuth remains available for other clients;
+the configured DOS-Me client still needs a fresh bootstrap and cannot reuse that
+ordinary session to bypass replay protection. Legacy `/v1/provision` and JWT
+ticket contracts are unchanged. A marked session must complete or deny its bound
+consent before using an unrelated OAuth flow.
+
+`tests/bootstrap-consent.spec.ts` exercises real HTTP controllers, AuthMiddleware,
+OAuthService/repository code issuance, PostgreSQL and Redis. Regression coverage
+includes two-tab supersession, subject/org/client/state changes, registered
+redirect changes, PKCE injection, expiry, eight simultaneous approvals, marker
+tampering, replay after returning to an ordinary session, and legacy OAuth.

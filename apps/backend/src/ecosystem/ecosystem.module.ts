@@ -23,6 +23,6 @@ import { BootstrapRepository } from '@gitroom/nestjs-libraries/database/prisma/p
     BootstrapService,
     BootstrapRepository,
   ],
-  exports: [EcosystemService],
+  exports: [EcosystemService, BootstrapService],
 })
 export class EcosystemModule {}

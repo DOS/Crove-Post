@@ -8,13 +8,23 @@ import {
   HttpStatus,
   Post,
   Query,
+  Req,
+  Res,
+  ServiceUnavailableException,
 } from '@nestjs/common';
+import { Request, Response } from 'express';
+import { BootstrapService } from '@gitroom/backend/ecosystem/bootstrap.service';
+import { AuthService as AuthChecker } from '@gitroom/helpers/auth/auth.service';
+import { getCookieUrlFromDomain } from '@gitroom/helpers/subdomain/subdomain.management';
 import { ApiTags } from '@nestjs/swagger';
 import { OAuthService } from '@gitroom/nestjs-libraries/database/prisma/oauth/oauth.service';
 import { GetUserFromRequest } from '@gitroom/nestjs-libraries/user/user.from.request';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
 import { User, Organization } from '@prisma/client';
-import { AuthorizeOAuthQueryDto, ApproveOAuthDto } from '@gitroom/nestjs-libraries/dtos/oauth/authorize-oauth.dto';
+import {
+  AuthorizeOAuthQueryDto,
+  ApproveOAuthDto,
+} from '@gitroom/nestjs-libraries/dtos/oauth/authorize-oauth.dto';
 import { TokenExchangeDto } from '@gitroom/nestjs-libraries/dtos/oauth/token-exchange.dto';
 import { RegisterClientDto } from '@gitroom/nestjs-libraries/dtos/oauth/register-client.dto';
 import { RevokeTokenDto } from '@gitroom/nestjs-libraries/dtos/oauth/revoke-token.dto';
@@ -92,14 +102,28 @@ export class OAuthController {
 @ApiTags('OAuth')
 @Controller('/oauth')
 export class OAuthAuthorizedController {
-  constructor(private _oauthService: OAuthService) {}
+  constructor(
+    private _oauthService: OAuthService,
+    private readonly bootstrapService: BootstrapService
+  ) {}
 
   @Post('/authorize')
   async approveOrDeny(
     @Body() body: ApproveOAuthDto,
     @GetUserFromRequest() user: User,
-    @GetOrgFromRequest() org: Organization
+    @GetOrgFromRequest() org: Organization,
+    @Req() request: Request & { firstPartyConsentId?: string },
+    @Res({ passthrough: true }) response: Response
   ) {
+    if (
+      !process.env.CROVE_POST_CLIENT_ID?.trim() &&
+      (process.env.CROVE_POST_BOOTSTRAP_SIGNING_SECRET?.trim() ||
+        process.env.CROVE_POST_CLIENT_SECRET?.trim())
+    ) {
+      throw new ServiceUnavailableException(
+        'First-party OAuth is not configured'
+      );
+    }
     const app = await this._oauthService.validateAuthorizationRequest(
       body.client_id,
       {
@@ -108,6 +132,24 @@ export class OAuthAuthorizedController {
         codeChallengeMethod: body.code_challenge_method,
       }
     );
+
+    const bound =
+      !!request.firstPartyConsentId ||
+      body.client_id === process.env.CROVE_POST_CLIENT_ID?.trim();
+    if (bound) {
+      await this.bootstrapService.consumeConsent({
+        consentId: request.firstPartyConsentId,
+        userId: user.id,
+        orgId: org.id,
+        clientId: body.client_id,
+        state: body.state,
+        appId: app.id,
+        registeredRedirectUri: app.redirectUrl,
+        redirectUri: body.redirect_uri,
+        codeChallenge: body.code_challenge,
+        codeChallengeMethod: body.code_challenge_method,
+      });
+    }
 
     // Dynamic clients redirect to their validated redirect_uri,
     // static apps keep using the one stored on the app
@@ -119,6 +161,7 @@ export class OAuthAuthorizedController {
       if (body.state) {
         redirectUrl.searchParams.set('state', body.state);
       }
+      if (bound) this.finishConsentSession(user.id, response);
       return { redirect: redirectUrl.toString() };
     }
 
@@ -140,6 +183,27 @@ export class OAuthAuthorizedController {
     if (body.state) {
       redirectUrl.searchParams.set('state', body.state);
     }
+    if (bound) this.finishConsentSession(user.id, response);
     return { redirect: redirectUrl.toString() };
+  }
+
+  private finishConsentSession(userId: string, response: Response) {
+    // Resume a normal session after consent. The configured first-party client
+    // still requires a fresh launch marker, so a consumed flow cannot fall back.
+    response.cookie(
+      'auth',
+      AuthChecker.signJWT({
+        id: userId,
+        exp: Math.floor(Date.now() / 1000) + 86400,
+      }),
+      {
+        domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
+        secure: true,
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        expires: new Date(Date.now() + 86400_000),
+      }
+    );
   }
 }

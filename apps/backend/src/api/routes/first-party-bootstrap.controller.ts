@@ -57,7 +57,7 @@ export class FirstPartyBootstrapController {
     };
     response.cookie(
       '__Host-crove-auth',
-      sign({ id: session.user.id }, process.env.JWT_SECRET!, {
+      sign({ id: session.user.id, firstParty: true }, process.env.JWT_SECRET!, {
         expiresIn: '1d',
       }),
       cookie

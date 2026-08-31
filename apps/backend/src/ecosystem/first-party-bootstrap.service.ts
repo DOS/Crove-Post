@@ -339,6 +339,18 @@ export class FirstPartyBootstrapService {
     ) {
       throw new UnauthorizedException('Invalid or expired ticket');
     }
+    // Preserve the tuple through the eventual approval, including multi-tab flows.
+    const binding = JSON.stringify({
+      userId: value.userId,
+      organizationId: value.organizationId,
+      clientId: value.clientId,
+      state: value.state,
+    });
+    const storedBinding = await this.redis(() =>
+      ioRedis.set(this.consentKey(value.state), binding, 'EX', 300, 'NX')
+    );
+    if (storedBinding !== 'OK')
+      throw new UnauthorizedException('Invalid consent session');
     const redirect = new URL('/oauth/authorize', origin);
     redirect.searchParams.set('client_id', value.clientId);
     redirect.searchParams.set('response_type', 'code');
@@ -348,5 +360,39 @@ export class FirstPartyBootstrapService {
       organizationId: value.organizationId,
       redirect: redirect.toString(),
     };
+  }
+
+  private consentKey(state: string): string {
+    return `first-party:consent:${createHash('sha256')
+      .update(state)
+      .digest('hex')}`;
+  }
+
+  async consumeConsent(
+    userId: string,
+    organizationId: string,
+    clientId: string,
+    state?: string
+  ): Promise<void> {
+    if (!state || state.length > 2048)
+      throw new UnauthorizedException('Invalid consent session');
+    const expected = JSON.stringify({
+      userId,
+      organizationId,
+      clientId,
+      state,
+    });
+    const consumed = await this.redis(() =>
+      ioRedis.eval(
+        "local v = redis.call('GET', KEYS[1]); if v == ARGV[1] then redis.call('DEL', KEYS[1]); return 1; end; return 0",
+        1,
+        this.consentKey(state),
+        expected
+      )
+    );
+    if (consumed !== 1)
+      throw new UnauthorizedException(
+        'Consent session changed or expired; reconnect to continue'
+      );
   }
 }

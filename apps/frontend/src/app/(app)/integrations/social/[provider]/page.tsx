@@ -18,6 +18,7 @@ export default async function Page(
     provider
   } = params;
 
-  const get = (await cookies()).get('auth');
+  const cookieStore = await cookies();
+  const get = cookieStore.get('__Host-crove-auth') || cookieStore.get('auth');
   return <ContinueIntegration searchParams={searchParams} provider={provider} logged={!!get?.name} />;
 }

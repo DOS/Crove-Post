@@ -8,7 +8,10 @@ import {
   HttpStatus,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
+import { FirstPartyBootstrapService } from '@gitroom/backend/ecosystem/first-party-bootstrap.service';
 import { ApiTags } from '@nestjs/swagger';
 import { OAuthService } from '@gitroom/nestjs-libraries/database/prisma/oauth/oauth.service';
 import { GetUserFromRequest } from '@gitroom/nestjs-libraries/user/user.from.request';
@@ -92,13 +95,17 @@ export class OAuthController {
 @ApiTags('OAuth')
 @Controller('/oauth')
 export class OAuthAuthorizedController {
-  constructor(private _oauthService: OAuthService) {}
+  constructor(
+    private _oauthService: OAuthService,
+    private readonly bootstrap: FirstPartyBootstrapService
+  ) {}
 
   @Post('/authorize')
   async approveOrDeny(
     @Body() body: ApproveOAuthDto,
     @GetUserFromRequest() user: User,
-    @GetOrgFromRequest() org: Organization
+    @GetOrgFromRequest() org: Organization,
+    @Req() request: Request & { firstPartySession?: boolean }
   ) {
     const app = await this._oauthService.validateAuthorizationRequest(
       body.client_id,
@@ -108,6 +115,10 @@ export class OAuthAuthorizedController {
         codeChallengeMethod: body.code_challenge_method,
       }
     );
+
+    if (request.firstPartySession) {
+      await this.bootstrap.consumeConsent(user.id, org.id, body.client_id, body.state);
+    }
 
     // Dynamic clients redirect to their validated redirect_uri,
     // static apps keep using the one stored on the app

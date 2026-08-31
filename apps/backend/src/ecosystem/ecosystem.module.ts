@@ -21,6 +21,6 @@ import { FirstPartyBootstrapService } from '@gitroom/backend/ecosystem/first-par
     FirstPartyBootstrapService,
     FirstPartyBootstrapGuard,
   ],
-  exports: [EcosystemService],
+  exports: [EcosystemService, FirstPartyBootstrapService],
 })
 export class EcosystemModule {}

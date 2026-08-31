@@ -118,13 +118,24 @@ using only the stored client/state. This backend handoff avoids a frontend
 login redirect before session establishment. Extra redirect or OAuth query
 parameters are ignored. It never approves consent automatically.
 
+The cookies are `__Host-crove-auth` and `__Host-crove-org`, isolated from legacy
+parent-domain cookies. Auth middleware, frontend routing, server fetches, and
+social callbacks recognize them. Organization selection updates the host cookie;
+logout clears the host session in addition to its existing legacy-cookie cleanup.
+The signed session marks its first-party origin. On launch, Redis also stores a
+five-minute consent binding; approval atomically checks and consumes its exact
+user/organization/client/state tuple. Changing tabs, user, organization or state
+cannot grant a code for another bootstrap flow. Traditional OAuth sessions retain
+their existing behavior. Replacing the session with a legacy ticket clears the
+first-party cookies.
+
 Neither response exposes a JWT, client secret, refresh token, or `pos_` token.
 Launch responses use `Cache-Control: no-store` and `Referrer-Policy: no-referrer`.
 Container Nginx access logs omit query strings; Sentry error/transaction export
 excludes first-party routes. Any outer proxy must also omit ticket query strings.
 
-Compatibility: `/v1/provision` and `/v1/ticket/consume` remain unchanged for their
-existing callers and JWT ticket format. Canonical bootstrap tickets cannot be
+Compatibility: `/v1/provision` and `/v1/ticket/consume` retain their existing
+contracts and JWT ticket format. Canonical bootstrap tickets cannot be
 consumed there and do not accept caller-controlled redirects.
 
 ## Validation and Beta release

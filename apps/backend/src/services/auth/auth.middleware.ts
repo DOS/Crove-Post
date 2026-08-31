@@ -43,7 +43,8 @@ export class AuthMiddleware implements NestMiddleware {
       // Verify the JWT signature only. Never trust authorization-relevant
       // claims (id, isSuperAdmin, activated) from the token body — always
       // re-resolve the user from the database using the id.
-      const payload = AuthService.verifyJWT(auth) as User | null;
+      const payload = AuthService.verifyJWT(auth) as (User & { firstParty?: boolean }) | null;
+      (req as Request & { firstPartySession: boolean }).firstPartySession = payload?.firstParty === true;
       const orgHeader = req.cookies['__Host-crove-org'] || req.cookies.showorg || req.headers.showorg;
 
       if (!payload?.id) {
@@ -61,7 +62,7 @@ export class AuthMiddleware implements NestMiddleware {
       }
 
       const impersonate = req.cookies.impersonate || req.headers.impersonate;
-      if (user?.isSuperAdmin && impersonate) {
+      if (user?.isSuperAdmin && impersonate && !payload.firstParty) {
         const loadImpersonate = await this._organizationService.getUserOrg(
           impersonate
         );

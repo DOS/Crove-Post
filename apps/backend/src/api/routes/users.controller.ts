@@ -318,8 +318,15 @@ export class UsersController {
   @Post('/change-org')
   changeOrg(
     @Body('id') id: string,
-    @Res({ passthrough: true }) response: Response
+    @Res({ passthrough: true }) response: Response,
+    @Req() request: Request & { firstPartySession?: boolean }
   ) {
+    if (request.firstPartySession) {
+      response.cookie('__Host-crove-org', id, {
+        path: '/', secure: true, httpOnly: true, sameSite: 'lax', maxAge: 86_400_000,
+      });
+      return response.status(200).send();
+    }
     response.cookie('showorg', id, {
       domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
       ...(!process.env.NOT_SECURED
@@ -378,12 +385,19 @@ export class UsersController {
 
     await this._userService.deleteAccount(user.id);
 
-    return this.logout(response);
+    return this.logout(response, req);
   }
 
   @Post('/logout')
-  logout(@Res({ passthrough: true }) response: Response) {
+  logout(
+    @Res({ passthrough: true }) response: Response,
+    @Req() request?: Request & { firstPartySession?: boolean }
+  ) {
     response.header('logout', 'true');
+    for (const name of ['__Host-crove-auth', '__Host-crove-org']) {
+      response.clearCookie(name, { path: '/', secure: true, httpOnly: true, sameSite: 'lax' });
+    }
+    // Preserve legacy logout cleanup so an older parent cookie cannot restore a session.
     response.cookie('auth', '', {
       domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
       ...(!process.env.NOT_SECURED

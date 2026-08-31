@@ -1,8 +1,25 @@
 import 'reflect-metadata';
 import { createHash, createHmac, randomBytes, randomUUID } from 'crypto';
 import { NestFactory } from '@nestjs/core';
-import { INestApplication, Module } from '@nestjs/common';
-import { verify } from 'jsonwebtoken';
+import {
+  INestApplication,
+  Module,
+  MiddlewareConsumer,
+  NestModule,
+} from '@nestjs/common';
+import { sign, verify } from 'jsonwebtoken';
+import cookieParser from 'cookie-parser';
+import { UsersController } from '../src/api/routes/users.controller';
+import { OAuthAuthorizedController } from '../src/api/routes/oauth.controller';
+import { AuthMiddleware } from '../src/services/auth/auth.middleware';
+import { OAuthService } from '@gitroom/nestjs-libraries/database/prisma/oauth/oauth.service';
+import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service';
+import { UsersService } from '@gitroom/nestjs-libraries/database/prisma/users/users.service';
+import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
+import { StripeService } from '@gitroom/nestjs-libraries/services/stripe.service';
+import { AuthService } from '../src/services/auth/auth.service';
+import { TrackService } from '@gitroom/nestjs-libraries/track/track.service';
+import { HttpExceptionFilter } from '@gitroom/nestjs-libraries/services/exception.filter';
 import {
   FirstPartyBootstrapController,
   FirstPartyBootstrapGuard,
@@ -15,6 +32,37 @@ import {
 import { PrismaService } from '@gitroom/nestjs-libraries/database/prisma/prisma.service';
 import { ioRedis } from '@gitroom/nestjs-libraries/redis/redis.service';
 
+// Keep unrelated billing, integrations, and telemetry out of this HTTP harness.
+// Auth middleware/controllers and security state are real; projection reads use PostgreSQL.
+jest.mock(
+  '@gitroom/nestjs-libraries/database/prisma/oauth/oauth.service',
+  () => ({ OAuthService: class {} })
+);
+jest.mock(
+  '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service',
+  () => ({ OrganizationService: class {} })
+);
+jest.mock(
+  '@gitroom/nestjs-libraries/database/prisma/users/users.service',
+  () => ({ UsersService: class {} })
+);
+jest.mock(
+  '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service',
+  () => ({ SubscriptionService: class {} })
+);
+jest.mock('@gitroom/nestjs-libraries/services/stripe.service', () => ({
+  StripeService: class {},
+}));
+jest.mock('../src/services/auth/auth.service', () => ({
+  AuthService: class {},
+}));
+jest.mock('@gitroom/nestjs-libraries/track/track.service', () => ({
+  TrackService: class {},
+}));
+jest.mock('@gitroom/nestjs-libraries/sentry/initialize.sentry', () => ({
+  setSentryUserContext: jest.fn(),
+}));
+
 // These tests intentionally use real, disposable PostgreSQL and Redis instances.
 // Refuse non-loopback databases, including any developer or deployed environment.
 for (const name of ['DATABASE_URL', 'REDIS_URL']) {
@@ -25,16 +73,67 @@ for (const name of ['DATABASE_URL', 'REDIS_URL']) {
 const secret = 'bootstrap-test-only-secret';
 const clientId = 'pca_bootstrap_test';
 const origin = 'https://beta-post.crove.com';
+const issuedCodes: { userId: string; organizationId: string }[] = [];
 
 @Module({
-  controllers: [FirstPartyBootstrapController],
+  controllers: [
+    FirstPartyBootstrapController,
+    UsersController,
+    OAuthAuthorizedController,
+  ],
   providers: [
     FirstPartyBootstrapService,
     FirstPartyBootstrapGuard,
     PrismaService,
+    AuthMiddleware,
+    { provide: SubscriptionService, useValue: {} },
+    { provide: StripeService, useValue: {} },
+    { provide: AuthService, useValue: {} },
+    { provide: TrackService, useValue: {} },
+    {
+      provide: UsersService,
+      inject: [PrismaService],
+      useFactory: (prisma: PrismaService) => ({
+        getUserById: (id: string) => prisma.user.findUnique({ where: { id } }),
+      }),
+    },
+    {
+      provide: OrganizationService,
+      inject: [PrismaService],
+      useFactory: (prisma: PrismaService) => ({
+        getOrgsByUserId: (userId: string) =>
+          prisma.organization.findMany({
+            where: { users: { some: { userId } }, deletedAt: null },
+            include: { users: { where: { userId } } },
+          }),
+        updateApiKey: async () => undefined,
+      }),
+    },
+    {
+      provide: OAuthService,
+      inject: [PrismaService],
+      useFactory: (prisma: PrismaService) => ({
+        validateAuthorizationRequest: (clientId: string) =>
+          prisma.oAuthApp.findFirst({ where: { clientId } }),
+        createAuthorizationCode: async (
+          _appId: string,
+          userId: string,
+          organizationId: string
+        ) => {
+          issuedCodes.push({ userId, organizationId });
+          return 'test-authorization-code';
+        },
+      }),
+    },
   ],
 })
-class TestModule {}
+class TestModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(AuthMiddleware)
+      .forRoutes(UsersController, OAuthAuthorizedController);
+  }
+}
 
 describe('First-party M2M bootstrap (real HTTP, PostgreSQL and Redis)', () => {
   let app: INestApplication;
@@ -108,6 +207,8 @@ describe('First-party M2M bootstrap (real HTTP, PostgreSQL and Redis)', () => {
       rawBody: true,
       logger: false,
     });
+    app.use(cookieParser());
+    app.useGlobalFilters(new HttpExceptionFilter());
     await app.listen(0, '127.0.0.1');
     base = await app.getUrl();
     prisma = app.get(PrismaService);
@@ -388,5 +489,128 @@ describe('First-party M2M bootstrap (real HTTP, PostgreSQL and Redis)', () => {
       data: { disabled: true },
     });
     expect((await consume(second.url)).status).toBe(401);
+  });
+
+  const cookieHeader = (response: globalThis.Response) =>
+    response.headers
+      .getSetCookie()
+      .map((c) => c.split(';')[0])
+      .join('; ');
+  const approve = (cookie: string, state: string, requestedClient = clientId) =>
+    fetch(`${base}/oauth/authorize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({
+        client_id: requestedClient,
+        state,
+        action: 'approve',
+      }),
+    });
+
+  it('keeps the consent tuple bound across concurrent tabs and consumes approval once', async () => {
+    const first = await launch();
+    await consume(first.url);
+    const secondBody = payload();
+    secondBody.user = first.body.user;
+    const second = await launch(secondBody);
+    const cookie = cookieHeader(await consume(second.url));
+    const count = issuedCodes.length;
+    expect((await approve(cookie, first.body.oauth.state)).status).toBe(401);
+    expect(issuedCodes).toHaveLength(count);
+    const responses = await Promise.all(
+      Array.from({ length: 8 }, () => approve(cookie, second.body.oauth.state))
+    );
+    expect(responses.filter((r) => r.ok)).toHaveLength(1);
+    expect(responses.filter((r) => r.status === 401)).toHaveLength(7);
+    expect(issuedCodes.at(-1)).toEqual({
+      userId: first.body.user.id,
+      organizationId: secondBody.organization.id,
+    });
+    expect(issuedCodes).toHaveLength(count + 1);
+  });
+
+  it('rejects tampered or expired consent state and a changed user', async () => {
+    const first = await launch();
+    const firstCookie = cookieHeader(await consume(first.url));
+    const other = await launch();
+    const otherCookie = cookieHeader(await consume(other.url));
+    expect((await approve(otherCookie, first.body.oauth.state)).status).toBe(
+      401
+    );
+    expect((await approve(firstCookie, 'changed-state')).status).toBe(401);
+    const key =
+      'first-party:consent:' +
+      createHash('sha256').update(first.body.oauth.state).digest('hex');
+    await ioRedis.del(key);
+    expect((await approve(firstCookie, first.body.oauth.state)).status).toBe(
+      401
+    );
+  });
+
+  it('changes organization using the host cookie without modifying parent-domain cookies', async () => {
+    const first = await launch();
+    const firstCookie = cookieHeader(await consume(first.url));
+    const other = payload();
+    other.user = first.body.user;
+    await launch(other);
+    const response = await fetch(`${base}/user/change-org`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: firstCookie },
+      body: JSON.stringify({ id: other.organization.id }),
+    });
+    expect(response.ok).toBe(true);
+    const setCookies = response.headers.getSetCookie();
+    expect(setCookies).toHaveLength(1);
+    expect(setCookies[0]).toContain(
+      `__Host-crove-org=${other.organization.id}`
+    );
+    expect(setCookies[0]).not.toContain('Domain=');
+    const cookie = firstCookie.replace(
+      `__Host-crove-org=${first.body.organization.id}`,
+      `__Host-crove-org=${other.organization.id}`
+    );
+    expect((await approve(cookie, first.body.oauth.state)).status).toBe(401);
+  });
+
+  it('actual logout clears first-party and legacy cookies so no older session is restored', async () => {
+    const { url } = await launch();
+    const cookie = cookieHeader(await consume(url));
+    const response = await fetch(`${base}/user/logout`, {
+      method: 'POST',
+      headers: {
+        Cookie: `auth=stale-parent-cookie; showorg=stale-parent-org; ${cookie}`,
+      },
+    });
+    expect(response.ok).toBe(true);
+    const setCookies = response.headers.getSetCookie();
+    expect(setCookies).toHaveLength(5);
+    for (const name of ['__Host-crove-auth', '__Host-crove-org']) {
+      expect(setCookies.find((c) => c.startsWith(name + '='))).toContain(
+        'Expires=Thu, 01 Jan 1970'
+      );
+    }
+    for (const name of ['auth', 'showorg', 'impersonate']) {
+      expect(setCookies.find((c) => c.startsWith(name + '='))).toContain(
+        'Expires=Thu, 01 Jan 1970'
+      );
+    }
+    expect((await fetch(`${base}/user/organizations`)).status).toBe(401);
+  });
+
+  it('preserves traditional OAuth approval without bootstrap flow state', async () => {
+    const { body } = await launch();
+    const legacyJwt = sign({ id: body.user.id }, process.env.JWT_SECRET!);
+    expect(
+      (
+        await approve(
+          `auth=${legacyJwt}; showorg=${body.organization.id}`,
+          'legacy-state'
+        )
+      ).ok
+    ).toBe(true);
+    expect(issuedCodes.at(-1)).toEqual({
+      userId: body.user.id,
+      organizationId: body.organization.id,
+    });
   });
 });

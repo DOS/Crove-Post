@@ -10,6 +10,7 @@ import dayjs from 'dayjs';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { Organization, ShortLinkPreference, User } from '@prisma/client';
 import { AutopostService } from '@gitroom/nestjs-libraries/database/prisma/autopost/autopost.service';
+import { isEcosystemSyncEnabled } from '@gitroom/helpers/utils/ecosystem.config';
 
 @Injectable()
 export class OrganizationService {
@@ -229,9 +230,9 @@ export class OrganizationService {
     let orgId: string | undefined;
     let orgName = body.name || 'New Organization';
 
-    // If user is authenticated via DOS ID, delegate creation to api.dos.me (Method 3: Delegated Creation)
-    const apiUrl = process.env.POSTIZ_OAUTH_URL || 'https://api.dos.me';
-    if (userAuthHeader && userAuthHeader.startsWith('Bearer ')) {
+    // If ecosystem sync is enabled AND user is authenticated via OAuth Bearer token (API Delegation)
+    if (isEcosystemSyncEnabled() && userAuthHeader && userAuthHeader.startsWith('Bearer ')) {
+      const apiUrl = process.env.POSTIZ_OAUTH_URL || 'https://api.dos.me';
       try {
         const response = await fetch(`${apiUrl}/organizations`, {
           method: 'POST',

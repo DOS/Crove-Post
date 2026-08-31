@@ -39,15 +39,17 @@ jobs:
       - name: Check Commits and Prepare Sync Branch
         id: sync
         run: |
-          COMMITS_BEHIND=$(git rev-list --count origin/main..upstream/main)
+          COMMITS_BEHIND=$(git rev-list --count origin/dev..upstream/main)
           echo "Commits behind upstream: $COMMITS_BEHIND"
 
           if [ "$COMMITS_BEHIND" -gt 0 ]; then
             BRANCH_NAME="upstream-sync-$(date +%Y%m%d)"
-            git checkout -b "$BRANCH_NAME" origin/main
-            git merge upstream/main -m "chore(sync): automated sync with upstream main" --no-edit || {
-              echo "Merge conflict detected. Please resolve manually."
-              exit 1
+            git checkout -b "$BRANCH_NAME" origin/dev
+            git merge upstream/main -m "chore(sync): automated sync with upstream main ($(date +%Y-%m-%d))" --no-edit || {
+              echo "conflict=true" >> "$GITHUB_OUTPUT"
+              echo "Merge conflict detected during automatic sync."
+              git merge --abort || true
+              exit 0
             }
             git push -u origin "$BRANCH_NAME" -f
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
@@ -80,6 +82,6 @@ jobs:
         run: |
           gh pr create \
             --title "chore: sync with upstream Postiz ($(date +%Y-%m-%d))" \
-            --body "Automated synchronization with upstream \`gitroomhq/postiz-app\` main branch. Branding guard tests verified." \
+            --body "Automated daily synchronization with upstream \`gitroomhq/postiz-app\` main branch. Branding guard tests verified." \
             --head "${{ steps.sync.outputs.branch_name }}" \
-            --base main || echo "PR might already exist"
+            --base dev || echo "PR might already exist"

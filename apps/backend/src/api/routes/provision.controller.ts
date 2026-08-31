@@ -17,6 +17,7 @@ import { UsersService } from '@gitroom/nestjs-libraries/database/prisma/users/us
 import { AuthService } from '@gitroom/backend/services/auth/auth.service';
 import { AuthService as AuthChecker } from '@gitroom/helpers/auth/auth.service';
 import { getCookieUrlFromDomain } from '@gitroom/helpers/subdomain/subdomain.management';
+import { isEcosystemSyncEnabled } from '@gitroom/helpers/utils/ecosystem.config';
 import { ProvisionUserDto } from '@gitroom/nestjs-libraries/dtos/provision/provision-user.dto';
 import { ConsumeTicketDto } from '@gitroom/nestjs-libraries/dtos/provision/consume-ticket.dto';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
@@ -33,6 +34,10 @@ export class ProvisionController {
   ) {}
 
   private verifyAuth(authHeader?: string): boolean {
+    if (!isEcosystemSyncEnabled()) {
+      return false;
+    }
+
     const secret =
       process.env.PROVISIONING_SECRET_KEY ||
       process.env.DOS_PROVISIONING_SECRET ||

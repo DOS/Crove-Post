@@ -25,11 +25,15 @@ Stack Beta chạy độc lập trên máy chủ GCP (`crove-server`), sử dụn
 services:
   # 1. Crove Post Core App (Beta)
   crove-post-beta:
-    image: ghcr.io/dos/crove-post:beta
+    image: ${CROVE_POST_BETA_IMAGE:-ghcr.io/dos/crove-post:beta}
     container_name: crove-post-beta
+    pull_policy: always
     restart: always
     env_file:
       - crove-server.beta.env
+    command: ["sh", "-c", "nginx && pnpm exec pm2 ping && pnpm run --parallel pm2 && pnpm exec pm2 logs"]
+    environment:
+      MASTRA_DISABLE_STORAGE_INIT: 'true'
     volumes:
       - crove-post-beta-config:/config/
       - crove-post-beta-uploads:/uploads/
@@ -111,7 +115,8 @@ ingress:
 .\scripts\deploy-beta.ps1
 
 # Hoặc khởi chạy container trên máy chủ GCP
-docker compose -f scripts/docker-compose.beta.yaml up -d
+pnpm run validate:beta-deploy
+docker compose -f scripts/docker-compose.beta.yaml up -d --no-deps --pull always crove-post-beta
 ```
 
 ### Deploy Môi Trường Production

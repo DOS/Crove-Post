@@ -68,7 +68,7 @@ export const initializeSentry = (appName: string, allowLogs = false) => {
       // Bootstrap payloads and ticket exchanges must not enter telemetry.
       beforeSend(event) {
         if (
-          /\/(?:internal\/first-party\/bootstrap|v1\/ticket\/consume)(?:\?|$)/.test(
+          /\/(?:internal\/first-party\/bootstrap|v1\/ticket\/consume|oauth\/authorize)(?:\?|$)/.test(
             event.request?.url || ''
           )
         )
@@ -77,7 +77,7 @@ export const initializeSentry = (appName: string, allowLogs = false) => {
       },
       beforeSendTransaction(event) {
         if (
-          /\/(?:internal\/first-party\/bootstrap|v1\/ticket\/consume)(?:\?|$)/.test(
+          /\/(?:internal\/first-party\/bootstrap|v1\/ticket\/consume|oauth\/authorize)(?:\?|$)/.test(
             event.request?.url || event.transaction || ''
           )
         )

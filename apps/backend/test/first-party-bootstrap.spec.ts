@@ -603,7 +603,7 @@ describe('First-party M2M bootstrap (real HTTP, PostgreSQL and Redis)', () => {
     }
     for (const name of ['auth', 'showorg', 'impersonate']) {
       expect(setCookies.find((c) => c.startsWith(name + '='))).toContain(
-        'Expires=Thu, 01 Jan 1970'
+        'Max-Age=-1'
       );
     }
     expect((await fetch(`${base}/user/organizations`)).status).toBe(401);

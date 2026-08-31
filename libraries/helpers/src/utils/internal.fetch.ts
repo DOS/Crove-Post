@@ -5,7 +5,7 @@ export const internalFetch = async (url: string, options: RequestInit = {}) => {
   const cookieStore = await cookies();
   return customFetch(
     { baseUrl: process.env.BACKEND_INTERNAL_URL! },
-    cookieStore?.get('auth')?.value!,
-    cookieStore?.get('showorg')?.value!
+    (cookieStore?.get('__Host-crove-auth') || cookieStore?.get('auth'))?.value!,
+    (cookieStore?.get('__Host-crove-org') || cookieStore?.get('showorg'))?.value!
   )(url, options);
 };

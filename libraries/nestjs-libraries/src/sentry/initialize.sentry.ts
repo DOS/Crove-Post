@@ -60,6 +60,13 @@ export const initializeSentry = (appName: string, allowLogs = false) => {
       ],
       tracesSampleRate: 1.0,
       enableLogs: true,
+      // Bootstrap requests contain M2M signatures or single-use login tickets.
+      beforeSend(event) {
+        return event.request?.url?.includes('/internal/first-party/') ? null : event;
+      },
+      beforeSendTransaction(event) {
+        return event.request?.url?.includes('/internal/first-party/') ? null : event;
+      },
 
       // Profiling
       profileSessionSampleRate: process.env.NODE_ENV === 'development' ? 1.0 : 0.3,

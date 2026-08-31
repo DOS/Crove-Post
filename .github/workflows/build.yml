@@ -15,6 +15,22 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    services:
+      bootstrap-postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: bootstrap-test
+          POSTGRES_DB: bootstrap_test
+        ports: ['15432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d bootstrap_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+      bootstrap-redis:
+        image: redis:7.2-alpine
+        ports: ['16379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
 
     strategy:
       matrix:
@@ -41,3 +57,12 @@ jobs:
 
       - name: Build applications
         run: pnpm run build
+
+      - name: Test first-party bootstrap with disposable PostgreSQL and Redis
+        env:
+          DATABASE_URL: postgresql://postgres:bootstrap-test@127.0.0.1:15432/bootstrap_test
+          DATABASE_DIRECT_URL: postgresql://postgres:bootstrap-test@127.0.0.1:15432/bootstrap_test
+          REDIS_URL: redis://127.0.0.1:16379
+        run: |
+          pnpm exec prisma db push --schema libraries/nestjs-libraries/src/database/prisma/schema.prisma --skip-generate
+          pnpm exec jest --config apps/backend/test/jest-bootstrap.config.cjs --runInBand

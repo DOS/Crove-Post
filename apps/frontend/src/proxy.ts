@@ -14,6 +14,7 @@ acceptLanguage.languages(languages);
 export async function proxy(request: NextRequest) {
   const nextUrl = request.nextUrl;
   const authCookie =
+    request.cookies.get('__Host-crove-auth') ||
     request.cookies.get('auth') ||
     request.headers.get('auth') ||
     nextUrl.searchParams.get('loggedAuth');
@@ -64,6 +65,9 @@ export async function proxy(request: NextRequest) {
     const response = NextResponse.redirect(
       new URL('/auth/login', nextUrl.href)
     );
+    for (const name of ['__Host-crove-auth', '__Host-crove-org']) {
+      response.cookies.set(name, '', { path: '/', secure: true, httpOnly: true, sameSite: 'lax', maxAge: 0 });
+    }
     response.cookies.set('auth', '', {
       path: '/',
       ...(!process.env.NOT_SECURED

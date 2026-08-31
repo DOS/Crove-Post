@@ -10,6 +10,9 @@ import { MastraService } from '@gitroom/nestjs-libraries/chat/mastra.service';
 import { setSentryUserContext } from '@gitroom/nestjs-libraries/sentry/initialize.sentry';
 
 export const removeAuth = (res: Response) => {
+  for (const name of ['__Host-crove-auth', '__Host-crove-org']) {
+    res.clearCookie(name, { path: '/', secure: true, httpOnly: true, sameSite: 'lax' });
+  }
   res.cookie('auth', '', {
     domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
     ...(!process.env.NOT_SECURED
@@ -32,7 +35,7 @@ export class AuthMiddleware implements NestMiddleware {
     private _userService: UsersService
   ) {}
   async use(req: Request, res: Response, next: NextFunction) {
-    const auth = req.headers.auth || req.cookies.auth;
+    const auth = req.cookies['__Host-crove-auth'] || req.headers.auth || req.cookies.auth;
     if (!auth) {
       throw new HttpForbiddenException();
     }
@@ -41,7 +44,7 @@ export class AuthMiddleware implements NestMiddleware {
       // claims (id, isSuperAdmin, activated) from the token body — always
       // re-resolve the user from the database using the id.
       const payload = AuthService.verifyJWT(auth) as User | null;
-      const orgHeader = req.cookies.showorg || req.headers.showorg;
+      const orgHeader = req.cookies['__Host-crove-org'] || req.cookies.showorg || req.headers.showorg;
 
       if (!payload?.id) {
         throw new HttpForbiddenException();

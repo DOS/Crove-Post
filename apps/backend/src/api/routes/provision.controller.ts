@@ -232,6 +232,11 @@ export class ProvisionController {
 
     const jwt = await this._authService.jwt(user);
 
+    // A legacy ticket explicitly replaces any prior first-party host session.
+    for (const name of ['__Host-crove-auth', '__Host-crove-org']) {
+      response.clearCookie(name, { path: '/', secure: true, httpOnly: true, sameSite: 'lax' });
+    }
+
     response.cookie('auth', jwt, {
       domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
       ...(!process.env.NOT_SECURED

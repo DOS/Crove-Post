@@ -9,6 +9,9 @@ const STORAGE_KEY = 'refreshEntries';
 const ALLOWED_ORIGIN_PATTERNS = [
   /^https?:\/\/localhost(:\d+)?$/,
   /^https?:\/\/([a-z0-9-]+\.)*postiz\.com$/,
+  /^https?:\/\/([a-z0-9-]+\.)*crove\.com$/,
+  /^https?:\/\/([a-z0-9-]+\.)*crove\.io$/,
+  /^https?:\/\/([a-z0-9-]+\.)*dos\.me$/,
 ];
 
 function isOriginAllowed(origin: string | undefined): boolean {

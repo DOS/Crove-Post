@@ -39,5 +39,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile=false
 
+      - name: Validate Beta deployment script and compose contract
+        run: pnpm run validate:beta-deploy
+
       - name: Build applications
         run: pnpm run build

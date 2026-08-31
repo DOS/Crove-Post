@@ -41,8 +41,16 @@ if (-not $SkipTests) {
         exit 1
     }
     Write-Host "-> All tests and branding validation passed!" -ForegroundColor Green
+
 } else {
     Write-Host "`n[1/3] Skipping tests (-SkipTests)." -ForegroundColor Yellow
+}
+
+Write-Host "`nChecking Beta deployment contract..." -ForegroundColor Green
+pnpm run validate:beta-deploy
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Beta deployment contract validation failed! Aborting deployment."
+    exit 1
 }
 
 # 2. Deploy Cloudflare Worker for Beta
@@ -62,7 +70,7 @@ Write-Host "  - scripts/crove-server.beta.env" -ForegroundColor White
 Write-Host "  - scripts/docker-compose.beta.yaml" -ForegroundColor White
 
 Write-Host "`nCommands to start Beta Stack on GCP VM (crove-server):" -ForegroundColor Yellow
-Write-Host "  docker compose -f scripts/docker-compose.beta.yaml up -d" -ForegroundColor White
+Write-Host "  docker compose -f scripts/docker-compose.beta.yaml up -d --no-deps --pull always crove-post-beta" -ForegroundColor White
 
 Write-Host "`n==========================================================" -ForegroundColor Green
 Write-Host "  BETA DEPLOYMENT READY!" -ForegroundColor Green

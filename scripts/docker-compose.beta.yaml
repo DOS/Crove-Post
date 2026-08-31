@@ -5,14 +5,17 @@
 
 services:
   crove-post-beta:
-    image: ghcr.io/dos/crove-post:beta
+    image: ${CROVE_POST_BETA_IMAGE:-ghcr.io/dos/crove-post:beta}
     container_name: crove-post-beta
     restart: always
+    pull_policy: always
     # Schema changes are a separate reviewed operation. Never introspect/drop
     # dynamic Mastra tables or run db push --accept-data-loss at app startup.
-    command: ["sh", "-c", "nginx && pnpm run --parallel pm2 && pnpm exec pm2 logs"]
+    command: ["sh", "-c", "nginx && pnpm exec pm2 ping && pnpm run --parallel pm2 && pnpm exec pm2 logs"]
     env_file:
       - crove-server.beta.env
+    environment:
+      MASTRA_DISABLE_STORAGE_INIT: 'true'
     volumes:
       - postiz-beta-config:/config/
       - postiz-beta-uploads:/uploads/

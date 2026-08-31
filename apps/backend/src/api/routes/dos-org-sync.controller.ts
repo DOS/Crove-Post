@@ -13,6 +13,7 @@ import { Request } from 'express';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service';
 import { UsersService } from '@gitroom/nestjs-libraries/database/prisma/users/users.service';
+import { isEcosystemSyncEnabled } from '@gitroom/helpers/utils/ecosystem.config';
 import {
   DosOrgSyncDto,
   DosSyncEvent,
@@ -28,6 +29,10 @@ export class DosOrgSyncWebhookController {
   ) {}
 
   private verifySignature(rawBody: string, signatureHeader?: string): boolean {
+    if (!isEcosystemSyncEnabled()) {
+      return false;
+    }
+
     const secret =
       process.env.DOS_SYNC_WEBHOOK_SECRET ||
       process.env.DOS_WEBHOOK_SECRET ||

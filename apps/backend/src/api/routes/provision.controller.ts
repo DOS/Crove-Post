@@ -206,7 +206,11 @@ export class ProvisionController {
 
     if (body.ticket.startsWith('fpt_')) {
       const exchange = await this.bootstrapService.consume(body.ticket);
-      const jwt = await this._authService.jwt(exchange.user);
+      const jwt = AuthChecker.signJWT({
+        id: exchange.user.id,
+        firstPartyConsentId: exchange.consentId,
+        exp: Math.floor(Date.now() / 1000) + 86400,
+      });
       // First-party tickets never return a reusable session token in JSON.
       const options = {
         domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),

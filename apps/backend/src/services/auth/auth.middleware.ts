@@ -40,14 +40,27 @@ export class AuthMiddleware implements NestMiddleware {
       // Verify the JWT signature only. Never trust authorization-relevant
       // claims (id, isSuperAdmin, activated) from the token body — always
       // re-resolve the user from the database using the id.
-      const payload = AuthService.verifyJWT(auth) as User | null;
+      const payload = AuthService.verifyJWT(auth) as
+        | (User & { firstPartyConsentId?: string })
+        | null;
+      if (
+        payload?.firstPartyConsentId !== undefined &&
+        (typeof payload.firstPartyConsentId !== 'string' ||
+          !/^[a-f0-9]{64}$/.test(payload.firstPartyConsentId))
+      ) {
+        throw new HttpForbiddenException();
+      }
+      (req as Request & { firstPartyConsentId?: string }).firstPartyConsentId =
+        payload?.firstPartyConsentId;
       const orgHeader = req.cookies.showorg || req.headers.showorg;
 
       if (!payload?.id) {
         throw new HttpForbiddenException();
       }
 
-      let user = (await this._userService.getUserById(payload.id)) as User | null;
+      let user = (await this._userService.getUserById(
+        payload.id
+      )) as User | null;
 
       if (!user) {
         throw new HttpForbiddenException();
@@ -58,7 +71,7 @@ export class AuthMiddleware implements NestMiddleware {
       }
 
       const impersonate = req.cookies.impersonate || req.headers.impersonate;
-      if (user?.isSuperAdmin && impersonate) {
+      if (user?.isSuperAdmin && impersonate && !payload.firstPartyConsentId) {
         const loadImpersonate = await this._organizationService.getUserOrg(
           impersonate
         );

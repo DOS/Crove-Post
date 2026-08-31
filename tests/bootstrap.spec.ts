@@ -35,7 +35,11 @@ jest.mock(
 
 const secret = 'bootstrap-test-secret-never-return';
 const oauth = {
-  validateAuthorizationRequest: jest.fn(async () => ({ dynamic: false })),
+  validateAuthorizationRequest: jest.fn(async () => ({
+    dynamic: false,
+    id: 'test-app',
+    redirectUrl: 'https://example.test/callback',
+  })),
 };
 @Module({
   controllers: [BootstrapController, ProvisionController],
@@ -101,11 +105,15 @@ describe('First-party bootstrap over HTTP with real PostgreSQL and Redis', () =>
     fetch(`${base}/internal/first-party/bootstrap`, init);
   beforeAll(async () => {
     if (
-      !process.env.DATABASE_URL?.includes('127.0.0.1:15491') ||
-      process.env.REDIS_URL !== 'redis://127.0.0.1:16391'
+      !/127\.0\.0\.1:(15491|15432)\//.test(process.env.DATABASE_URL || '') ||
+      !['redis://127.0.0.1:16391', 'redis://127.0.0.1:16379'].includes(
+        process.env.REDIS_URL
+      )
     )
       throw new Error('Use isolated local test services');
     process.env.CROVE_POST_BOOTSTRAP_SIGNING_SECRET = secret;
+    process.env.CROVE_POST_CLIENT_ID = 'pca_test';
+    process.env.JWT_SECRET = 'bootstrap-jwt-test-secret';
     process.env.FRONTEND_URL = 'https://beta-post.crove.com';
     app = await NestFactory.create(TestModule, {
       logger: false,

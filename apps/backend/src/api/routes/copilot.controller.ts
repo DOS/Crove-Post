@@ -8,6 +8,7 @@ import {
   Query,
   Param,
 } from '@nestjs/common';
+import OpenAI from 'openai';
 import {
   CopilotRuntime,
   OpenAIAdapter,
@@ -46,11 +47,17 @@ export class CopilotController {
       return;
     }
 
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY || 'sk-proj-',
+      ...(process.env.OPENAI_BASE_URL ? { baseURL: process.env.OPENAI_BASE_URL } : {}),
+    });
+
     const copilotRuntimeHandler = copilotRuntimeNodeHttpEndpoint({
       endpoint: '/copilot/chat',
       runtime: new CopilotRuntime(),
       serviceAdapter: new OpenAIAdapter({
-        model: 'gpt-4.1',
+        openai: openai as any,
+        model: process.env.OPENAI_MODEL_NAME || 'gpt-4.1',
       }),
     });
 
@@ -91,12 +98,18 @@ export class CopilotController {
       agents,
     });
 
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY || 'sk-proj-',
+      ...(process.env.OPENAI_BASE_URL ? { baseURL: process.env.OPENAI_BASE_URL } : {}),
+    });
+
     const copilotRuntimeHandler = copilotRuntimeNextJSAppRouterEndpoint({
       endpoint: '/copilot/agent',
       runtime,
       // properties: req.body.variables.properties,
       serviceAdapter: new OpenAIAdapter({
-        model: 'gpt-4.1',
+        openai: openai as any,
+        model: process.env.OPENAI_MODEL_NAME || 'gpt-4.1',
       }),
     });
 

@@ -5,6 +5,10 @@ import { FetchWrapperComponent } from '@gitroom/helpers/utils/custom.fetch';
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import { useReturnUrl } from '@gitroom/frontend/app/(app)/auth/return.url.component';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
+import {
+  shouldHandleGlobalLogout,
+  shouldPreserveOAuthConsentUnauthorized,
+} from './oauth-consent-unauthorized';
 export default function LayoutContext(params: { children: ReactNode }) {
   if (params?.children) {
     // eslint-disable-next-line react/no-children-prop
@@ -42,6 +46,15 @@ function LayoutContextInner(params: { children: ReactNode }) {
         response?.headers?.get('Impersonate');
       const logout =
         response?.headers?.get('logout') || response?.headers?.get('Logout');
+      if (
+        shouldPreserveOAuthConsentUnauthorized(
+          url,
+          options.method,
+          response.status
+        )
+      ) {
+        return true;
+      }
       if (headerAuth) {
         setCookie('auth', headerAuth, 365);
       }
@@ -51,7 +64,15 @@ function LayoutContextInner(params: { children: ReactNode }) {
       if (impersonate) {
         setCookie('impersonate', impersonate, 365);
       }
-      if (logout && !isSecured) {
+      if (
+        shouldHandleGlobalLogout(
+          url,
+          options.method,
+          response.status,
+          Boolean(logout)
+        ) &&
+        !isSecured
+      ) {
         setCookie('auth', '', -10);
         setCookie('showorg', '', -10);
         setCookie('impersonate', '', -10);
@@ -80,7 +101,15 @@ function LayoutContextInner(params: { children: ReactNode }) {
         return true;
       }
 
-      if (response.status === 401 || response?.headers?.get('logout')) {
+      if (
+        response.status === 401 ||
+        shouldHandleGlobalLogout(
+          url,
+          options.method,
+          response.status,
+          Boolean(logout)
+        )
+      ) {
         if (!isSecured) {
           setCookie('auth', '', -10);
           setCookie('showorg', '', -10);
@@ -93,8 +122,7 @@ function LayoutContextInner(params: { children: ReactNode }) {
           await deleteDialog(
             'You are currently on trial, in order to use the feature you must finish the trial',
             'Finish the trial, charge me now',
-            'Trial',
-
+            'Trial'
           )
         ) {
           window.open('/billing?finishTrial=true', '_blank');

@@ -135,6 +135,52 @@ export class AuthService {
     }
   }
 
+  private async syncUserOrganizations(
+    userId: string,
+    organizations?: Array<{
+      id: string;
+      name: string;
+      role?: 'OWNER' | 'ADMIN' | 'MEMBER' | 'SUPERADMIN';
+    }>
+  ) {
+    if (!organizations || !organizations.length) {
+      return;
+    }
+
+    const userOrgs = await this._organizationService.getOrgsByUserId(userId);
+    const existingOrgMap = new Map(userOrgs.map((o) => [o.id, o]));
+
+    for (const orgInfo of organizations) {
+      const isOwner = orgInfo.role === 'OWNER' || orgInfo.role === 'SUPERADMIN';
+      const role = isOwner ? 'SUPERADMIN' : orgInfo.role === 'ADMIN' ? 'ADMIN' : 'USER';
+      const existing = existingOrgMap.get(orgInfo.id);
+
+      if (existing) {
+        if (orgInfo.name && existing.name !== orgInfo.name) {
+          await this._organizationService
+            .updateOrganizationName(orgInfo.id, orgInfo.name)
+            .catch(() => {});
+        }
+      } else {
+        const orgExistsInDb = await this._organizationService.getOrgById(orgInfo.id);
+        if (orgExistsInDb) {
+          if (orgInfo.name && orgExistsInDb.name !== orgInfo.name) {
+            await this._organizationService
+              .updateOrganizationName(orgInfo.id, orgInfo.name)
+              .catch(() => {});
+          }
+          await this._organizationService
+            .addUserToOrg(userId, makeId(5), orgInfo.id, role === 'SUPERADMIN' ? 'ADMIN' : role)
+            .catch(() => {});
+        } else {
+          await this._organizationService
+            .createOrgForExistingUser(userId, orgInfo.name, role, orgInfo.id)
+            .catch(() => {});
+        }
+      }
+    }
+  }
+
   private async loginOrRegisterProvider(
     provider: Provider,
     body: CreateOrgUserDto,
@@ -161,24 +207,7 @@ export class AuthService {
       }
 
       if (providerUser.organizations && providerUser.organizations.length > 0) {
-        const userOrgs = await this._organizationService.getOrgsByUserId(user.id);
-        const existingOrgIds = new Set(userOrgs.map((o) => o.id));
-
-        for (const orgInfo of providerUser.organizations) {
-          if (!existingOrgIds.has(orgInfo.id)) {
-            const role = orgInfo.role === 'MEMBER' ? 'USER' : 'ADMIN';
-            const orgExists = await this._organizationService.getOrgById(orgInfo.id);
-            if (orgExists) {
-              await this._organizationService
-                .addUserToOrg(user.id, makeId(5), orgInfo.id, role)
-                .catch(() => {});
-            } else {
-              await this._organizationService
-                .createOrgForExistingUser(user.id, orgInfo.name, role === 'ADMIN' ? 'ADMIN' : 'USER', orgInfo.id)
-                .catch(() => {});
-            }
-          }
-        }
+        await this.syncUserOrganizations(user.id, providerUser.organizations);
       }
 
       return user;
@@ -194,50 +223,19 @@ export class AuthService {
       body.company ||
       (providerUser.name ? `${providerUser.name}'s Organization` : providerUser.email.split('@')[0]);
 
-    let create: any;
-    if (firstOrg?.id) {
-      const orgExists = await this._organizationService.getOrgById(firstOrg.id);
-      if (!orgExists) {
-        create = await this._organizationService.createOrgAndUser(
-          {
-            company: companyName,
-            email: providerUser.email,
-            password: '',
-            provider,
-            providerId: providerUser.id,
-            datafast_visitor_id: body.datafast_visitor_id || '',
-          },
-          ip,
-          userAgent
-        );
-      } else {
-        create = await this._organizationService.createOrgAndUser(
-          {
-            company: companyName,
-            email: providerUser.email,
-            password: '',
-            provider,
-            providerId: providerUser.id,
-            datafast_visitor_id: body.datafast_visitor_id || '',
-          },
-          ip,
-          userAgent
-        );
-      }
-    } else {
-      create = await this._organizationService.createOrgAndUser(
-        {
-          company: companyName,
-          email: providerUser.email,
-          password: '',
-          provider,
-          providerId: providerUser.id,
-          datafast_visitor_id: body.datafast_visitor_id || '',
-        },
-        ip,
-        userAgent
-      );
-    }
+    const create = await this._organizationService.createOrgAndUser(
+      {
+        company: companyName,
+        email: providerUser.email,
+        password: '',
+        provider,
+        providerId: providerUser.id,
+        datafast_visitor_id: body.datafast_visitor_id || '',
+        orgId: firstOrg?.id,
+      },
+      ip,
+      userAgent
+    );
 
     if (providerUser.name) {
       await this._userService.changePersonal(create.users[0].user.id, {
@@ -246,26 +244,8 @@ export class AuthService {
       });
     }
 
-    if (providerUser.organizations && providerUser.organizations.length > 1) {
-      for (let i = 1; i < providerUser.organizations.length; i++) {
-        const orgInfo = providerUser.organizations[i];
-        const role = orgInfo.role === 'MEMBER' ? 'USER' : 'ADMIN';
-        const orgExists = await this._organizationService.getOrgById(orgInfo.id);
-        if (orgExists) {
-          await this._organizationService
-            .addUserToOrg(create.users[0].user.id, makeId(5), orgInfo.id, role)
-            .catch(() => {});
-        } else {
-          await this._organizationService
-            .createOrgForExistingUser(
-              create.users[0].user.id,
-              orgInfo.name,
-              role === 'ADMIN' ? 'ADMIN' : 'USER',
-              orgInfo.id
-            )
-            .catch(() => {});
-        }
-      }
+    if (providerUser.organizations && providerUser.organizations.length > 0) {
+      await this.syncUserOrganizations(create.users[0].user.id, providerUser.organizations);
     }
 
     this._track('register', providerUser.email, body.datafast_visitor_id).catch(
@@ -412,11 +392,25 @@ export class AuthService {
     if (!user) {
       throw new Error('Invalid user');
     }
-    const checkExists = await this._userService.getUserByProvider(
+    let checkExists = await this._userService.getUserByProvider(
       user.id,
       provider as Provider
     );
+    if (!checkExists && user.email) {
+      checkExists = await this._userService.getUserByEmail(user.email);
+    }
     if (checkExists) {
+      if (user.name && checkExists.name !== user.name) {
+        await this._userService.changePersonal(checkExists.id, {
+          fullname: user.name,
+          bio: checkExists.bio || '',
+        });
+      }
+
+      if (user.organizations && user.organizations.length > 0) {
+        await this.syncUserOrganizations(checkExists.id, user.organizations);
+      }
+
       return { jwt: await this.jwt(checkExists) };
     }
 

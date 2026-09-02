@@ -1,6 +1,7 @@
 # What kind of change does this PR introduce?
 
 <!-- [ ] Bug fix | [ ] Feature | [ ] Architecture & Docs | [ ] Refactor | [ ] CI/CD -->
+<!-- Name the change type, scope/component, and summary of changes. -->
 
 # Why was this change needed?
 
@@ -18,13 +19,18 @@
 
 <!--
 Write the steps here, replacing this whole comment. Leaving it as is, or writing
-"N/A" / "TBD" / an empty checkbox, counts as no QA at all.
+"N/A" / "TBD" / a bare empty checkbox as the whole section, counts as no QA at all.
+
+Write real steps a reviewer can follow without asking you anything: setup, action,
+expected result. Keep them as numbered checkboxes so a reviewer can tick them off -
+the numbering is what the review board extracts, the checkbox is for the reviewer.
+Steps inside a fenced code block are ignored, so keep them as plain lines.
 
 Example of what it should look like:
 
-1. Link a webhook endpoint pointing at http://localhost:9999 (nothing listening)
-2. Approve an application to trigger a delivery
-3. Delivery should show 4 attempts, roughly 1m / 5m / 30m apart, then stop
+1. [ ] Link a webhook endpoint pointing at http://localhost:9999 (nothing listening)
+2. [ ] Approve an application to trigger a delivery
+3. [ ] Delivery should show 4 attempts, roughly 1m / 5m / 30m apart, then stop
 -->
 
 # Checklist:

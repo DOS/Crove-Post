@@ -40,7 +40,7 @@ export class OauthProvider extends AuthProviderAbstract {
     const { authUrl, clientId, frontendUrl } = this.getConfig();
     const params = new URLSearchParams({
       client_id: clientId,
-      scope: process.env.POSTIZ_OAUTH_SCOPE || 'openid profile email organizations offline_access',
+      scope: process.env.POSTIZ_OAUTH_SCOPE || 'openid profile email organizations teams offline_access',
       response_type: 'code',
       state: query?.state || 'login',
       redirect_uri: `${frontendUrl}/auth`,
@@ -80,7 +80,9 @@ export class OauthProvider extends AuthProviderAbstract {
     id: string;
     name?: string;
     picture?: string;
-    organizations?: Array<{ id: string; name: string; role?: 'OWNER' | 'ADMIN' | 'MEMBER' }>;
+    active_org_id?: string;
+    organizations?: Array<{ id: string; name: string; slug?: string; role?: 'OWNER' | 'ADMIN' | 'MEMBER' | 'SUPERADMIN' }>;
+    teams?: Array<{ id: string; org_id: string; name: string; slug: string; role?: 'LEAD' | 'MEMBER' | string }>;
   }> {
     const { userInfoUrl } = this.getConfig();
     const response = await fetch(`${userInfoUrl}`, {
@@ -101,7 +103,9 @@ export class OauthProvider extends AuthProviderAbstract {
       id: payload.sub || payload.id,
       name: payload.name || payload.full_name || payload.user_metadata?.name || payload.user_metadata?.full_name,
       picture: payload.picture || payload.avatar_url || payload.user_metadata?.picture || payload.user_metadata?.avatar_url,
+      active_org_id: payload.active_org_id || payload.user_metadata?.active_org_id,
       organizations: payload.organizations || payload.user_metadata?.organizations || [],
+      teams: payload.teams || payload.user_metadata?.teams || [],
     };
   }
 }

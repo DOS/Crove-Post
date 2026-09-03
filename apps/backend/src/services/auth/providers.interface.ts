@@ -10,7 +10,9 @@ export abstract class AuthProviderAbstract {
     id: string;
     name?: string;
     picture?: string;
-    organizations?: Array<{ id: string; name: string; role?: 'OWNER' | 'ADMIN' | 'MEMBER' }>;
+    active_org_id?: string;
+    organizations?: Array<{ id: string; name: string; slug?: string; role?: 'OWNER' | 'ADMIN' | 'MEMBER' | 'SUPERADMIN' }>;
+    teams?: Array<{ id: string; org_id: string; name: string; slug: string; role?: 'LEAD' | 'MEMBER' | string }>;
   }> | false;
   async postRegistration(
     providerToken: string,

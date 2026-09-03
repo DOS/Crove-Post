@@ -350,13 +350,14 @@ export class OrganizationRepository {
   }
 
   async createOrgAndUser(
-    body: Omit<CreateOrgUserDto, 'providerToken'> & { providerId?: string },
+    body: Omit<CreateOrgUserDto, 'providerToken'> & { providerId?: string; orgId?: string },
     hasEmail: boolean,
     ip: string,
     userAgent: string
   ) {
     return this._organization.model.organization.create({
       data: {
+        ...(body.orgId ? { id: body.orgId } : {}),
         name: body.company,
         apiKey: AuthService.fixedEncryption(makeId(20)),
         allowTrial: true,

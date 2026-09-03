@@ -118,3 +118,51 @@ For all ecosystem applications (Crove Post, Crove CRM, Crove Desk, Crove Sign) c
 | **Recommended Env Vars** | `CROVE_OAUTH_CLIENT_ID`<br>`CROVE_OAUTH_CLIENT_SECRET` | Standardized environment variable naming convention across the Crove ecosystem |
 | **Postiz Specific Mapping** | `POSTIZ_OAUTH_CLIENT_ID=crove-postiz`<br>`POSTIZ_OAUTH_CLIENT_SECRET=<CROVE_POSTIZ_OAUTH_CLIENT_SECRET>` | Internal bridge client credentials connecting to `api.dos.me/sso/*` |
 
+---
+
+## 6. Organization -> Teams Hierarchy & JIT Token Claims Standard
+
+As standardized by DOS.Me Core, all SSO identity tokens and `/sso/userinfo` endpoints now embed unified `organizations` and `teams` claims for Zero-Latency JIT Provisioning.
+
+### Unified JWT Claims Payload:
+```json
+{
+  "sub": "7a3562bb-f529-45e0-bdfa-b73ca55ce8c8",
+  "email": "agent@acme.com",
+  "name": "Jane Doe",
+  "picture": "https://avatar.dos.me/jane.png",
+  "active_org_id": "org_987654321",
+  "organizations": [
+    {
+      "id": "org_987654321",
+      "name": "Acme Corporation",
+      "slug": "acme",
+      "role": "ADMIN"
+    }
+  ],
+  "teams": [
+    {
+      "id": "team_11223344",
+      "org_id": "org_987654321",
+      "name": "Customer Support",
+      "slug": "customer-support",
+      "role": "LEAD"
+    },
+    {
+      "id": "team_55667788",
+      "org_id": "org_987654321",
+      "name": "Social Media Marketing",
+      "slug": "social-media",
+      "role": "MEMBER"
+    }
+  ]
+}
+```
+
+### Integration across Crove Products:
+- **Crove Post (`post.crove.com`)**: Parses `organizations` for active workspace and `teams` for channel access & campaign group assignment.
+- **Crove Desk (`desk.crove.com`)**: Maps `teams` to Inboxes (Support, Billing, VIP) with role `LEAD` for supervisor privileges.
+- **Crove CRM (`crm.crove.com`)**: Scopes Leads, Deals, and Pipelines to the user's active `teams`.
+- **Crove Sign (`sign.crove.com`)**: Authorizes document signature workflows based on team roles (`LEAD` / `ADMIN`).
+
+

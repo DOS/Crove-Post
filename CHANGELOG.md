@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v2.24.0] - 2026-09-03
+
+### Added
+- **DOS.Me Organization -> Teams Hierarchy & JIT Token Claims**:
+  - Integrated `teams` scope (`openid profile email organizations teams offline_access`) into OAuth authorization links.
+  - Added parsing for `active_org_id`, `organizations: [{ id, name, slug, role }]`, and `teams: [{ id, org_id, name, slug, role }]` claims in `OauthProvider.getUser()`.
+  - Added documentation for Zero-Latency JIT Token Claims and Organization/Teams hierarchy in `docs/sso-architecture.md`.
+- **OpenAI-Compatible API Gateway Support**:
+  - Added dynamic configuration support for `OPENAI_BASE_URL`, `OPENAI_MODEL_NAME`, and `OPENAI_IMAGE_MODEL` across `OpenaiService`, `CopilotController`, `AgentGraphService`, and `AutopostService`.
+- **Cross-Platform Chrome Extension Build System**:
+  - Added Node.js cross-platform build script (`apps/extension/build.mjs`) supporting Windows PowerShell and Linux/macOS `zip`.
+  - Updated Chrome Extension Manifest V3 with expanded host permissions and externally connectable domains (`*.crove.com`, `*.crove.io`, `*.dos.me`).
+- **Multi-Provider Subscription Architecture**:
+  - Added `provider` column (`@default("stripe")`) to `Subscription` model to support multi-provider billing engines (e.g. RevenueCat).
+
+### Fixed
+- **JIT Organization Synchronization in `AuthService.checkExists()`**:
+  - Fixed returning users missing claim/org updates by centralizing `syncUserOrganizations()` in `checkExists()` before issuing JWT.
+  - Enabled canonical `orgId` inheritance during initial user/org creation in `createOrgAndUser()`.
+- **Database Catalog & Schema Stability**:
+  - Cleaned up orphaned dynamic Mastra catalog entries from PostgreSQL.
+  - Optimized database connection pool strings with `connection_limit`, `pool_timeout`, and `connect_timeout`.
+- **Upstream Sync**:
+  - Merged upstream Postiz changes including Post Workflow v1.1.1, RevenueCat subscriptions, and Seedance video provider.
+
+### Previous Releases
+
+## [v2.23.0] - 2026-08-27
+
 ### Added
 - **Centralized DOS.Me SSO & PKCE Bridge Integration**:
   - Configured Generic OAuth 2.0 client authentication pointing to `https://api.dos.me/oauth/*` (Production) and `https://beta-api.dos.me/oauth/*` (Beta).

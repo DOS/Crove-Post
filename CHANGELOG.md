@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **MCP Client Icons & Onboarding Enhancements (Upstream Sync)**:
+  - Added Nanoclaw and other third-party MCP client icons support in Public API.
+  - Upgraded onboarding experience and interactive modal walkthroughs.
+- **Post Workflow v1.1.2**:
+  - Enhanced background workflow with automatic retry on heartbeat timeouts when no heartbeat details are present.
+- **Frontend & Media Modernization Roadmap**:
+  - Expanded `ROADMAP.md` with Crove OS visual design standards, workspace switcher overhaul, and R2 direct upload pipeline.
+
 ## [v2.24.0] - 2026-09-03
 
 ### Added

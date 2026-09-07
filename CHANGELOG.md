@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Beta Runtime: DOS-Me First-Party Bootstrap 401 & Facebook Connect `client_id=undefined`**:
+  - Root cause: the Beta runtime (`crove-post-beta` on `crove-server`) had no `CROVE_POST_CLIENT_ID`/`CROVE_POST_CLIENT_SECRET` configured, so `BootstrapGuard` failed closed with 401 before HMAC verification; `FACEBOOK_APP_ID`/`FACEBOOK_APP_SECRET` were also missing, producing `client_id=undefined` in the Connect Facebook URL.
+  - Remediated by configuring `CROVE_POST_CLIENT_ID=pca_dosclaw_beta_7ef5e5f1`, `CROVE_POST_CLIENT_SECRET` (existing OAuth client secret, no rotation) and copying `FACEBOOK_APP_ID`/`FACEBOOK_APP_SECRET` from the prod env file into the Beta env file on the VM (gitignored by design via `scripts/*.env`).
+  - Verified with a signed request differential: signed bootstrap → HTTP 400 (guard passed, validation rejected the test body) vs unsigned → HTTP 401 (fail-closed). No OAuth app was recreated and no token was rotated.
+  - Beta container recreated with the same immutable image digest; a one-off boot hang after recreate (backend blocked pre-Nest with no network sockets) was cleared by a plain `docker restart`.
+
 ### Added
 - **MCP Client Icons & Onboarding Enhancements (Upstream Sync)**:
   - Added Nanoclaw and other third-party MCP client icons support in Public API.

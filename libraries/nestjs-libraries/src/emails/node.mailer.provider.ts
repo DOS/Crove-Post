@@ -5,6 +5,12 @@ const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
   port: +process.env.EMAIL_PORT!,
   secure: process.env.EMAIL_SECURE === 'true',
+  // Audit D2 mitigation (GHSA-p6gq-j5cr-w38f): the `raw` transport option can
+  // bypass these flags — we never pass `raw`, so blocking file/URL access at
+  // the transport level keeps a future regression from turning email content
+  // into arbitrary file reads.
+  disableFileAccess: true,
+  disableUrlAccess: true,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,

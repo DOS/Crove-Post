@@ -32,11 +32,7 @@ const useFaqList = () => {
       ),
       description: t(
         'faq_postiz_gitroom_is_proudly_open_source',
-        `${
-          isGeneral ? 'Postiz' : 'Gitroom'
-        } is proudly open-source! We believe in an ethical and transparent culture, meaning that ${
-          isGeneral ? 'Postiz' : 'Gitroom'
-        } will live forever. You can check out the entire code or use it for personal projects. To view the open-source repository, <a href="https://github.com/gitroomhq/postiz-app" target="_blank" style="text-decoration: underline;">click here</a>.`
+        `Crove Post is proudly open-source! We believe in an ethical and transparent culture, meaning that Crove Post will live forever. You can check out the entire code or use it for personal projects. To view the open-source repository, <a href="https://github.com/DOS/Crove-Post" target="_blank" style="text-decoration: underline;">click here</a>.`
       ),
     },
     {

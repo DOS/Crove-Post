@@ -16,8 +16,11 @@ if (fs.existsSync(zipFile)) {
   fs.rmSync(zipFile, { force: true });
 }
 
-console.log('2. Running Vite build...');
-await build();
+console.log('2. Running Vite build (chrome crx pipeline)...');
+// Build with the full crx pipeline (vite.config.chrome.ts), not the bare
+// lib config in vite.config.ts — the chrome config computes host_permissions
+// from FRONTEND_URL and applies BRAND_* overrides.
+await build({ configFile: 'vite.config.chrome.ts' });
 
 console.log('3. Copying manifest.json and static assets...');
 const manifestSrc = path.resolve(__dirname, 'manifest.json');

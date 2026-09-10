@@ -1,11 +1,11 @@
 {
-  "name": "@postiz/node",
+  "name": "@crove/node",
   "version": "1.0.8",
-  "description": "The ultimate social media scheduling tool",
+  "description": "Crove scheduling SDK",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "publish": "tsup && pnpm publish --access public"
+    "publish": "tsup && pnpm publish --access public --provenance"
   },
   "files": [
     "dist"
@@ -15,7 +15,7 @@
     "scheduling tool",
     "social media scheduling tool"
   ],
-  "author": "Nevo David",
+  "author": "DOS",
   "license": "AGPL-3.0",
   "dependencies": {
     "node-fetch": "^3.3.2"

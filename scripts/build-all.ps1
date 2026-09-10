@@ -31,10 +31,12 @@ if ($LASTEXITCODE -ne 0) { Write-Error "Web Build failed!"; exit 1 }
 # 3. Prisma Generate
 Write-Host "`n[3/4] Generate Prisma Client..." -ForegroundColor Green
 pnpm run prisma-generate
+if ($LASTEXITCODE -ne 0) { Write-Error "Prisma generate failed!"; exit 1 }
 
 # 4. Build Core Apps
 Write-Host "`n[4/4] Build Core Backend & Frontend..." -ForegroundColor Green
 pnpm run build
+if ($LASTEXITCODE -ne 0) { Write-Error "Core build failed!"; exit 1 }
 
 Write-Host "`n==========================================================" -ForegroundColor Green
 Write-Host "  ALL APPLICATIONS BUILT SUCCESSFULLY!" -ForegroundColor Green

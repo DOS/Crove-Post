@@ -58,7 +58,7 @@
   <a href="https://docs.postiz.com/public-api">Public API</a><br />
 </p>
 <p align="center">
-  <a href="https://www.npmjs.com/package/@postiz/node">NodeJS SDK</a>
+  <a href="https://www.npmjs.com/package/@crove/node">NodeJS SDK</a>
   ·
   <a href="https://www.npmjs.com/package/n8n-nodes-postiz">N8N custom node</a>
   ·

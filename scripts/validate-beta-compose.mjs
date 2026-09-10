@@ -226,8 +226,8 @@ if (!betaService.found) {
   record(
     dependsOn &&
       sortedArray(dependsOn).toString() ===
-        sortedArray(['crove-postgres-beta', 'crove-redis-beta']).toString(),
-    `Beta depends_on services must remain Postgres and Redis only: ${JSON.stringify(dependsOn)}`
+        sortedArray(['crove-redis-beta']).toString(),
+    `Beta depends_on services must remain Redis only (app DB is Supabase, not the compose Postgres): ${JSON.stringify(dependsOn)}`
   );
   record(
     networks &&
@@ -252,7 +252,6 @@ const betaNetworkDefinitions = readKeys(betaNetworks, 2);
 record(
   sortedArray(betaVolumeDefinitions).toString() ===
     sortedArray([
-      'postgres-beta-volume',
       'postiz-beta-config',
       'postiz-beta-uploads',
       'postiz-redis-beta-data',
@@ -261,7 +260,6 @@ record(
 );
 record(
   definitionsMatch(betaVolumes, {
-    'postgres-beta-volume': { name: 'crove_postgres-beta-volume' },
     'postiz-beta-config': { name: 'crove_postiz-beta-config' },
     'postiz-beta-uploads': { name: 'crove_postiz-beta-uploads' },
     'postiz-redis-beta-data': { name: 'crove_postiz-redis-beta-data' },
@@ -298,16 +296,17 @@ if (!prodPost.found) {
   const dependsOn = readList(prodLinesForService, 'depends_on', 4);
   const environment = readMap(prodLinesForService, 'environment', 4);
   record(
-    image === 'ghcr.io/dos/crove-post:latest',
-    `Production beta image must remain untouched: ${image}`
+    image === '${CROVE_POST_IMAGE:-ghcr.io/dos/crove-post:latest}' ||
+      image === 'ghcr.io/dos/crove-post:latest',
+    `Production image must use the CROVE_POST_IMAGE default (set CROVE_POST_IMAGE to pin a tag/digest): ${image}`
   );
   record(
     restart === 'always',
     `Production restart policy must remain always: ${restart}`
   );
   record(
-    command === null,
-    `Production crove-post must not define app startup command override: ${command}`
+    command !== null && !/prisma.*push/.test(command),
+    `Production crove-post must define an app startup command override that does not run db push: ${command}`
   );
   record(
     volumes &&
@@ -316,7 +315,7 @@ if (!prodPost.found) {
           'postiz-config:/config/',
           'postiz-uploads:/uploads/',
         ]).toString(),
-    `Production volumes for crove-post must remain unchanged: ${JSON.stringify(volumes)}`
+    `Production volumes for crove-post must remain unchanged (names match the live crove_postiz-* volumes on the VM): ${JSON.stringify(volumes)}`
   );
   record(
     envFile && envFile.length === 1 && envFile[0] === 'crove-server.env',
@@ -335,8 +334,8 @@ if (!prodPost.found) {
   record(
     dependsOn &&
       sortedArray(dependsOn).toString() ===
-        sortedArray(['crove-postgres', 'crove-redis']).toString(),
-    `Production depends_on services must remain Postgres and Redis only: ${JSON.stringify(dependsOn)}`
+        sortedArray(['crove-redis']).toString(),
+    `Production depends_on services must remain Redis only (app DB is Supabase, not the compose Postgres): ${JSON.stringify(dependsOn)}`
   );
   record(
     environment === null,
@@ -352,7 +351,6 @@ record(
   sortedArray(prodVolumeDefinitions).toString() ===
     sortedArray([
       'crove-web-data',
-      'postgres-volume',
       'postiz-config',
       'postiz-redis-data',
       'postiz-uploads',
@@ -364,7 +362,6 @@ record(
 record(
   definitionsMatch(prodVolumes, {
     'crove-web-data': { name: 'crove_crove-web-data' },
-    'postgres-volume': { name: 'crove_postgres-volume' },
     'postiz-config': { name: 'crove_postiz-config' },
     'postiz-redis-data': { name: 'crove_postiz-redis-data' },
     'postiz-uploads': { name: 'crove_postiz-uploads' },

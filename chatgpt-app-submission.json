@@ -2,9 +2,9 @@
   "$schema": "https://developers.openai.com/apps-sdk/schemas/chatgpt-app-submission.v1.json",
   "schema_version": 1,
   "app_info": {
-    "display_name": "Postiz",
+    "display_name": "DOS",
     "subtitle": "Schedule social posts",
-    "description": "Postiz helps users manage social media publishing from ChatGPT. Users can list connected channels and groups, inspect platform requirements, upload or generate media, create drafts or scheduled posts, update provider settings, and review upcoming posts.",
+    "description": "Crove Post helps users manage social media publishing from ChatGPT. Users can list connected channels and groups, inspect platform requirements, upload or generate media, create drafts or scheduled posts, update provider settings, and review upcoming posts.",
     "category": "PRODUCTIVITY"
   },
   "tools": {

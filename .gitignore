@@ -69,4 +69,5 @@ scripts/*.env
 .artifacts/
 .codex-artifacts/
 .playwright-mcp/
+.cloudflared/
 

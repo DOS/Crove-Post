@@ -15,6 +15,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     strategy:
       matrix:
@@ -41,6 +43,12 @@ jobs:
 
       - name: Validate Beta deployment script and compose contract
         run: pnpm run validate:beta-deploy
+
+      - name: Test SSO Worker (vitest)
+        run: pnpm run test:sso
+
+      - name: Test bootstrap / OAuth consent (jest)
+        run: pnpm exec jest --config tests/bootstrap.jest.cjs --ci --passWithNoTests
 
       - name: Build applications
         run: pnpm run build

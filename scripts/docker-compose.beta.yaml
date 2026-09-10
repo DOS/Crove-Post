@@ -29,28 +29,8 @@ services:
           - postiz-beta
       temporal-network:
     depends_on:
-      crove-postgres-beta:
-        condition: service_healthy
       crove-redis-beta:
         condition: service_healthy
-
-  crove-postgres-beta:
-    image: postgres:17-alpine
-    container_name: crove-postgres-beta
-    restart: always
-    environment:
-      POSTGRES_PASSWORD: postiz-password
-      POSTGRES_USER: postiz-user
-      POSTGRES_DB: postiz-db-local
-    volumes:
-      - postgres-beta-volume:/var/lib/postgresql/data
-    networks:
-      - crove-post-beta-network
-    healthcheck:
-      test: pg_isready -U postiz-user -d postiz-db-local
-      interval: 10s
-      timeout: 3s
-      retries: 3
 
   crove-redis-beta:
     image: redis:7.2
@@ -67,8 +47,6 @@ services:
       - crove-post-beta-network
 
 volumes:
-  postgres-beta-volume:
-    name: crove_postgres-beta-volume
   postiz-redis-beta-data:
     name: crove_postiz-redis-beta-data
   postiz-beta-config:

@@ -11,6 +11,8 @@ import {
   applyBrandToString,
   DEFAULT_BRAND_CONFIG,
 } from '../libraries/helpers/src/utils/brand.config';
+import { readdirSync, readFileSync, statSync } from 'fs';
+import { join, extname } from 'path';
 
 let failed = false;
 
@@ -92,6 +94,130 @@ console.log('=== Running Branding Guard Validations ===\n');
   assert(
     !!custom.sourceUrl && custom.sourceUrl.includes('postiz-app'),
     'AGPL requirement: sourceUrl must default to original upstream repository'
+  );
+}
+
+// 6. Repository scanner — catches actual branding leaks in tracked files.
+// The contract tests above only exercise the branding engine in memory;
+// they can never see a leaked image reference or a wrong FRONTEND_URL.
+// STRICT hits fail the run. INHERITED hits are upstream files that arrive
+// on every sync — reported loudly but tolerated until deliberately
+// deleted/rewritten (ratchet by moving a file from INHERITED to strict
+// once its cleanup lands).
+{
+  console.log('\n=== Repository Branding Scan ===\n');
+
+  const SKIP_DIRS = new Set([
+    'node_modules', '.git', '.next', 'dist', 'build', 'reports',
+    'coverage', '.artifacts', '.codex-artifacts', '.vercel',
+    '.playwright-mcp', 'dynamicconfig', 'var',
+    // local tooling/worktree copies of the repo — not source of truth
+    '.codex', '.claude', '.cursor', '.qwen', 'tests',
+  ]);
+  // Upstream attribution files: legal/inherited content where the
+  // upstream name is expected to appear.
+  const INHERITED = [
+    'LICENSE', 'ICLA.md', 'CCLA.md', 'README.md', 'SECURITY.md',
+    'docs/', '.github/workflows/sync-upstream.yml',
+    '.github/workflows/staging-conflicts.yml',
+    'scripts/branding-guard.ts', // this file asserts the defaults
+    'libraries/helpers/src/utils/brand.config.ts', // DEFAULT_BRAND_CONFIG
+    // 17 locale files carry the upstream support link, arrive on every sync
+    'libraries/react-shared-libraries/src/translation/locales/',
+    'chatgpt-app-submission.json', // upstream submission, pending rewrite
+    'sonar-project.properties', // upstream tenant key, pending deletion
+    'Jenkins/', 'railway.toml', '.devcontainer/', // dead upstream infra
+    '.github/workflows/issue-label-triggers.yml', // upstream automation
+    'apps/sdk/package.json', // upstream author field, pending rewrite
+    'libraries/nestjs-libraries/src/sentry/initialize.sentry.ts',
+    'CHANGELOG.md', 'ROADMAP.md',
+  ];
+  // Crove-owned files where a leak is always a bug.
+  const STRICT_EXTRA = [
+    'docker-compose.yaml',
+    '.github/workflows/build-extension.yaml',
+    '.github/workflows/publish-extension.yml',
+    'apps/extension/manifest.json',
+  ];
+  // Directories we own and actively edit — leaks here are strict.
+  const STRICT_PREFIXES = [
+    'apps/backend/src/', 'apps/frontend/src/', 'apps/crove-sso/',
+    'libraries/nestjs-libraries/src/', 'libraries/helpers/src/',
+    'libraries/react-shared-libraries/src/',
+    'scripts/',
+  ];
+  const PATTERNS: Array<[RegExp, string]> = [
+    [/platform\.postiz\.com/gi, 'upstream platform domain'],
+    [/gitroomhq\/postiz-app/gi, 'upstream container image'],
+    [/github\.com\/gitroomhq/gi, 'upstream repository URL'],
+    [/\bNevo David\b/g, 'upstream author name'],
+    [/\bpostiz-app\b/gi, 'upstream repository name'],
+  ];
+  const TEXT_EXTS = new Set([
+    '.ts', '.tsx', '.js', '.mjs', '.cjs', '.json', '.jsonc', '.yaml',
+    '.yml', '.md', '.html', '.scss', '.css', '.sh', '.ps1', '.conf',
+    '.toml', '.properties', '', // extensionless (Dockerfile, LICENSE…)
+  ]);
+
+  function* walk(dir: string): Generator<string> {
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      let st;
+      try {
+        st = statSync(full);
+      } catch {
+        continue;
+      }
+      if (st.isDirectory()) {
+        if (!SKIP_DIRS.has(entry)) yield* walk(full);
+      } else {
+        yield full;
+      }
+    }
+  }
+
+  const repoRoot = join(__dirname, '..');
+  let strictHits = 0;
+  let inheritedHits = 0;
+  for (const file of walk(repoRoot)) {
+    const rel = file.slice(repoRoot.length + 1).replace(/\\/g, '/');
+    const ext = extname(file);
+    if (!TEXT_EXTS.has(ext)) continue;
+    if (INHERITED.some((p) => rel === p || rel.startsWith(p))) continue;
+    let content;
+    try {
+      content = readFileSync(file, 'utf8');
+    } catch {
+      continue;
+    }
+    for (const [pattern, label] of PATTERNS) {
+      const matches = content.match(pattern);
+      if (!matches) continue;
+      const strict =
+        STRICT_EXTRA.includes(rel) ||
+        STRICT_PREFIXES.some((p) => rel.startsWith(p));
+      const line = content
+        .slice(0, content.search(pattern))
+        .split('\n').length;
+      // Commented-out examples of BRAND_* attribution are documentation of
+      // the AGPL knob, not shipped config — never a strict leak.
+      const matchedLine = content.split('\n')[line - 1] ?? '';
+      if (/^\s*(#|\/\/|\/\*|\{\/\*)/.test(matchedLine)) continue;
+      if (strict) {
+        strictHits += matches.length;
+        console.error(
+          `[FAIL] ${rel}:${line} — ${label} (${matches.length}×)`
+        );
+        failed = true;
+      } else {
+        inheritedHits += matches.length;
+        console.warn(`[INHERITED] ${rel} — ${label} (${matches.length}×)`);
+      }
+    }
+  }
+  assert(strictHits === 0, `Repo scan: 0 strict branding leaks (found ${strictHits})`);
+  console.log(
+    `Repo scan: ${inheritedHits} inherited upstream mentions (tolerated, see INHERITED list)`
   );
 }
 

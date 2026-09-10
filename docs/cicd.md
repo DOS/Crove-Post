@@ -41,10 +41,10 @@ The Crove Post CI/CD system provides end-to-end automation: source code verifica
 | Secret | Description | Required |
 | :--- | :--- | :--- |
 | `CLOUDFLARE_API_TOKEN` | Token with permissions to deploy Cloudflare Workers and update DNS | Yes |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Account ID (`3368ff98a4c956164b7bbdc8fb950163` or `5f2a58925e790423dfafa0e6bee46b28`) | Optional |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Account ID (set trong GitHub Secrets — **không commit giá trị thật**) | Optional |
 | `GITHUB_TOKEN` | Automatically provisioned by GitHub Actions with package write permissions | Automatic |
 | `GCP_SSH_KEY` | SSH Private Key for connecting to GCP `crove-server` | Optional (for automated push deployment) |
-| `GCP_HOST` | GCP Server IP address (`34.87.89.118`) | Optional |
+| `GCP_HOST` | GCP Server IP address (set trong GitHub Secrets — **không commit IP thật**) | Optional |
 
 ---
 

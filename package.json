@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "license": "AGPL-3.0",
+  "private": true,
   "keywords": [],
   "author": "",
   "engines": {
@@ -33,15 +34,14 @@
     "start:prod:web": "pnpm --filter ./apps/web run start",
     "dev:docker": "docker compose -f ./docker-compose.dev.yaml up -d",
     "validate:beta-deploy": "node scripts/validate-beta-compose.mjs",
+    "typecheck:sso": "pnpm --filter @crove/sso run typecheck",
     "commands:build:development": "pnpm --filter ./apps/commands run build",
-    "prisma-generate": "pnpm dlx prisma@6.5.0 generate --schema ./libraries/nestjs-libraries/src/database/prisma/schema.prisma",
-    "prisma-db-push": "pnpm dlx prisma@6.5.0 db push --accept-data-loss --schema ./libraries/nestjs-libraries/src/database/prisma/schema.prisma",
-    "prisma-db-pull": "pnpm dlx prisma@6.5.0 db pull --schema ./libraries/nestjs-libraries/src/database/prisma/schema.prisma",
-    "prisma-reset": "cd ./libraries/nestjs-libraries/src/database/prisma && pnpm dlx prisma@6.5.0 db push --force-reset && pnpx prisma@6.5.0 db push",
-    "docker-build": "./var/docker/docker-build.sh",
-    "docker-create": "./var/docker/docker-create.sh",
+    "prisma-generate": "pnpm exec prisma generate --schema ./libraries/nestjs-libraries/src/database/prisma/schema.prisma",
+    "prisma-db-push": "pnpm exec prisma db push --accept-data-loss --schema ./libraries/nestjs-libraries/src/database/prisma/schema.prisma",
+    "prisma-db-pull": "pnpm exec prisma db pull --schema ./libraries/nestjs-libraries/src/database/prisma/schema.prisma",
     "postinstall": "pnpm run prisma-generate",
-    "test": "jest --coverage --detectOpenHandles --reporters=default --reporters=jest-junit"
+    "test": "jest --coverage --detectOpenHandles --reporters=default --reporters=jest-junit",
+    "test:sso": "pnpm --filter @crove/sso test"
   },
   "dependencies": {
     "@ag-ui/mastra": "^1.0.1",
@@ -334,7 +334,10 @@
       "@types/react-dom": "19.1.6"
     },
     "onlyBuiltDependencies": [
-      "bcrypt"
+      "bcrypt",
+      "@prisma/client",
+      "prisma",
+      "esbuild"
     ]
   }
 }

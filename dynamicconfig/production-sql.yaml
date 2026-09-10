@@ -1,0 +1,12 @@
+# Production Temporal dynamic config (scripts/docker-compose.prod.yaml
+# mounts dynamicconfig/ as /etc/temporal/config/dynamicconfig and points
+# DYNAMIC_CONFIG_FILE_PATH at this file).
+#
+# The development file (development-sql.yaml) sets
+# system.forceSearchAttributesCacheRefreshOnRead, whose own comment marks it
+# as dev-only. Production uses safe defaults only.
+#
+# Any change here affects live workflow execution — review before merging.
+limit.maxIDLength:
+  - value: 255
+    constraints: {}

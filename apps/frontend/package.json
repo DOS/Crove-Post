@@ -1,5 +1,5 @@
 {
-  "name": "postiz-frontend",
+  "name": "@crove/frontend",
   "version": "1.0.0",
   "description": "",
   "type": "module",
@@ -14,5 +14,6 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "AGPL-3.0",
+  "private": true
 }

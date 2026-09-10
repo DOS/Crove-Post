@@ -5,12 +5,33 @@
 
 services:
   crove-post:
-    image: ghcr.io/dos/crove-post:latest
+    # Overridable so operators can pin a version tag or digest without editing
+    # this file (audit I-B4: :latest is mutable; set CROVE_POST_IMAGE to pin).
+    image: ${CROVE_POST_IMAGE:-ghcr.io/dos/crove-post:latest}
     container_name: crove-post
     restart: always
+    pull_policy: always
+    # Schema changes are a separate reviewed operation. Never introspect/drop
+    # dynamic Mastra tables or run db push --accept-data-loss at app startup.
+    command: ["sh", "-c", "nginx && pnpm exec pm2 ping && pnpm run --parallel pm2 && pnpm exec pm2 logs"]
+    # Proven healthcheck copied from docker-compose.override.yaml — catches the
+    # 2026-08-12 outage class (pm2 reports online while nginx serves 502).
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:5000/auth').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
     env_file:
       - crove-server.env
     volumes:
+      # These names match the LIVE volumes on the VM (crove_postiz-*). Renaming
+      # them would orphan the running app's config and uploaded media on the
+      # next deploy — do not "rebrand" them without a data-migration plan.
       - postiz-config:/config/
       - postiz-uploads:/uploads/
     ports:
@@ -22,13 +43,16 @@ services:
           - postiz
       temporal-network:
     depends_on:
-      crove-postgres:
-        condition: service_healthy
       crove-redis:
         condition: service_healthy
 
   crove-web:
-    image: ghcr.io/dos/crove-web:latest
+    # NOTE (audit I-B6/I-E4): CI does not build this image (build-containers.yml
+    # only builds crove-post) and no crove-web container runs on the VM — the
+    # production landing page is served by Vercel (apps/web, vercel.json).
+    # Keep this service only if the crove.com tunnel route is actually used;
+    # verify DNS before deleting. Set CROVE_WEB_IMAGE to pin a tag.
+    image: ${CROVE_WEB_IMAGE:-ghcr.io/dos/crove-web:latest}
     container_name: crove-web
     restart: always
     environment:
@@ -41,34 +65,20 @@ services:
       - postiz-network
 
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    # Pinned + --no-autoupdate, same as docker-compose.override.yaml. A mutable
+    # :latest edge tunnel can change behaviour mid-incident.
+    image: cloudflare/cloudflared:2026.7.3
     container_name: crove-cloudflared
     restart: always
-    command: tunnel --config /etc/cloudflared/config.yml run
+    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
     volumes:
+      # Populated on the VM at /opt/crove/tunnel (config.yml + credentials.json).
+      # The repo intentionally does not contain the credentials file.
       - ./tunnel:/etc/cloudflared:ro
     networks:
       - postiz-network
     depends_on:
       - crove-post
-
-  crove-postgres:
-    image: postgres:17-alpine
-    container_name: crove-postgres
-    restart: always
-    environment:
-      POSTGRES_PASSWORD: postiz-password
-      POSTGRES_USER: postiz-user
-      POSTGRES_DB: postiz-db-local
-    volumes:
-      - postgres-volume:/var/lib/postgresql/data
-    networks:
-      - postiz-network
-    healthcheck:
-      test: pg_isready -U postiz-user -d postiz-db-local
-      interval: 10s
-      timeout: 3s
-      retries: 3
 
   crove-redis:
     image: redis:7.2
@@ -90,15 +100,28 @@ services:
     restart: always
     ports:
       - '127.0.0.1:7233:7233'
+    # Audit S18: temporal-postgresql (the state-store) had no alarm — if
+    # Postgres dies or wedges, Temporal fails silently and Docker never
+    # restarts it (restart:always only fires on process exit). Healthchecks
+    # below turn a silent wedge into a detected, restarted failure.
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'bash -c "</dev/tcp/localhost/7233" || exit 1'
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
     volumes:
       - ./dynamicconfig:/etc/temporal/config/dynamicconfig
     environment:
       - DB=postgres12
       - DB_PORT=5432
       - POSTGRES_USER=temporal
-      - POSTGRES_PWD=temporal
+      # Must match the password set on the temporal-postgresql service above.
+      - POSTGRES_PWD=${CROVE_TEMPORAL_POSTGRES_PASSWORD:?CROVE_TEMPORAL_POSTGRES_PASSWORD is required}
       - POSTGRES_SEEDS=temporal-postgresql
-      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/production-sql.yaml
       - ENABLE_ES=true
       - ES_SEEDS=temporal-elasticsearch
       - ES_VERSION=v7
@@ -139,8 +162,16 @@ services:
     container_name: temporal-postgresql
     image: postgres:16
     restart: always
+    # Audit S18: state-store alarm — pg_isready makes a wedged/frozen Postgres
+    # visible to Docker instead of failing Temporal silently.
+    healthcheck:
+      test: pg_isready -U temporal -d temporal
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
     environment:
-      - POSTGRES_PASSWORD=temporal
+      - POSTGRES_PASSWORD=${CROVE_TEMPORAL_POSTGRES_PASSWORD:?CROVE_TEMPORAL_POSTGRES_PASSWORD is required}
       - POSTGRES_USER=temporal
     volumes:
       - temporal-postgres-data:/var/lib/postgresql/data
@@ -151,6 +182,16 @@ services:
     container_name: temporal-elasticsearch
     image: elasticsearch:7.17.27
     restart: always
+    # Audit S18: visibility-store alarm — a red/frozen ES silently degrades
+    # workflow visibility; surface it to Docker like the state-store above.
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'curl -fs http://localhost:9200/_cluster/health | grep -q "\"status\":\"green\"" || curl -fs http://localhost:9200/_cluster/health | grep -q "\"status\":\"yellow\"" || exit 1'
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     environment:
       - discovery.type=single-node
       - bootstrap.memory_lock=true
@@ -162,8 +203,6 @@ services:
       - temporal-network
 
 volumes:
-  postgres-volume:
-    name: crove_postgres-volume
   postiz-redis-data:
     name: crove_postiz-redis-data
   postiz-config:

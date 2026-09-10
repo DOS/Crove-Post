@@ -15,7 +15,7 @@ services:
     volumes:
       - postgres-volume:/var/lib/postgresql/data
     ports:
-      - 5432:5432
+      - 127.0.0.1:5432:5432
     networks:
       - postiz-network
   postiz-redis:
@@ -24,7 +24,7 @@ services:
     container_name: postiz-redis
     restart: always
     ports:
-      - 6379:6379
+      - 127.0.0.1:6379:6379
     networks:
       - postiz-network
   postiz-pg-admin:
@@ -33,7 +33,7 @@ services:
     container_name: postiz-pg-admin
     restart: always
     ports:
-      - 8085:80
+      - 127.0.0.1:8085:80
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
       PGADMIN_DEFAULT_PASSWORD: admin
@@ -46,7 +46,7 @@ services:
     links:
       - postiz-redis
     ports:
-      - '5540:5540'
+      - '127.0.0.1:5540:5540'
     volumes:
       - redisinsight:/data
     networks:
@@ -87,7 +87,7 @@ services:
   temporal:
     container_name: temporal
     ports:
-      - "7233:7233"
+      - "127.0.0.1:7233:7233"
     image: temporalio/auto-setup:1.28.1
     depends_on:
       - temporal-postgresql
@@ -132,7 +132,7 @@ services:
     networks:
       - temporal-network
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
 
 volumes:
   redisinsight:

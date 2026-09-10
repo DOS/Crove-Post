@@ -36,7 +36,6 @@
     "UPSTREAM_CLIENT_ID": "18790ccb-4d71-48cd-ad24-aee5f3ced3da",
     "DOWNSTREAM_REDIRECT_URI": "https://post.crove.com/settings",
     "DOWNSTREAM_CLIENT_ID": "crove-postiz",
-    "DOWNSTREAM_CLIENT_SECRET": "bridge-secret-value",
     "ALLOWED_SCOPE": "openid profile email"
   },
     "env": {
@@ -70,7 +69,6 @@
         "UPSTREAM_CLIENT_ID": "7ef5e5f1-68e6-42a7-901e-1f39e9471d24",
         "DOWNSTREAM_REDIRECT_URI": "https://beta-post.crove.com/settings",
         "DOWNSTREAM_CLIENT_ID": "crove-postiz",
-        "DOWNSTREAM_CLIENT_SECRET": "bridge-secret-value",
         "ALLOWED_SCOPE": "openid profile email"
       }
     }

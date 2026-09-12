@@ -12,7 +12,7 @@ function toQueryString(obj: Record<string, any>): string {
   return params.toString();
 }
 
-export default class Postiz {
+export default class Crove {
   constructor(
     private _apiKey: string,
     // Matches NEXT_PUBLIC_BACKEND_URL: the public API is served under /api,

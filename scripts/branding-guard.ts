@@ -9,6 +9,8 @@ import {
   sanitizeUrl,
   sanitizeHexColor,
   applyBrandToString,
+  slugifyIdentifier,
+  joinBrandUrl,
   DEFAULT_BRAND_CONFIG,
 } from '../libraries/helpers/src/utils/brand.config';
 import { readdirSync, readFileSync, statSync } from 'fs';
@@ -66,6 +68,56 @@ console.log('=== Running Branding Guard Validations ===\n');
     custom.claudeDirectoryUrl === 'https://claude.ai/directory/crove',
     'claudeDirectoryUrl parsed from BRAND_CLAUDE_DIRECTORY_URL'
   );
+}
+
+// 2b. MCP connector name. This string is emitted into generated client config
+// as a shell argument, a JSON key, a YAML key, a TOML table name and a URL
+// query param, so it must always be a safe lowercase slug — never the display
+// name, which can contain spaces and punctuation.
+{
+  assert(slugifyIdentifier('Crove (Beta)') === 'crove-beta', 'slugifyIdentifier hyphenates spaces and punctuation');
+  assert(slugifyIdentifier('  --Crove Post--  ') === 'crove-post', 'slugifyIdentifier trims leading/trailing hyphens');
+  assert(slugifyIdentifier('!!!') === '', 'slugifyIdentifier returns empty when nothing alphanumeric survives');
+  assert(slugifyIdentifier(undefined) === '', 'slugifyIdentifier tolerates undefined');
+
+  const derived = getBrandConfig({ BRAND_SHORT_NAME: 'Crove' });
+  assert(derived.mcpConnectorName === 'crove', 'mcpConnectorName derives from BRAND_SHORT_NAME when unset');
+
+  const beta = getBrandConfig({ BRAND_SHORT_NAME: 'Crove (Beta)' });
+  assert(beta.mcpConnectorName === 'crove-beta', 'mcpConnectorName slugifies a short name that is not shell-safe');
+
+  const explicit = getBrandConfig({
+    BRAND_SHORT_NAME: 'Crove',
+    BRAND_MCP_CONNECTOR_NAME: 'crove-mcp',
+  });
+  assert(explicit.mcpConnectorName === 'crove-mcp', 'BRAND_MCP_CONNECTOR_NAME overrides the derived slug');
+
+  const dirty = getBrandConfig({ BRAND_MCP_CONNECTOR_NAME: '  --Crove Post--  ' });
+  assert(dirty.mcpConnectorName === 'crove-post', 'An unsafe BRAND_MCP_CONNECTOR_NAME is still slugified, not passed through');
+
+  const unusable = getBrandConfig({ BRAND_NAME: '!!!', BRAND_SHORT_NAME: '!!!' });
+  assert(unusable.mcpConnectorName === 'mcp', 'mcpConnectorName falls back to "mcp" rather than emitting an empty key');
+
+  assert(
+    /^[a-z0-9]+(-[a-z0-9]+)*$/.test(getBrandConfig({}).mcpConnectorName),
+    'Default mcpConnectorName is a safe slug'
+  );
+}
+
+// 2c. joinBrandUrl. sanitizeUrl normalises a bare origin through the URL
+// constructor, so BRAND_DOCS_URL="https://docs.example.com" is stored as
+// "https://docs.example.com/". Naive `${docsUrl}/path` concatenation then
+// produces a double slash — this is the regression the helper exists to stop.
+{
+  const normalised = sanitizeUrl('https://docs.example.com')!;
+  assert(normalised === 'https://docs.example.com/', 'sanitizeUrl appends a trailing slash to a bare origin (precondition for the join tests)');
+  assert(joinBrandUrl(normalised, 'public-api') === 'https://docs.example.com/public-api', 'joinBrandUrl never emits a double slash');
+  assert(joinBrandUrl('https://docs.example.com', 'public-api') === 'https://docs.example.com/public-api', 'joinBrandUrl handles a base without a trailing slash');
+  assert(joinBrandUrl('https://docs.example.com/', '/public-api') === 'https://docs.example.com/public-api', 'joinBrandUrl handles a leading slash on the path');
+  assert(joinBrandUrl('https://docs.example.com//', '//public-api') === 'https://docs.example.com/public-api', 'joinBrandUrl collapses repeated slashes at the join');
+  assert(joinBrandUrl('https://docs.example.com/', '') === 'https://docs.example.com', 'joinBrandUrl with an empty path returns the base');
+  assert(joinBrandUrl(undefined, 'public-api') === '/public-api', 'joinBrandUrl with no base degrades to a root-relative path');
+  assert(joinBrandUrl(undefined, undefined) === '', 'joinBrandUrl with nothing returns an empty string rather than "undefined"');
 }
 
 // 3. Security sanitization tests
@@ -177,6 +229,15 @@ console.log('=== Running Branding Guard Validations ===\n');
     // --- runtime: upstream-branded destinations shown to customers ---
     [/claude\.ai\/directory\/postiz/gi, 'upstream Claude directory listing'],
     [/'Postiz MCP'|"Postiz MCP"/g, 'upstream MCP server name'],
+    // --- runtime: upstream identifier baked into generated client config ---
+    // These are the connector keys customers paste into Claude/Cursor/Codex/
+    // etc. They must come from brandConfig.mcpConnectorName, not a literal.
+    // `postiz://` is deliberately NOT matched: it is a registered mobile URL
+    // scheme, not a connector key. [ \t] rather than \s so a match can never
+    // span a newline and report the wrong line number.
+    [/(?:^|[{,])[ \t]*postiz[ \t]*:/gm, 'upstream MCP connector key'],
+    [/\b(?:add|login)\s+postiz\b|(?:--name|name=)postiz\b/g, 'upstream MCP connector name in a command'],
+    [/mcp_servers\.postiz\b/g, 'upstream MCP connector name in a TOML table'],
   ];
   const TEXT_EXTS = new Set([
     '.ts', '.tsx', '.js', '.mjs', '.cjs', '.json', '.jsonc', '.yaml',

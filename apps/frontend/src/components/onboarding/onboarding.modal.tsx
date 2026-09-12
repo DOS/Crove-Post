@@ -2,6 +2,7 @@
 
 import React, { FC, Fragment, useCallback, useMemo, useState } from 'react';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
+import { joinBrandUrl } from '@gitroom/helpers/utils/brand.config';
 import useSWR from 'swr';
 import { orderBy } from 'lodash';
 import clsx from 'clsx';
@@ -289,7 +290,8 @@ const getCliCommands = (apiBaseUrl: string) =>
 const getCursorInstallUrl = (
   auth: McpAuth,
   mcpBase: string,
-  apiKey: string
+  apiKey: string,
+  connectorName: string
 ) => {
   const server =
     auth === 'oauth'
@@ -298,9 +300,9 @@ const getCursorInstallUrl = (
           url: `${mcpBase}/mcp`,
           headers: { Authorization: `Bearer ${apiKey}` },
         };
-  return `cursor://anysphere.cursor-deeplink/mcp/install?name=postiz&config=${btoa(
-    JSON.stringify(server)
-  )}`;
+  return `cursor://anysphere.cursor-deeplink/mcp/install?name=${encodeURIComponent(
+    connectorName
+  )}&config=${btoa(JSON.stringify(server))}`;
 };
 
 const OnboardingStep2: FC<{ onBack: () => void; onNext: () => void }> = ({
@@ -321,11 +323,12 @@ const OnboardingStep2: FC<{ onBack: () => void; onNext: () => void }> = ({
   const apiKey = user?.publicApi || '';
   const available = !!apiKey && !!user?.tier?.public_api;
   const cliCommands = getCliCommands(mcpBase);
+  const connectorName = brandConfig?.mcpConnectorName || 'mcp';
 
   const { config, hint } =
     agent === apiTab
       ? { config: '', hint: '' }
-      : getMcpConfig(agent, auth, mcpBase, apiKey);
+      : getMcpConfig(agent, auth, mcpBase, apiKey, connectorName);
 
   const maskedConfig =
     revealed || auth === 'oauth' || !apiKey
@@ -343,7 +346,7 @@ const OnboardingStep2: FC<{ onBack: () => void; onNext: () => void }> = ({
         }
       : agent === 'Cursor'
       ? {
-          href: getCursorInstallUrl(auth, mcpBase, apiKey),
+          href: getCursorInstallUrl(auth, mcpBase, apiKey, connectorName),
           label: t('add_to_cursor', 'Add to Cursor'),
         }
       : null;
@@ -408,7 +411,7 @@ const OnboardingStep2: FC<{ onBack: () => void; onNext: () => void }> = ({
         </div>
         <a
           className="cursor-pointer px-[24px] h-[44px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[14px] font-[600] flex items-center gap-[8px] shrink-0"
-          href={`${brandConfig?.docsUrl}/public-api/introduction`}
+          href={joinBrandUrl(brandConfig?.docsUrl, 'public-api/introduction')}
           target="_blank"
         >
           <McpClientIcon client={apiTab} size={18} />

@@ -20,6 +20,7 @@ export interface BrandConfig {
   extensionStoreUrl?: string;
   tutorialUrl?: string;
   affiliateUrl?: string;
+  claudeDirectoryUrl?: string;
 }
 
 export interface PublicBrandConfig extends BrandConfig {
@@ -48,6 +49,9 @@ export const DEFAULT_BRAND_CONFIG: BrandConfig = {
   extensionStoreUrl: '',
   tutorialUrl: '',
   affiliateUrl: '',
+  // Deliberately empty rather than the upstream listing: a fork that forgets
+  // to set this must hide the button, not install a competitor's connector.
+  claudeDirectoryUrl: '',
 };
 
 const DANGEROUS_PROTOCOLS = ['javascript:', 'data:', 'vbscript:', 'file:'];
@@ -121,6 +125,7 @@ export function getBrandConfig(env: Record<string, string | undefined> = process
   const extensionStoreUrl = sanitizeUrl(env.BRAND_EXTENSION_STORE_URL || env.NEXT_PUBLIC_BRAND_EXTENSION_STORE_URL);
   const tutorialUrl = sanitizeUrl(env.BRAND_TUTORIAL_URL || env.NEXT_PUBLIC_BRAND_TUTORIAL_URL);
   const affiliateUrl = sanitizeUrl(env.BRAND_AFFILIATE_URL || env.NEXT_PUBLIC_BRAND_AFFILIATE_URL);
+  const claudeDirectoryUrl = sanitizeUrl(env.BRAND_CLAUDE_DIRECTORY_URL || env.NEXT_PUBLIC_BRAND_CLAUDE_DIRECTORY_URL);
 
   const isCustomBrand = brandName.toLowerCase() !== 'postiz' && brandName.toLowerCase() !== 'gitroom';
 
@@ -146,6 +151,7 @@ export function getBrandConfig(env: Record<string, string | undefined> = process
     extensionStoreUrl,
     tutorialUrl,
     affiliateUrl,
+    claudeDirectoryUrl,
     isCustomBrand,
   };
 }

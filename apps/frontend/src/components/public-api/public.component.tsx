@@ -22,10 +22,13 @@ export const remoteMcpClients = {
 } as const;
 
 // Clients with no MCP or CLI settings: you paste instructions into the chat,
-// the agent installs the CLI itself and asks you for the API key
+// the agent installs the CLI itself and asks you for the API key.
+// A function of the API base, because the upstream CLI defaults to the
+// upstream cloud — omitting POSTIZ_API_URL sends this deployment's API key to
+// api.postiz.com and posts to the wrong account.
 export const chatOnlyMcpClients = {
-  'Grok Bot':
-    'Install the Postiz CLI with `npm install -g postiz`, then install the Postiz skill with `npx skills add gitroomhq/postiz-agent`. Ask me for my Postiz API key and set it as the POSTIZ_API_KEY environment variable before using the CLI.',
+  'Grok Bot': (apiBase: string) =>
+    `Install the CLI with \`npm install -g postiz\`, then install the skill with \`npx skills add gitroomhq/postiz-agent\`. Ask me for my API key, then set BOTH environment variables before using the CLI: POSTIZ_API_URL="${apiBase}" and POSTIZ_API_KEY. Do not skip POSTIZ_API_URL.`, // branding-guard-allow: upstream publishes the only CLI and skill package; Crove has no equivalent yet
 } as const;
 
 export const mcpClients = [
@@ -69,7 +72,7 @@ export const getMcpConfig = (
 ): { config: string; hint: string } => {
   if (isChatOnlyMcpClient(client)) {
     return {
-      config: chatOnlyMcpClients[client],
+      config: chatOnlyMcpClients[client](mcpBase),
       hint: 'Paste this into the chat. The agent will ask you for your API key.',
     };
   }
@@ -293,7 +296,7 @@ const McpSection = ({
   mcpBase: string;
 }) => {
   const t = useT();
-  const { billingEnabled } = useVariables();
+  const { billingEnabled, brandConfig } = useVariables();
   const [activeClient, setActiveClient] = useState<AnyMcpClient>('Claude');
   const [auth, setAuth] = useState<McpAuth>('oauth');
   const [revealed, setRevealed] = useState(false);
@@ -332,10 +335,10 @@ const McpSection = ({
           </div>
         </div>
         <div className="flex gap-[6px] shrink-0 pt-[2px]">
-          {billingEnabled && (
+          {!!brandConfig?.claudeDirectoryUrl && billingEnabled && (
             <a
               className="cursor-pointer px-[16px] h-[36px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
-              href="https://claude.ai/directory/postiz"
+              href={brandConfig.claudeDirectoryUrl}
               target="_blank"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
@@ -344,7 +347,7 @@ const McpSection = ({
           )}
           <a
             className="cursor-pointer px-[16px] h-[36px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
-            href="https://docs.postiz.com/mcp/introduction"
+            href={`${brandConfig?.docsUrl}/mcp/introduction`}
             target="_blank"
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
@@ -458,16 +461,18 @@ const McpSection = ({
             {!isRemoteMcpClient(activeClient) && !chatOnly && (
               <CopyButton text={baseUrl} label={t('copy_url', 'Copy URL')} />
             )}
-            {activeClient === 'Claude' && billingEnabled && (
-              <a
-                className="cursor-pointer px-[16px] h-[36px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
-                href="https://claude.ai/directory/postiz"
-                target="_blank"
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
-                {t('add_to_claude', 'Add to Claude')}
-              </a>
-            )}
+            {activeClient === 'Claude' &&
+              billingEnabled &&
+              !!brandConfig?.claudeDirectoryUrl && (
+                <a
+                  className="cursor-pointer px-[16px] h-[36px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
+                  href={brandConfig.claudeDirectoryUrl}
+                  target="_blank"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+                  {t('add_to_claude', 'Add to Claude')}
+                </a>
+              )}
           </div>
         </div>
       </div>
@@ -475,59 +480,64 @@ const McpSection = ({
   );
 };
 
+// One canonical list, not separate "Locally" and "CI" variants. This
+// deployment runs no CLI auth server, so the upstream `postiz auth:login`
+// device flow would authenticate against cli-auth.postiz.com — into the
+// upstream cloud, not this instance. Every step is therefore API-key based.
+//
+// POSTIZ_API_URL is mandatory, not optional: without it the CLI defaults to
+// api.postiz.com, so the key in step 3 is transmitted upstream and the posts
+// land on the wrong account.
+//
+// Placeholders are substituted at render time by CliSection and by the
+// onboarding modal, which is why this stays a module-level constant.
 export const localCliSteps = [
   {
     label: 'Install the CLI',
-    code: 'npm install -g postiz',
+    code: 'npm install -g postiz', // branding-guard-allow: upstream publishes the only CLI; Crove ships no equivalent yet
   },
   {
-    label: 'Run: postiz auth:login',
-    code: 'postiz auth:login',
-  },
-  {
-    label: 'Install the Postiz skill for your AI agent',
-    code: 'npx skills add gitroomhq/postiz-agent',
-  },
-] as const;
-
-const ciCliSteps = [
-  {
-    label: 'Install the CLI',
-    code: 'npm install -g postiz',
+    label: 'Point the CLI at this instance (required)',
+    code: 'export POSTIZ_API_URL="{API_URL}"',
   },
   {
     label: 'Set your API key as an environment variable',
     code: 'export POSTIZ_API_KEY="{API_KEY}"',
   },
   {
-    label: 'Install the Postiz skill for your AI agent',
-    code: 'npx skills add gitroomhq/postiz-agent',
+    label: 'Install the skill for your AI agent',
+    code: 'npx skills add gitroomhq/postiz-agent', // branding-guard-allow: upstream publishes the only agent skill; Crove ships no equivalent yet
   },
 ] as const;
 
-const CliSection = ({ apiKey }: { apiKey: string }) => {
+const CliSection = ({
+  apiKey,
+  apiBaseUrl,
+}: {
+  apiKey: string;
+  apiBaseUrl: string;
+}) => {
   const t = useT();
-  const [mode, setMode] = useState<'local' | 'ci'>('local');
+  const { brandConfig } = useVariables();
   const [revealed, setRevealed] = useState(false);
 
-  const steps =
-    mode === 'local'
-      ? localCliSteps.map((step) => ({ ...step }))
-      : ciCliSteps.map((step) => ({
-          ...step,
-          code: step.code.replace('{API_KEY}', apiKey),
-        }));
+  const steps = localCliSteps.map((step) => ({
+    ...step,
+    code: step.code
+      .replace('{API_URL}', apiBaseUrl)
+      .replace('{API_KEY}', apiKey),
+  }));
 
   const displaySteps =
-    mode === 'ci' && !revealed
-      ? steps.map((step) => ({
+    revealed || !apiKey
+      ? steps
+      : steps.map((step) => ({
           ...step,
           code: step.code.replace(
             new RegExp(apiKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
             '*'.repeat(apiKey.length)
           ),
-        }))
-      : steps;
+        }));
 
   return (
     <div className="bg-newBgColorInnerInner rounded-[12px] border border-newBorder overflow-hidden">
@@ -546,7 +556,7 @@ const CliSection = ({ apiKey }: { apiKey: string }) => {
         <div className="flex gap-[6px] shrink-0 pt-[2px]">
           <a
             className="cursor-pointer px-[16px] h-[36px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
-            href="https://docs.postiz.com/cli/introduction"
+            href={`${brandConfig?.docsUrl}/cli/introduction`}
             target="_blank"
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
@@ -555,25 +565,6 @@ const CliSection = ({ apiKey }: { apiKey: string }) => {
         </div>
       </div>
       <div className="p-[20px] flex flex-col gap-[16px]">
-        <div className="flex gap-[6px]">
-          {(['local', 'ci'] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              className={clsx(
-                'cursor-pointer px-[14px] h-[36px] text-[13px] font-[500] rounded-[8px] transition-colors',
-                mode === m
-                  ? 'bg-[#612BD3] text-white'
-                  : 'bg-btnSimple text-customColor18 hover:bg-boxHover hover:text-textColor'
-              )}
-              onClick={() => setMode(m)}
-            >
-              {m === 'local'
-                ? t('locally', 'Locally')
-                : t('ci_remote_servers', 'CI / Remote servers')}
-            </button>
-          ))}
-        </div>
         {displaySteps.map((step, i) => (
           <div key={i} className="flex flex-col gap-[6px]">
             <div className="text-[13px] font-[600] text-customColor18">
@@ -585,38 +576,36 @@ const CliSection = ({ apiKey }: { apiKey: string }) => {
           </div>
         ))}
         <div className="flex gap-[8px]">
-          {mode === 'ci' && (
-            <button
-              type="button"
-              onClick={() => setRevealed(!revealed)}
-              className="cursor-pointer px-[16px] h-[36px] bg-btnSimple hover:bg-boxHover transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
+          <button
+            type="button"
+            onClick={() => setRevealed(!revealed)}
+            className="cursor-pointer px-[16px] h-[36px] bg-btnSimple hover:bg-boxHover transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                {revealed ? (
-                  <>
-                    <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
-                    <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
-                    <line x1="1" y1="1" x2="23" y2="23" />
-                  </>
-                ) : (
-                  <>
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </>
-                )}
-              </svg>
-              {revealed ? t('hide', 'Hide') : t('reveal', 'Reveal')}
-            </button>
-          )}
+              {revealed ? (
+                <>
+                  <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
+                  <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
+                  <line x1="1" y1="1" x2="23" y2="23" />
+                </>
+              ) : (
+                <>
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </>
+              )}
+            </svg>
+            {revealed ? t('hide', 'Hide') : t('reveal', 'Reveal')}
+          </button>
           <CopyButton
             text={steps.map((s) => s.code).join(' && ')}
             label={t('copy_all', 'Copy All')}
@@ -629,7 +618,7 @@ const CliSection = ({ apiKey }: { apiKey: string }) => {
 
 const PublicApiContent = () => {
   const user = useUser();
-  const { backendUrl, frontEndUrl, mcpUrl } = useVariables();
+  const { backendUrl, frontEndUrl, mcpUrl, brandConfig } = useVariables();
   const toaster = useToaster();
   const fetch = useFetch();
   const decision = useDecisionModal();
@@ -702,7 +691,7 @@ const PublicApiContent = () => {
           <div className="flex gap-[6px] shrink-0 pt-[2px]">
             <a
               className="cursor-pointer px-[16px] h-[36px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
-              href="https://docs.postiz.com/public-api"
+              href={`${brandConfig?.docsUrl}/public-api`}
               target="_blank"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
@@ -817,7 +806,7 @@ const PublicApiContent = () => {
         </div>
       </div>
 
-      <CliSection apiKey={user.publicApi} />
+      <CliSection apiKey={user.publicApi} apiBaseUrl={mcpBase} />
 
       <McpSection user={user} mcpBase={mcpBase} />
     </div>

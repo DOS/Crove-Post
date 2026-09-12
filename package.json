@@ -326,13 +326,14 @@
       "@types/react-dom": "19.1.6",
       "tar": "^7.5.19",
       "form-data": "^2.5.4",
-      "protobufjs": "^7.5.5",
+      "protobufjs": "7.5.5",
       "shell-quote": "^1.8.4",
       "fast-uri": "^3.1.6",
       "hono": "^4.12.34",
       "immutable": "^5.1.8",
       "handlebars": "^4.7.9",
-      "happy-dom": "^20.0.0"
+      "happy-dom": "^20.0.0",
+      "@grpc/grpc-js": "1.12.4"
     },
     "onlyBuiltDependencies": [
       "bcrypt",

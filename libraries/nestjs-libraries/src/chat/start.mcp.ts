@@ -71,6 +71,7 @@ export const startMcp = async (app: INestApplication) => {
     version: '1.0.0',
     tools,
     agents: {
+      // branding-guard-allow: 'postiz' is a backward-compatibility agent alias. Clients that registered the server under the upstream name must keep resolving; crove_post and post are the branded equivalents (docs/architecture.md §8.2).
       postiz: agent,
       crove_post: agent,
       post: agent,
@@ -83,13 +84,13 @@ export const startMcp = async (app: INestApplication) => {
   // exposed as an annotation-less catch-all ask_postiz tool, which the
   // ChatGPT and Claude directory reviews reject
   const oauthServer = new MCPServer({
-    name: 'Postiz MCP',
+    name: `${brand.name} MCP`,
     version: '1.0.0',
     tools,
   });
 
   const claudeOauthServer = new MCPServer({
-    name: 'Postiz MCP',
+    name: `${brand.name} MCP`,
     version: '1.0.0',
     tools: claudeTools,
   });

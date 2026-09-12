@@ -2,6 +2,7 @@
 
 import React, { FC, Fragment, useCallback, useMemo, useState } from 'react';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
+import { joinBrandUrl } from '@gitroom/helpers/utils/brand.config';
 import useSWR from 'swr';
 import { orderBy } from 'lodash';
 import clsx from 'clsx';
@@ -274,13 +275,23 @@ const otherAgents = mcpClients.filter(
 const apiTab = 'API' as const;
 type OnboardingTab = OnboardingAgent | typeof otherTab | typeof apiTab;
 
-const cliCommands = localCliSteps.map((step) => step.code);
+// localCliSteps carries {API_URL} / {API_KEY} placeholders. This panel
+// substitutes the instance URL but deliberately not the key: the API tab
+// already reveals it behind its own toggle, and echoing the secret into a
+// second panel puts it in screenshots and screen-shares.
+const getCliCommands = (apiBaseUrl: string) =>
+  localCliSteps.map((step) =>
+    step.code
+      .replace('{API_URL}', apiBaseUrl)
+      .replace('{API_KEY}', '<your API key>')
+  );
 
 // Cursor one-click install: https://cursor.com/docs/mcp/install-links
 const getCursorInstallUrl = (
   auth: McpAuth,
   mcpBase: string,
-  apiKey: string
+  apiKey: string,
+  connectorName: string
 ) => {
   const server =
     auth === 'oauth'
@@ -289,9 +300,9 @@ const getCursorInstallUrl = (
           url: `${mcpBase}/mcp`,
           headers: { Authorization: `Bearer ${apiKey}` },
         };
-  return `cursor://anysphere.cursor-deeplink/mcp/install?name=postiz&config=${btoa(
-    JSON.stringify(server)
-  )}`;
+  return `cursor://anysphere.cursor-deeplink/mcp/install?name=${encodeURIComponent(
+    connectorName
+  )}&config=${btoa(JSON.stringify(server))}`;
 };
 
 const OnboardingStep2: FC<{ onBack: () => void; onNext: () => void }> = ({
@@ -300,7 +311,7 @@ const OnboardingStep2: FC<{ onBack: () => void; onNext: () => void }> = ({
 }) => {
   const t = useT();
   const user = useUser();
-  const { backendUrl, mcpUrl, billingEnabled } = useVariables();
+  const { backendUrl, mcpUrl, billingEnabled, brandConfig } = useVariables();
   const [tab, setTab] = useState<OnboardingTab>('Claude');
   const [otherAgent, setOtherAgent] = useState<McpClient>(otherAgents[0]);
   // The client the cards describe: the tab itself, or the pick inside "Other agents"
@@ -311,11 +322,13 @@ const OnboardingStep2: FC<{ onBack: () => void; onNext: () => void }> = ({
   const mcpBase = mcpUrl || backendUrl;
   const apiKey = user?.publicApi || '';
   const available = !!apiKey && !!user?.tier?.public_api;
+  const cliCommands = getCliCommands(mcpBase);
+  const connectorName = brandConfig?.mcpConnectorName || 'mcp';
 
   const { config, hint } =
     agent === apiTab
       ? { config: '', hint: '' }
-      : getMcpConfig(agent, auth, mcpBase, apiKey);
+      : getMcpConfig(agent, auth, mcpBase, apiKey, connectorName);
 
   const maskedConfig =
     revealed || auth === 'oauth' || !apiKey
@@ -326,14 +339,14 @@ const OnboardingStep2: FC<{ onBack: () => void; onNext: () => void }> = ({
         );
 
   const connector =
-    agent === 'Claude' && billingEnabled
+    agent === 'Claude' && billingEnabled && brandConfig?.claudeDirectoryUrl
       ? {
-          href: 'https://claude.ai/directory/postiz',
+          href: brandConfig.claudeDirectoryUrl,
           label: t('add_to_claude', 'Add to Claude'),
         }
       : agent === 'Cursor'
       ? {
-          href: getCursorInstallUrl(auth, mcpBase, apiKey),
+          href: getCursorInstallUrl(auth, mcpBase, apiKey, connectorName),
           label: t('add_to_cursor', 'Add to Cursor'),
         }
       : null;
@@ -398,7 +411,7 @@ const OnboardingStep2: FC<{ onBack: () => void; onNext: () => void }> = ({
         </div>
         <a
           className="cursor-pointer px-[24px] h-[44px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[14px] font-[600] flex items-center gap-[8px] shrink-0"
-          href="https://docs.postiz.com/public-api/introduction"
+          href={joinBrandUrl(brandConfig?.docsUrl, 'public-api/introduction')}
           target="_blank"
         >
           <McpClientIcon client={apiTab} size={18} />

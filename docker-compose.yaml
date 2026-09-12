@@ -1,5 +1,5 @@
 services:
-  postiz:
+  postiz: # branding-guard-allow: compose service name — container_name, the postiz-postgres dependency, the volume names and scripts/validate-beta-compose.mjs all key off it. Renaming is an infra migration, not a branding fix.
     image: ghcr.io/dos/crove-post:latest
     container_name: postiz
     restart: always

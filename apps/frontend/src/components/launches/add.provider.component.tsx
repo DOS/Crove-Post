@@ -406,7 +406,7 @@ export const AddProviderComponent: FC<{
   isMobile?: boolean;
 }> = (props) => {
   const { update, social, article, onboarding, isMobile } = props;
-  const { isGeneral, extensionId } = useVariables();
+  const { isGeneral, extensionId, mobileAppScheme } = useVariables();
   const toaster = useToaster();
   const router = useRouter();
   const fetch = useFetch();
@@ -466,14 +466,19 @@ export const AddProviderComponent: FC<{
         };
         const gotoIntegration = async (externalUrl?: string) => {
           // Mobile WebView: reuse the existing `externalUrl` param to
-          // carry the `postiz://` deep link so the backend redirects
-          // back to the iOS/Android app after OAuth completes, instead
-          // of the default web redirect.
+          // carry the app deep link so the backend redirects back to the
+          // iOS/Android app after OAuth completes, instead of the default
+          // web redirect. The scheme comes from MOBILE_APP_SCHEME — the same
+          // variable the backend's /oauth-mobile-callback uses — so the two
+          // halves cannot drift. Empty scheme means no mobile app is
+          // configured, so no redirectUrl is sent at all.
           const params = [
             `externalUrl=${encodeURIComponent(externalUrl)}`,
             onboardingParam,
-            isMobile
-              ? `redirectUrl=${encodeURIComponent('postiz://integrations')}`
+            isMobile && mobileAppScheme
+              ? `redirectUrl=${encodeURIComponent(
+                  `${mobileAppScheme}integrations`
+                )}`
               : '',
           ]
             .filter(Boolean)
@@ -511,7 +516,7 @@ export const AddProviderComponent: FC<{
             // `window.open`/`location.href` aren't reliable here because
             // RN WebView doesn't always route them through the native
             // navigation intercept. The backend redirects back to the
-            // app via `postiz://` once OAuth completes.
+            // app via the MOBILE_APP_SCHEME deep link once OAuth completes.
             const rn = (window as any).ReactNativeWebView;
             if (rn && typeof rn.postMessage === 'function') {
               rn.postMessage(JSON.stringify({ type: 'open-external', url }));

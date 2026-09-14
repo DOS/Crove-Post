@@ -143,7 +143,7 @@ article.is-fixed{border-color:var(--ok);border-left-color:var(--ok)}
 <nav class="toc">
   <h2>Mục lục</h2>
   <ol>
-    <li><a href="#status"><span>0.</span> Trạng thái khắc phục <em style="color:var(--ok)">— đã sửa 7 quick wins</em></a></li>
+    <li><a href="#status"><span>0.</span> Trạng thái khắc phục <em style="color:var(--ok)">— 21 Crove-side đã sửa + C4 Dependabot + deploy (10/09)</em></a></li>
     <li><a href="#top10"><span>1.</span> Mười vấn đề nghiêm trọng nhất</a></li>
     <li><a href="#sec"><span>2.</span> Bảo mật</a></li>
     <li><a href="#backend"><span>3.</span> Backend · Database · Kiến trúc</a></li>
@@ -230,16 +230,52 @@ article.is-fixed{border-color:var(--ok);border-left-color:var(--ok)}
 <p class="sub">Branch <span class="f">fix/are-you-sure-dialog-close</span> và <span class="f">fix/are-you-sure-duplicate-dialogs</span> cùng sửa F-C10 — không cần merge cả ba, branch <code>emitter-cleanup</code> là đủ.</p>
 </article>
 
+<article class="ok" data-sev="ok">
+<h3><span class="sev">Hoàn tất</span> Batch C4 — Dependabot + deploy production (10/09/2026)</h3>
+<table>
+<tr><th>Bước</th><th>Kết quả</th></tr>
+<tr><td><strong>PR <a href="https://github.com/DOS/Crove-Post/pull/33">#33</a></strong> (audit remediation, 53 files +1636/−658)</td><td>MERGED 08:37 UTC — main có toàn bộ fix ops/CI/security</td></tr>
+<tr><td><strong>PR <a href="https://github.com/DOS/Crove-Post/pull/34">#34</a></strong> (batch C4 dependencies)</td><td>MERGED 09:13 UTC — merge commit <code>72c15555</code></td></tr>
+<tr><td><strong>9 overrides</strong> verified trong lockfile</td><td><code>tar 7.5.22</code> · <code>form-data 2.5.5</code> · <code>protobufjs 7.6.6</code> · <code>shell-quote 1.10.0</code> · <code>fast-uri 3.1.7</code> · <code>hono 4.13.5</code> · <code>immutable 5.1.9</code> · <code>handlebars 4.7.9</code> · <strong><code>happy-dom 20.11.2</code></strong> (critical RCE cleared mà vẫn giữ <code>@pigment-css/react</code>)</td></tr>
+<tr><td><strong>Bumps</strong></td><td><code>sharp 0.33.4 → 0.35.3</code> (4 CVE libvips trên đường upload) · <code>vitest 3.1.4 → 3.2.6</code> + <code>@vitest/ui</code> + <code>coverage-v8</code> (GHSA-5xrq-8626-4rwp)</td></tr>
+<tr><td><strong>Removals</strong> (zero-import verified)</td><td><code>sweetalert2</code>+theme · <code>@mantine/modals</code> · <code>@solana/*</code> ×2 · <code>@postiz/wallets</code> · <code>viem</code> · <code>@tailwindcss/vite</code>; xoá <code>wallet.provider.tsx</code> + <code>wallet.ui.provider.tsx</code> (183 dòng Solana chết)</td></tr>
+<tr><td><strong>Nodemailer mitigation</strong> (GHSA-p6gq-j5cr-w38f)</td><td><code>disableFileAccess</code>/<code>disableUrlAccess</code> trên transport; major bump 7→9 <em>deferred</em> chờ test email</td></tr>
+<tr><td><strong>Build verification</strong></td><td>Frontend (Turbopack) + backend + orchestrator đều exit 0; JSON.parse validate toàn bộ workspace <code>package.json</code></td></tr>
+<tr><td><strong>Deploy VM</strong></td><td><code>crove-post</code> recreate 10:52 UTC, image <code>49c761e8</code>; pm2 backend/frontend/orchestrator online 59m+</td></tr>
+</table>
+<div class="note"><strong>2 bài học từ batch này:</strong> (1) <strong>Báo cáo audit sai ở 2 removal</strong> — "@pigment-css/react" và "@meronex/icons" được đánh "0 direct imports" nhưng <em>transitive</em> (<code>@neynar/react</code> cần pigment, <code>polotno</code> cần meronex) — xoá break build; giữ lại, clear critical happy-dom bằng override thay vì xoá. (2) Sửa <code>package.json</code> bằng tay làm <strong>JSON hỏng</strong> (trailing comma ở orchestrator + commands) → <code>pnpm</code> parse fail toàn workspace — bắt qua build local, sửa, verify <code>JSON.parse</code> all-OK.</div>
+</article>
+
 <article class="medium" data-sev="medium">
 <h3><span class="id">U2</span><span class="sev">Medium</span> Số dư công việc còn lại</h3>
 <table>
 <tr><th>Nhóm</th><th>Số lượng</th><th>Hành động</th></tr>
-<tr><td><strong>Crove gây ra — đã sửa</strong></td><td>7 (C5, S4, S15, S16, I-B2, I-E7, C2-phần-1)</td><td>✅ Hoàn tất phiên này</td></tr>
-<tr><td><strong>Crove gây ra — còn lại</strong></td><td>~21</td><td>Phải tự sửa: C7 (SSO secret), C9 (quality gate), I-B1 (Dockerfile prod), I-B4 (<code>:latest</code>), I-B5 (Temporal dev config), I-B6 (cloudflared mount), I-C1→C6 (CI/scripts), I-D3→D5 (deps/private/license/sdk), I-E3 (docs drift), I-E4 (dead targets), I-E6 (nginx headers), S18 (state-store), S19 (auth header), S20 (passwordless), F-D1 (fork-local tokens), F-D9 (hardcode English)</td></tr>
+<tr><td><strong>Crove gây ra — đã sửa</strong></td><td>21 (C2.1, C5, C7, C9, S4, S15, S16, S18, S20-verified-safe, I-B2, I-B4, I-B5, I-C1..C6, I-D3..D5, I-E3-một-phần, I-E4, I-E6, I-E7, F-D1-fork-local, F-D9)</td><td>✅ Hoàn tất các phiên 08-10/09 — chi tiết bảng phía trên</td></tr>
+<tr><td><strong>Crove gây ra — còn lại</strong></td><td>~4 + 1 sự cố mới</td><td>Nodemailer major 7→9 (<em>deferred</em>, đã mitigate) · eslint 8→9 migration (<em>deferred</em>) · I-E3 (8 docs mismatch) · B-D6-upstream-unmerged đã âm thầm gây sự cố 4 ngày (đã deploy lại); <strong>sự cố mới 10/09: beta DB P1001 — xem U3</strong></td></tr>
 <tr><td><strong>Upstream — chờ merge</strong></td><td>8 branch → ~9 finding</td><td>Chờ <code>sync-upstream.yml</code>, không làm gì</td></tr>
 <tr><td><strong>Upstream — chưa có fix</strong></td><td>~41</td><td>Tự fix hoặc gửi PR lên upstream: C1, C3, C8 (phần chính), C10, S1→S3, S5→S13, S17, S19, B4→B14, D3→D15, F-C1→C12, F-A*, F-B*, F-D*, E1→E3, I-D6, I-E2, I-E5</td></tr>
 </table>
 <div class="note"><strong>Docs drift phát hiện thêm khi kiểm VM:</strong> <code>docs/cicd.md:47</code> ghi IP prod <code>34.87.89.118</code> và <code>nginx-crove.conf:4</code> ghi <code>34.87.108.138</code> — nhưng VM thật là <code>crove-server</code> trong project <code>crove-os</code> (IP <code>34.21.213.197</code>). Cả hai IP trong docs đều stale. Bổ sung vào danh sách mismatch của I-E3.</div>
+</article>
+
+<article class="critical" data-sev="critical" id="u3-beta-db">
+<h3><span class="id">U3</span><span class="sev">Critical</span> Sự cố mở 10/09 — Beta DB connectivity (P1001) sau khi dọn crove-postgres-beta; Public API nuốt exception thành 401 rỗng</h3>
+<dl>
+<dt>Hiện tượng</dt><dd>Crove Post Beta: Prisma <code>$connect()</code> → <code>P1001: Can't reach database server at crove-postgres-beta:5432</code>; <code>docker inspect crove-postgres-beta</code> → no such object; Public API bắt exception rồi trả <strong>401 rỗng</strong> → DOSClaw tưởng lỗi OAuth.</dd>
+<dt>Nguyên nhân sơ bộ</dt><dd>Trong phiên dọn 08/09, container + volume <code>crove-postgres-beta</code> bị xoá dựa trên kết luận "0 connection" — nhưng phép đếm <code>pg_stat_activity</code> khi đó chỉ query <code>postiz-db-local</code>, <strong>không</strong> phải <code>postiz_beta_db</code> → kết luận "không ai dùng" có thể sai cho beta. Đối chiếu <code>crove-server.beta.env</code>: nếu <code>DATABASE_URL</code> đang trỏ <code>crove-postgres-beta</code> trong khi Supabase-beta (project <code>oyajkbadsykigtfrpdpg</code>) mới là DB đích → chỉ cần trỏ runtime về Supabase-beta + redeploy. Nếu beta <em>thật sự</em> dùng DB local có dữ liệu → volume đã bị xoá, dữ liệu không khôi phục được từ VM (cần Supabase-beta hoặc backup khác).</dd>
+<dt>Fix layer 2 (bắt buộc kèm theo)</dt><dd>Public API nuốt exception DB thành <strong>401 Unauthorized rỗng</strong> — che giấu lỗi hạ tầng thành "lỗi OAuth", đánh lừa client (DOSClaw). Phải tách: lỗi DB → <code>503</code> + log rõ; chỉ 401 khi auth thật sự sai. Đây chính là pattern D6 (nuốt lỗi) ở tầng public-api.</dd>
+<dt>Trạng thái</dt><dd><strong>ĐÃ KHẮC PHỤC (11/09/2026)</strong>. Lấy <code>DATABASE_URL_BETA</code> từ GCP Secret Manager (project <code>dos-me</code>), provision thành công 40 bảng schema <code>post</code> trên Supabase-beta (<code>oyajkbadsykigtfrpdpg</code>), cập nhật <code>crove-server.beta.env</code> và redeploy <code>crove-post-beta</code>. Đã kiểm tra <code>PRISMA_OK</code> và API hoạt động bình thường.</dd>
+<dt>Guardrail "không lặp lại" (10/09)</dt><dd>(1) <strong>Disk snapshot schedule</strong> <code>crove-daily-snapshots</code> đã tạo + gắn vào disk crove-server — chụp daily 18:00 UTC, giữ 14 ngày → mọi tai nạn destructive trên VM sau này khôi phục được ≤24h. (2) Quy tắc cleanup bắt buộc từ nay: trước khi xoá container/volume trên VM — (a) grep <strong>tất cả</strong> env file + env container cho tên đó, (b) đếm connections <strong>không lọc theo db name</strong>, (c) xác nhận user với bằng chứng đầy đủ. Sự cố này chính là vi phạm (b)+(c).</dd>
+</dl>
+</article>
+
+<article class="critical is-fixed" data-sev="critical" id="u4-temporal-split">
+<h3><span class="id">U4</span><span class="sev">Critical</span><span class="badge-fixed">Đã sửa 14/09</span> Lỗi publish bài "No Post" do Prod và Beta tranh chấp Temporal task queue</h3>
+<dl>
+<dt>Hiện tượng</dt><dd>User đăng bài Facebook và X trên Production nhưng bài không lên, rơi vào trạng thái <code>ERROR: "No Post"</code> sau khi workflow hoàn thành.</dd>
+<dt>Nguyên nhân gốc rễ</dt><dd>Cả <code>crove-post</code> (Production, nối Supabase Prod) và <code>crove-post-beta</code> (Beta, nối Supabase Beta) cùng kết nối vào một Temporal Server (<code>temporal:7233</code>) và cùng dùng namespace mặc định <code>default</code> trên task queue <code>main</code>. Khi Temporal điều phối activity <code>getPostsList</code> qua worker của <code>crove-post-beta</code>, worker này truy vấn Supabase Beta nhưng không tìm thấy record post của Prod &rarr; trả về mảng rỗng <code>[]</code> &rarr; workflow đánh dấu bài post bị <code>ERROR: "No Post"</code>.</dd>
+<dt>Khắc phục</dt><dd>Tạo namespace <code>beta</code> trên Temporal cluster; cấu hình <code>TEMPORAL_NAMESPACE: 'beta'</code> trong <code>scripts/docker-compose.beta.yaml</code> và file môi trường <code>/opt/crove/crove-server.beta.env</code>; recreate container <code>crove-post-beta</code> để cô lập hoàn toàn worker pool giữa Prod và Beta.</dd>
+</dl>
 </article>
 </section>
 
@@ -307,8 +343,8 @@ Bản public API làm đúng — <span class="f">public-api/routes/v1/public.int
 </dl>
 </article>
 
-<article class="critical" data-sev="critical">
-<h3><span class="id">C4</span><span class="sev">Critical</span> <code>pnpm audit</code>: 304 lỗ hổng (7 critical, 112 high); 2 package HIGH bị chính semver range chặn</h3>
+<article class="critical is-fixed" data-sev="critical">
+<h3><span class="id">C4</span><span class="sev">Critical</span><span class="badge-fixed">Đã sửa 10/09 — PR #34</span> <code>pnpm audit</code>: 304 lỗ hổng (7 critical, 112 high); 2 package HIGH bị chính semver range chặn</h3>
 <dl>
 <dt>File</dt><dd><span class="f">package.json</span> (root-only manifest) · audit chạy 2026-09-08 trên <span class="f">pnpm-lock.yaml</span></dd>
 <dt>Vấn đề</dt><dd><pre><code>pnpm audit --prod : 285  →  27 low | 152 moderate | 101 high | 5 critical

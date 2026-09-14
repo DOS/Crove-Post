@@ -16,6 +16,7 @@ services:
       - crove-server.beta.env
     environment:
       MASTRA_DISABLE_STORAGE_INIT: 'true'
+      TEMPORAL_NAMESPACE: 'beta'
     volumes:
       - postiz-beta-config:/config/
       - postiz-beta-uploads:/uploads/

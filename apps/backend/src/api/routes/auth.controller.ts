@@ -206,7 +206,17 @@ export class AuthController {
     @Query('state') state: string,
     @Res({ passthrough: false }) response: Response
   ) {
-    const scheme = process.env.MOBILE_APP_SCHEME || 'postiz://auth/callback';
+    const scheme = (process.env.MOBILE_APP_SCHEME || '').trim();
+    // Fail closed. This handler holds a live OAuth authorization code, and a
+    // custom-scheme redirect delivers it to whichever app on the device
+    // registered that scheme. Falling back to an upstream default would hand
+    // this deployment's codes to someone else's app, so an unset
+    // MOBILE_APP_SCHEME must refuse rather than redirect.
+    if (!scheme) {
+      return response
+        .status(501)
+        .send('Mobile OAuth callback is not configured for this deployment');
+    }
     const params = new URLSearchParams();
     if (code) params.set('code', code);
     if (state) params.set('state', state);

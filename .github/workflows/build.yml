@@ -22,6 +22,40 @@ jobs:
       matrix:
         node-version: ['22.12.0']
 
+    # The bootstrap / OAuth-consent suites refuse to run unless DATABASE_URL
+    # points at 127.0.0.1:15491 (or :15432) and REDIS_URL at 127.0.0.1:16391
+    # (or :16379) — they throw 'Use isolated local test services' otherwise,
+    # which used to fail this job on every push. These ports are deliberate:
+    # they match the disposable local services the suites were written against.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: crove
+          POSTGRES_PASSWORD: crove
+          POSTGRES_DB: crove_test
+        ports:
+          - 15491:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7.2
+        ports:
+          - 16391:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://crove:crove@127.0.0.1:15491/crove_test
+      DATABASE_DIRECT_URL: postgresql://crove:crove@127.0.0.1:15491/crove_test
+      REDIS_URL: redis://127.0.0.1:16391
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -47,8 +81,17 @@ jobs:
       - name: Test SSO Worker (vitest)
         run: pnpm run test:sso
 
+      # The suites drive the real Prisma client, so the schema must exist in
+      # the throwaway database first. --skip-generate because the postinstall
+      # hook already generated the client. No --accept-data-loss: this is an
+      # empty database and the step must stay non-destructive.
+      - name: Push Prisma schema to the test database
+        run: pnpm exec prisma db push --skip-generate --schema libraries/nestjs-libraries/src/database/prisma/schema.prisma
+
       - name: Test bootstrap / OAuth consent (jest)
-        run: pnpm exec jest --config tests/bootstrap.jest.cjs --ci --passWithNoTests
+        # --runInBand: the suites share one database and create/delete rows by
+        # known ids, so they must not run concurrently against each other.
+        run: pnpm exec jest --config tests/bootstrap.jest.cjs --ci --passWithNoTests --runInBand
 
       - name: Build applications
         run: pnpm run build

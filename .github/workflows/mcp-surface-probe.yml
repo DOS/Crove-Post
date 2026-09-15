@@ -1,0 +1,56 @@
+---
+name: MCP Surface Probe
+
+# Runs the read-only MCP surface probe (scripts/probe-mcp.mjs) against
+# production and beta. GitHub runners have public internet access, so this is
+# the only place the deployed endpoints can be checked from CI — it turns the
+# 2026-09-08 incident (a database outage swallowed into an empty 401, which
+# DOSClaw misread as an OAuth failure) into an alarm instead of a silent outage.
+#
+# Every rejection asserted here must be well-formed and intentional. A generic
+# 401, a 5xx or a timeout fails the run, which is the point.
+#
+# To also assert the authenticated agent path (initialize with a pos_ token,
+# tools/list, public API is-connected), set the MCP_PROBE_TOKEN repository
+# secret. Without it the probe still verifies every endpoint fails closed.
+#
+# All requests are read-only, so scheduling it is safe. It is deliberately NOT
+# a push/PR gate: a transient production blip should not fail unrelated work.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Every 30 minutes, deliberately off the :00/:30 grid.
+    - cron: '13,43 * * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: "Probe ${{ matrix.target }}"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      # One environment being down must not hide the state of the other.
+      fail-fast: false
+      matrix:
+        include:
+          - target: production
+            url: https://post.crove.com/api
+          - target: beta
+            url: https://beta-post.crove.com/api
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Probe MCP surface
+        env:
+          MCP_PROBE_TOKEN: ${{ secrets.MCP_PROBE_TOKEN }}
+        run: node scripts/probe-mcp.mjs ${{ matrix.url }} ${{ matrix.target }}

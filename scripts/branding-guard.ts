@@ -13,6 +13,7 @@ import {
   joinBrandUrl,
   DEFAULT_BRAND_CONFIG,
 } from '../libraries/helpers/src/utils/brand.config';
+import { getMobileAppScheme } from '../libraries/helpers/src/utils/mobile.app.scheme';
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { join, extname } from 'path';
 
@@ -118,6 +119,20 @@ console.log('=== Running Branding Guard Validations ===\n');
   assert(joinBrandUrl('https://docs.example.com/', '') === 'https://docs.example.com', 'joinBrandUrl with an empty path returns the base');
   assert(joinBrandUrl(undefined, 'public-api') === '/public-api', 'joinBrandUrl with no base degrades to a root-relative path');
   assert(joinBrandUrl(undefined, undefined) === '', 'joinBrandUrl with nothing returns an empty string rather than "undefined"');
+}
+
+// 2d. getMobileAppScheme. The backend redirects a live OAuth authorization
+// code to this scheme, so an unset variable must yield '' (callers then refuse
+// or omit the deep link) and never silently fall back to an upstream scheme.
+{
+  assert(getMobileAppScheme({ MOBILE_APP_SCHEME: 'crove://auth/callback' }) === 'crove://', 'getMobileAppScheme extracts the scheme prefix from a full callback URL');
+  assert(getMobileAppScheme({ MOBILE_APP_SCHEME: 'postiz://auth/callback' }) === 'postiz://', 'getMobileAppScheme returns whatever scheme is configured, without hardcoding one');
+  assert(getMobileAppScheme({ MOBILE_APP_SCHEME: '' }) === '', 'getMobileAppScheme returns empty for an unset variable so the mobile callback fails closed');
+  assert(getMobileAppScheme({}) === '', 'getMobileAppScheme returns empty when the variable is absent');
+  assert(getMobileAppScheme({ MOBILE_APP_SCHEME: '   ' }) === '', 'getMobileAppScheme returns empty for whitespace-only input');
+  assert(getMobileAppScheme({ MOBILE_APP_SCHEME: 'not-a-scheme' }) === '', 'getMobileAppScheme rejects a value with no scheme separator');
+  assert(getMobileAppScheme({ MOBILE_APP_SCHEME: 'javascript://alert(1)' }) === 'javascript://', 'getMobileAppScheme only parses the prefix; callers must not treat it as a safe URL');
+  assert(getMobileAppScheme({ NEXT_PUBLIC_MOBILE_APP_SCHEME: 'crove://cb' }) === 'crove://', 'getMobileAppScheme honours the NEXT_PUBLIC_ alias');
 }
 
 // 3. Security sanitization tests

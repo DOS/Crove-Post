@@ -15,6 +15,7 @@ Welcome to the official technical documentation for **Crove Post** (the open-sou
 | **[4. First-Party Provisioning API](./first-party-provisioning.md)** | Automated account & workspace provisioning API specification (`/v1/provision`). |
 | **[5. Beta & Production Environments](./beta-environment.md)** | Independent configurations for Production (`crove.com`, `post.crove.com`) and Beta (`beta.crove.com`, `beta-post.crove.com`). |
 | **[6. CI/CD & Deployment Pipeline](./cicd.md)** | GitHub Actions multi-arch container build, branching strategy (dev/main), and automated server deployment. |
+| **[7. MCP Surface Probe](./mcp-surface-probe.md)** | Read-only 30-minute GitHub Actions probe asserting the deployed MCP surface serves RFC 9728 discovery and fails closed (never a swallowed generic 401) on Production and Beta. |
 
 ---
 

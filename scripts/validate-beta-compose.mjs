@@ -214,8 +214,11 @@ if (!betaService.found) {
   );
   record(
     environment &&
-      sameEntries(environment, { MASTRA_DISABLE_STORAGE_INIT: 'true' }),
-    `MASTRA_DISABLE_STORAGE_INIT must be true: ${JSON.stringify(environment)}`
+      sameEntries(environment, {
+        MASTRA_DISABLE_STORAGE_INIT: 'true',
+        TEMPORAL_NAMESPACE: 'beta',
+      }),
+    `Beta service environment must be exactly {MASTRA_DISABLE_STORAGE_INIT: 'true', TEMPORAL_NAMESPACE: 'beta'}: ${JSON.stringify(environment)}`
   );
   record(
     volumes &&

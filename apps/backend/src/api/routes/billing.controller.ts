@@ -236,13 +236,13 @@ export class BillingController {
       billing,
       process.env.FRONTEND_URL || 'https://post.crove.com'
     );
-    if (result.updated) {
+    if ('updated' in result && result.updated) {
       return {};
     }
-    if (result.url) {
+    if ('url' in result && result.url) {
       return { url: result.url };
     }
-    if (result.portal_url) {
+    if ('portal_url' in result && result.portal_url) {
       return { portal: result.portal_url };
     }
     return result;

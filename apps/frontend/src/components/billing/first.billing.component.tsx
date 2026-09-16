@@ -53,15 +53,20 @@ export const FirstBillingComponent = () => {
   const [stripe, setStripe] = useState<null | Promise<Stripe>>(null);
   const [tier, setTier] = useState('STANDARD');
   const [period, setPeriod] = useState('MONTHLY');
+  const [dosCheckoutLoading, setDosCheckoutLoading] = useState(false);
   const fetch = useFetch();
   const modals = useModals();
   const t = useT();
   const [datafast_visitor_id] = useCookie('datafast_visitor_id', '');
   const [datafast_session_id] = useCookie('datafast_session_id', '');
+  const sharedDosBilling = !!user?.sharedDosBilling;
 
   useEffect(() => {
+    if (sharedDosBilling) {
+      return;
+    }
     setStripe(loadStripe(stripeClient));
-  }, []);
+  }, [sharedDosBilling, stripeClient]);
 
   const loadCheckout = useCallback(async () => {
     return (
@@ -79,6 +84,30 @@ export const FirstBillingComponent = () => {
     ).json();
   }, [tier, period]);
 
+  const startDosCheckout = useCallback(async () => {
+    setDosCheckoutLoading(true);
+    try {
+      const result = await (
+        await fetch('/billing/subscribe', {
+          method: 'POST',
+          body: JSON.stringify({
+            billing: tier,
+            period: 'MONTHLY',
+          }),
+        })
+      ).json();
+      if (result.url) {
+        window.location.href = result.url;
+        return;
+      }
+      if (result.portal) {
+        window.location.href = result.portal;
+      }
+    } finally {
+      setDosCheckoutLoading(false);
+    }
+  }, [fetch, tier]);
+
   const showYouTube = () => {
     modals.openModal({
       title: 'Grow Fast With Postiz (Play the video)',
@@ -95,7 +124,7 @@ export const FirstBillingComponent = () => {
   };
 
   const { data, isLoading } = useSWR(
-    `/billing-${tier}-${period}`,
+    sharedDosBilling ? null : `/billing-${tier}-${period}`,
     loadCheckout,
     {
       revalidateOnFocus: false,
@@ -107,8 +136,13 @@ export const FirstBillingComponent = () => {
   );
 
   const price = useMemo(
-    () => Object.entries(pricing).filter(([key, value]) => key !== 'FREE'),
-    []
+    () =>
+      Object.entries(pricing).filter(([key]) =>
+        sharedDosBilling
+          ? key === 'STANDARD' || key === 'PRO'
+          : key !== 'FREE'
+      ),
+    [sharedDosBilling]
   );
 
   const JoinOver = () => {
@@ -212,6 +246,25 @@ export const FirstBillingComponent = () => {
                 'Another account with this email already has an active subscription. Please log off and sign in to that account to manage your subscription.'
               )}
             </div>
+          ) : sharedDosBilling ? (
+            <div className="mt-[24px] flex flex-col gap-[16px]">
+              <div className="text-[16px] font-[500]">
+                {t(
+                  'billing_dos_shared_plan',
+                  'Crove uses your DOS plan. Plus is $9/month (5 channels). Pro is $19/month (30 channels). One checkout covers DOS.AI and Crove.'
+                )}
+              </div>
+              <button
+                className="h-[48px] px-[20px] rounded-[12px] bg-boxFocused text-textItemFocused text-[16px] font-[600]"
+                type="button"
+                disabled={dosCheckoutLoading}
+                onClick={startDosCheckout}
+              >
+                {dosCheckoutLoading
+                  ? t('loading', 'Loading...')
+                  : t('billing_continue_dos_checkout', 'Continue to DOS checkout')}
+              </button>
+            </div>
           ) : !isLoading && data && stripe ? (
             <EmbeddedBilling
               stripe={stripe}
@@ -244,6 +297,7 @@ export const FirstBillingComponent = () => {
                 >
                   {t('billing_monthly', 'Monthly')}
                 </div>
+                {!sharedDosBilling && (
                 <div
                   className={clsx(
                     'gap-[10px] h-[32px] mobile:flex-1 rounded-[6px] text-[16px] px-[12px] flex justify-center items-center',
@@ -258,6 +312,7 @@ export const FirstBillingComponent = () => {
                     {t('billing_20_percent_off', '20% Off')}
                   </div>
                 </div>
+                )}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-[8px] mobile:!grid-cols-2 tablet:grid-cols-4">
@@ -274,16 +329,22 @@ export const FirstBillingComponent = () => {
                     )}
                   >
                     <div className="text-[20px] mobile:text-[18px] font-[500]">
-                      {capitalize(key)}
+                      {sharedDosBilling && key === 'STANDARD'
+                        ? 'Plus'
+                        : sharedDosBilling && key === 'PRO'
+                        ? 'Pro'
+                        : capitalize(key)}
                     </div>
                     <div className="text-[24px] mobile:text-[18px] font-[400]">
                       <span className="text-[44px] mobile:text-[30px] font-[600]">
                         $
-                        {
-                          value[
-                            period === 'MONTHLY' ? 'month_price' : 'year_price'
-                          ]
-                        }
+                        {sharedDosBilling
+                          ? key === 'PRO'
+                            ? 19
+                            : 9
+                          : value[
+                              period === 'MONTHLY' ? 'month_price' : 'year_price'
+                            ]}
                       </span>{' '}
                       {period === 'MONTHLY'
                         ? t('billing_per_month', '/ month')

@@ -19,6 +19,8 @@ export const UserContext = createContext<
       allowTrial: boolean;
       isTrailing: boolean;
       streakSince: string | null;
+      sharedDosBilling?: boolean;
+      dosPlan?: 'free' | 'plus' | 'pro' | null;
     })
 >(undefined);
 export const ContextWrapper: FC<{

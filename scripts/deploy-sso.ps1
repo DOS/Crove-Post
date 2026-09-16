@@ -1,13 +1,13 @@
 <#
 .SYNOPSIS
-    Tự động hóa build, test và deploy Cloudflare Worker Crove SSO (Beta & Prod).
+    Automated build, test and deployment for Cloudflare Worker Crove SSO (Beta & Prod).
 .DESCRIPTION
-    Script thực hiện:
-    1. Kiểm tra môi trường Node.js & pnpm
-    2. Chạy test bộ mã nguồn SSO (31/31 unit tests)
-    3. Deploy worker lên Cloudflare qua Wrangler CLI tương ứng với môi trường chỉ định
+    Script workflow:
+    1. Verify Node.js & pnpm environment
+    2. Run SSO unit test suite (31/31 unit tests)
+    3. Deploy worker to Cloudflare via Wrangler CLI for the specified environment
 .PARAMETER Environment
-    Môi trường triển khai: 'beta' (mặc định) hoặc 'prod'
+    Deployment target: 'beta' (default) or 'prod'
 .EXAMPLE
     .\scripts\deploy-sso.ps1 -Environment beta
 .EXAMPLE
@@ -39,42 +39,42 @@ Write-Host "==========================================================" -Foregro
 Write-Host "  CROVE SSO WORKER - AUTOMATED DEPLOYMENT ($($Environment.ToUpper()))" -ForegroundColor Yellow
 Write-Host "==========================================================" -ForegroundColor Cyan
 
-# 1. Chạy unit tests SSO
-Write-Host "`n[1/3] Đang chạy bộ kiểm thử Vitest cho @crove/sso..." -ForegroundColor Green
+# 1. Run SSO unit tests
+Write-Host "`n[1/3] Running Vitest unit tests for @crove/sso..." -ForegroundColor Green
 $testResult = pnpm --filter @crove/sso test
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Kiểm thử thất bại! Dừng quá trình deploy."
+    Write-Error "Tests failed! Aborting deployment."
     exit 1
 }
-Write-Host "-> Toàn bộ tests đã vượt qua thành công!" -ForegroundColor Green
+Write-Host "-> All tests passed successfully!" -ForegroundColor Green
 
-# 2. Cấu hình Secrets nếu có truyền vào
+# 2. Configure Secrets if provided
 if ($UpstreamClientId -or $UpstreamClientSecret) {
-    Write-Host "`n[2/3] Đang cấu hình Cloudflare Secrets..." -ForegroundColor Green
+    Write-Host "`n[2/3] Configuring Cloudflare Secrets..." -ForegroundColor Green
     $envFlag = if ($Environment -eq "beta") { "-e beta" } else { "" }
     
     if ($UpstreamClientId) {
-        Write-Host "-> Thiết lập UPSTREAM_CLIENT_ID..."
+        Write-Host "-> Setting UPSTREAM_CLIENT_ID..."
         $UpstreamClientId | pnpm --filter @crove/sso exec wrangler secret put UPSTREAM_CLIENT_ID $envFlag
     }
     if ($UpstreamClientSecret) {
-        Write-Host "-> Thiết lập UPSTREAM_CLIENT_SECRET..."
+        Write-Host "-> Setting UPSTREAM_CLIENT_SECRET..."
         $UpstreamClientSecret | pnpm --filter @crove/sso exec wrangler secret put UPSTREAM_CLIENT_SECRET $envFlag
     }
     if ($DownstreamClientId) {
-        Write-Host "-> Thiết lập DOWNSTREAM_CLIENT_ID..."
+        Write-Host "-> Setting DOWNSTREAM_CLIENT_ID..."
         $DownstreamClientId | pnpm --filter @crove/sso exec wrangler secret put DOWNSTREAM_CLIENT_ID $envFlag
     }
     if ($DownstreamClientSecret) {
-        Write-Host "-> Thiết lập DOWNSTREAM_CLIENT_SECRET..."
+        Write-Host "-> Setting DOWNSTREAM_CLIENT_SECRET..."
         $DownstreamClientSecret | pnpm --filter @crove/sso exec wrangler secret put DOWNSTREAM_CLIENT_SECRET $envFlag
     }
 } else {
-    Write-Host "`n[2/3] Bỏ qua nạp secrets (sử dụng secrets đã lưu trên Cloudflare Dashboard)." -ForegroundColor Gray
+    Write-Host "`n[2/3] Skipping secrets upload (using pre-configured dashboard/env secrets)." -ForegroundColor Gray
 }
 
 # 3. Deploy Worker
-Write-Host "`n[3/3] Đang deploy Cloudflare Worker ($Environment)..." -ForegroundColor Green
+Write-Host "`n[3/3] Deploying Cloudflare Worker ($Environment)..." -ForegroundColor Green
 if ($Environment -eq "beta") {
     pnpm --filter @crove/sso run deploy:beta
 } else {
@@ -83,7 +83,7 @@ if ($Environment -eq "beta") {
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "`n==========================================================" -ForegroundColor Green
-    Write-Host "  DEPLOY THÀNH CÔNG CHO MÔI TRƯỜNG $($Environment.ToUpper())!" -ForegroundColor Green
+    Write-Host "  DEPLOYMENT SUCCEEDED FOR $($Environment.ToUpper())!" -ForegroundColor Green
     if ($Environment -eq "beta") {
         Write-Host "  SSO Endpoint: https://beta-sso.crove.com" -ForegroundColor Cyan
         Write-Host "  App Callback: https://beta-post.crove.com/settings" -ForegroundColor Cyan
@@ -93,6 +93,6 @@ if ($LASTEXITCODE -eq 0) {
     }
     Write-Host "==========================================================" -ForegroundColor Green
 } else {
-    Write-Error "Deployment thất bại. Vui lòng kiểm tra quyền đăng nhập Cloudflare (wrangler login) hoặc token API."
+    Write-Error "Deployment failed. Please check Cloudflare authentication or API token."
     exit 1
 }

@@ -10,8 +10,11 @@ import { PostsService } from '@gitroom/nestjs-libraries/database/prisma/posts/po
 
 const model = new ChatOpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'sk-proj-',
-  model: 'gpt-4o-2024-08-06',
+  model: process.env.OPENAI_MODEL_NAME || 'gpt-4o-2024-08-06',
   temperature: 0,
+  ...(process.env.OPENAI_BASE_URL
+    ? { configuration: { baseURL: process.env.OPENAI_BASE_URL } }
+    : {}),
 });
 
 interface WorkflowChannelsState {

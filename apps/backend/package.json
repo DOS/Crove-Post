@@ -1,5 +1,5 @@
 {
-  "name": "postiz-backend",
+  "name": "@crove/backend",
   "version": "1.0.0",
   "description": "",
   "scripts": {
@@ -10,5 +10,6 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "AGPL-3.0",
+  "private": true
 }

@@ -1,5 +1,7 @@
 import { initializeSentry } from '@gitroom/nestjs-libraries/sentry/initialize.sentry';
 initializeSentry('backend', true);
+import dns from 'dns';
+dns.setDefaultResultOrder('ipv4first');
 import compression from 'compression';
 
 import { loadSwagger } from '@gitroom/helpers/swagger/load.swagger';
@@ -48,7 +50,11 @@ async function start() {
     },
   });
 
-  await startMcp(app);
+  try {
+    await startMcp(app);
+  } catch (e) {
+    Logger.error('Failed to initialize Mastra MCP server:', e);
+  }
 
   app.useGlobalPipes(
     new ValidationPipe({

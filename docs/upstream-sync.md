@@ -23,15 +23,19 @@ File kịch bản `scripts/branding-guard.ts` thực thi các kiểm tra nghiêm
 ### Chạy Branding Guard cục bộ:
 
 ```powershell
-pnpm exec tsx scripts/branding-guard.ts
+npx tsx scripts/branding-guard.ts
 ```
+
+> `tsx` không nằm trong `dependencies` của repo, nên `pnpm exec tsx` sẽ fail
+> với `ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL`. Dùng `npx tsx` — đúng cách mà
+> `branding-guard.yml` đang chạy trong CI.
 
 ---
 
 ## 3. GitHub Actions Workflows
 
 ### 3.1. Branding Guard CI (`.github/workflows/branding-guard.yml`)
-- Kích hoạt khi có `push` hoặc `pull_request` vào nhánh `main` hoặc `master`.
+- Kích hoạt khi có `push` hoặc `pull_request` vào nhánh `main` hoặc `dev`.
 - Đảm bảo không có bất kỳ commit nào phá vỡ các quy tắc branding và bảo mật.
 
 ### 3.2. Upstream Sync Workflow (`.github/workflows/sync-upstream.yml`)

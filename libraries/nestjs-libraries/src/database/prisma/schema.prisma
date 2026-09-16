@@ -4,8 +4,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_DIRECT_URL")
 }
 
 model Organization {
@@ -17,6 +18,7 @@ model Organization {
   streakSince         DateTime?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
+  deletedAt           DateTime?
   allowTrial          Boolean              @default(false)
   isTrailing          Boolean              @default(false)
   shortlink           ShortLinkPreference  @default(ASK)
@@ -47,6 +49,7 @@ model Organization {
   @@index([apiKey])
   @@index([streakSince])
   @@index([paymentId])
+  @@index([deletedAt])
 }
 
 model Tags {
@@ -99,6 +102,7 @@ model User {
   lastOnline            DateTime             @default(now())
   ip                    String?
   agent                 String?
+  deletedAt             DateTime?
   comments              Comments[]
   items                 ItemUser[]
   groupBuyer            MessagesGroup[]      @relation("groupBuyer")
@@ -120,6 +124,7 @@ model User {
   @@index([account])
   @@index([lastOnline])
   @@index([pictureId])
+  @@index([deletedAt])
 }
 
 model UsedCodes {
@@ -284,6 +289,7 @@ model Subscription {
   id               String           @id @default(cuid())
   organizationId   String           @unique
   subscriptionTier SubscriptionTier
+  provider         String           @default("stripe")
   identifier       String?
   cancelAt         DateTime?
   period           Period
@@ -685,199 +691,49 @@ model Mentions {
   @@index([createdAt])
 }
 
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model mastra_ai_spans {
-  traceId      String
-  spanId       String
-  parentSpanId String?
-  name         String
-  scope        Json?
-  spanType     String
-  attributes   Json?
-  metadata     Json?
-  links        Json?
-  input        Json?
-  output       Json?
-  error        Json?
-  startedAt    DateTime  @db.Timestamp(6)
-  endedAt      DateTime? @db.Timestamp(6)
-  createdAt    DateTime  @db.Timestamp(6)
-  updatedAt    DateTime? @db.Timestamp(6)
-  isEvent      Boolean
-  startedAtZ   DateTime? @default(now()) @db.Timestamptz(6)
-  endedAtZ     DateTime? @default(now()) @db.Timestamptz(6)
-  createdAtZ   DateTime? @default(now()) @db.Timestamptz(6)
-  updatedAtZ   DateTime? @default(now()) @db.Timestamptz(6)
-
-  @@index([name], map: "public_mastra_ai_spans_name_idx")
-  @@index([parentSpanId, startedAt(sort: Desc)], map: "public_mastra_ai_spans_parentspanid_startedat_idx")
-  @@index([spanType, startedAt(sort: Desc)], map: "public_mastra_ai_spans_spantype_startedat_idx")
-  @@index([traceId, startedAt(sort: Desc)], map: "public_mastra_ai_spans_traceid_startedat_idx")
-  @@ignore
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model mastra_evals {
-  input         String
-  output        String
-  result        Json
-  agent_name    String
-  metric_name   String
-  instructions  String
-  test_info     Json?
-  global_run_id String
-  run_id        String
-  created_at    DateTime  @db.Timestamp(6)
-  createdAt     DateTime? @db.Timestamp(6)
-  created_atZ   DateTime? @default(now()) @db.Timestamptz(6)
-  createdAtZ    DateTime? @default(now()) @db.Timestamptz(6)
-
-  @@index([agent_name, created_at(sort: Desc)], map: "public_mastra_evals_agent_name_created_at_idx")
-  @@ignore
-}
-
-model mastra_messages {
-  id         String    @id
-  thread_id  String
-  content    String
-  role       String
-  type       String
-  createdAt  DateTime  @db.Timestamp(6)
-  resourceId String?
-  createdAtZ DateTime? @default(now()) @db.Timestamptz(6)
-
-  @@index([thread_id, createdAt(sort: Desc)], map: "public_mastra_messages_thread_id_createdat_idx")
-}
-
-model mastra_resources {
-  id            String    @id
-  workingMemory String?
-  metadata      Json?
-  createdAt     DateTime  @db.Timestamp(6)
-  updatedAt     DateTime  @db.Timestamp(6)
-  createdAtZ    DateTime? @default(now()) @db.Timestamptz(6)
-  updatedAtZ    DateTime? @default(now()) @db.Timestamptz(6)
-}
-
-model mastra_scorers {
-  id                   String    @id
-  scorerId             String
-  traceId              String?
-  runId                String
-  scorer               Json
-  preprocessStepResult Json?
-  extractStepResult    Json?
-  analyzeStepResult    Json?
-  score                Float
-  reason               String?
-  metadata             Json?
-  preprocessPrompt     String?
-  extractPrompt        String?
-  generateScorePrompt  String?
-  generateReasonPrompt String?
-  analyzePrompt        String?
-  reasonPrompt         String?
-  input                Json
-  output               Json
-  additionalContext    Json?
-  runtimeContext       Json?
-  entityType           String?
-  entity               Json?
-  entityId             String?
-  source               String
-  resourceId           String?
-  threadId             String?
-  createdAt            DateTime  @db.Timestamp(6)
-  updatedAt            DateTime  @db.Timestamp(6)
-  createdAtZ           DateTime? @default(now()) @db.Timestamptz(6)
-  updatedAtZ           DateTime? @default(now()) @db.Timestamptz(6)
-  spanId               String?
-
-  @@index([traceId, spanId, createdAt(sort: Desc)], map: "public_mastra_scores_trace_id_span_id_created_at_idx")
-}
-
-model mastra_threads {
-  id         String    @id
-  resourceId String
-  title      String
-  metadata   String?
-  createdAt  DateTime  @db.Timestamp(6)
-  updatedAt  DateTime  @db.Timestamp(6)
-  createdAtZ DateTime? @default(now()) @db.Timestamptz(6)
-  updatedAtZ DateTime? @default(now()) @db.Timestamptz(6)
-
-  @@index([resourceId, createdAt(sort: Desc)], map: "public_mastra_threads_resourceid_createdat_idx")
-}
-
-model mastra_traces {
-  id           String    @id
-  parentSpanId String?
-  name         String
-  traceId      String
-  scope        String
-  kind         Int
-  attributes   Json?
-  status       Json?
-  events       Json?
-  links        Json?
-  other        String?
-  startTime    BigInt
-  endTime      BigInt
-  createdAt    DateTime  @db.Timestamp(6)
-  createdAtZ   DateTime? @default(now()) @db.Timestamptz(6)
-
-  @@index([name, startTime(sort: Desc)], map: "public_mastra_traces_name_starttime_idx")
-}
-
-model mastra_workflow_snapshot {
-  workflow_name String
-  run_id        String
-  resourceId    String?
-  snapshot      String
-  createdAt     DateTime  @db.Timestamp(6)
-  updatedAt     DateTime  @db.Timestamp(6)
-  createdAtZ    DateTime? @default(now()) @db.Timestamptz(6)
-  updatedAtZ    DateTime? @default(now()) @db.Timestamptz(6)
-
-  @@unique([workflow_name, run_id], map: "public_mastra_workflow_snapshot_workflow_name_run_id_key")
-}
-
 model OAuthApp {
-  id             String               @id @default(uuid())
-  organizationId String
-  name           String
-  description    String?
-  pictureId      String?
-  redirectUrl    String
-  clientId       String               @unique
-  clientSecret   String
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
-  deletedAt      DateTime?
-  organization   Organization         @relation(fields: [organizationId], references: [id])
-  picture        Media?               @relation(fields: [pictureId], references: [id])
-  authorizations OAuthAuthorization[]
+  id                      String               @id @default(uuid())
+  organizationId          String?
+  name                    String
+  description             String?
+  pictureId               String?
+  redirectUrl             String
+  redirectUris            String?
+  clientId                String               @unique
+  clientSecret            String?
+  dynamic                 Boolean              @default(false)
+  tokenEndpointAuthMethod String?
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+  deletedAt               DateTime?
+  organization            Organization?        @relation(fields: [organizationId], references: [id])
+  picture                 Media?               @relation(fields: [pictureId], references: [id])
+  authorizations          OAuthAuthorization[]
 
   @@unique([organizationId, deletedAt])
   @@index([clientId])
   @@index([organizationId])
   @@index([deletedAt])
+  @@index([dynamic])
 }
 
 model OAuthAuthorization {
-  id                String       @id @default(uuid())
-  oauthAppId        String
-  userId            String
-  organizationId    String
-  accessToken       String?
-  authorizationCode String?
-  codeExpiresAt     DateTime?
-  revokedAt         DateTime?
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
-  oauthApp          OAuthApp     @relation(fields: [oauthAppId], references: [id])
-  user              User         @relation(fields: [userId], references: [id])
-  organization      Organization @relation(fields: [organizationId], references: [id])
+  id                  String       @id @default(uuid())
+  oauthAppId          String
+  userId              String
+  organizationId      String
+  accessToken         String?
+  authorizationCode   String?
+  codeExpiresAt       DateTime?
+  codeChallenge       String?
+  codeChallengeMethod String?
+  redirectUri         String?
+  revokedAt           DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  oauthApp            OAuthApp     @relation(fields: [oauthAppId], references: [id])
+  user                User         @relation(fields: [userId], references: [id])
+  organization        Organization @relation(fields: [organizationId], references: [id])
 
   @@unique([oauthAppId, userId, organizationId])
   @@index([accessToken])
@@ -923,6 +779,7 @@ enum Provider {
   LOCAL
   GITHUB
   GOOGLE
+  APPLE
   FARCASTER
   WALLET
   GENERIC

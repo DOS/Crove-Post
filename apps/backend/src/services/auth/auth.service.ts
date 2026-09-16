@@ -11,6 +11,7 @@ import { NotificationService } from '@gitroom/nestjs-libraries/database/prisma/n
 import { ForgotReturnPasswordDto } from '@gitroom/nestjs-libraries/dtos/auth/forgot-return.password.dto';
 import { EmailService } from '@gitroom/nestjs-libraries/services/email.service';
 import { NewsletterService } from '@gitroom/nestjs-libraries/newsletter/newsletter.service';
+import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 
 @Injectable()
 export class AuthService {
@@ -134,6 +135,52 @@ export class AuthService {
     }
   }
 
+  private async syncUserOrganizations(
+    userId: string,
+    organizations?: Array<{
+      id: string;
+      name: string;
+      role?: 'OWNER' | 'ADMIN' | 'MEMBER' | 'SUPERADMIN';
+    }>
+  ) {
+    if (!organizations || !organizations.length) {
+      return;
+    }
+
+    const userOrgs = await this._organizationService.getOrgsByUserId(userId);
+    const existingOrgMap = new Map(userOrgs.map((o) => [o.id, o]));
+
+    for (const orgInfo of organizations) {
+      const isOwner = orgInfo.role === 'OWNER' || orgInfo.role === 'SUPERADMIN';
+      const role = isOwner ? 'SUPERADMIN' : orgInfo.role === 'ADMIN' ? 'ADMIN' : 'USER';
+      const existing = existingOrgMap.get(orgInfo.id);
+
+      if (existing) {
+        if (orgInfo.name && existing.name !== orgInfo.name) {
+          await this._organizationService
+            .updateOrganizationName(orgInfo.id, orgInfo.name)
+            .catch(() => {});
+        }
+      } else {
+        const orgExistsInDb = await this._organizationService.getOrgById(orgInfo.id);
+        if (orgExistsInDb) {
+          if (orgInfo.name && orgExistsInDb.name !== orgInfo.name) {
+            await this._organizationService
+              .updateOrganizationName(orgInfo.id, orgInfo.name)
+              .catch(() => {});
+          }
+          await this._organizationService
+            .addUserToOrg(userId, makeId(5), orgInfo.id, role === 'SUPERADMIN' ? 'ADMIN' : role)
+            .catch(() => {});
+        } else {
+          await this._organizationService
+            .createOrgForExistingUser(userId, orgInfo.name, role, orgInfo.id)
+            .catch(() => {});
+        }
+      }
+    }
+  }
+
   private async loginOrRegisterProvider(
     provider: Provider,
     body: CreateOrgUserDto,
@@ -152,6 +199,17 @@ export class AuthService {
       provider
     );
     if (user) {
+      if (providerUser.name && user.name !== providerUser.name) {
+        await this._userService.changePersonal(user.id, {
+          fullname: providerUser.name,
+          bio: user.bio || '',
+        });
+      }
+
+      if (providerUser.organizations && providerUser.organizations.length > 0) {
+        await this.syncUserOrganizations(user.id, providerUser.organizations);
+      }
+
       return user;
     }
 
@@ -159,18 +217,36 @@ export class AuthService {
       throw new Error('Registration is disabled');
     }
 
+    const firstOrg = providerUser.organizations && providerUser.organizations[0];
+    const companyName =
+      firstOrg?.name ||
+      body.company ||
+      (providerUser.name ? `${providerUser.name}'s Organization` : providerUser.email.split('@')[0]);
+
     const create = await this._organizationService.createOrgAndUser(
       {
-        company: body.company,
+        company: companyName,
         email: providerUser.email,
         password: '',
         provider,
         providerId: providerUser.id,
-        datafast_visitor_id: body.datafast_visitor_id,
+        datafast_visitor_id: body.datafast_visitor_id || '',
+        orgId: firstOrg?.id,
       },
       ip,
       userAgent
     );
+
+    if (providerUser.name) {
+      await this._userService.changePersonal(create.users[0].user.id, {
+        fullname: providerUser.name,
+        bio: '',
+      });
+    }
+
+    if (providerUser.organizations && providerUser.organizations.length > 0) {
+      await this.syncUserOrganizations(create.users[0].user.id, providerUser.organizations);
+    }
 
     this._track('register', providerUser.email, body.datafast_visitor_id).catch(
       (err) => {}
@@ -293,25 +369,55 @@ export class AuthService {
     return providerInstance.generateLink(query);
   }
 
-  async checkExists(provider: string, code: string, redirectUri?: string) {
+  async checkExists(
+    provider: string,
+    code: string,
+    redirectUri?: string,
+    state?: string,
+    stateCookie?: string
+  ) {
+    // the mobile app passes redirect_uri and keeps no cookies, the web flow
+    // never passes it, so the state nonce is only enforced for the web flow
+    if (
+      !process.env.NOT_SECURED &&
+      !redirectUri &&
+      (!state || state !== stateCookie)
+    ) {
+      throw new Error('Invalid state');
+    }
+
     const providerInstance = this._providerManager.getProvider(provider);
     const token = await providerInstance.getToken(code, redirectUri);
     const user = await providerInstance.getUser(token);
     if (!user) {
       throw new Error('Invalid user');
     }
-    const checkExists = await this._userService.getUserByProvider(
+    let checkExists = await this._userService.getUserByProvider(
       user.id,
       provider as Provider
     );
+    if (!checkExists && user.email) {
+      checkExists = await this._userService.getUserByEmail(user.email);
+    }
     if (checkExists) {
+      if (user.name && checkExists.name !== user.name) {
+        await this._userService.changePersonal(checkExists.id, {
+          fullname: user.name,
+          bio: checkExists.bio || '',
+        });
+      }
+
+      if (user.organizations && user.organizations.length > 0) {
+        await this.syncUserOrganizations(checkExists.id, user.organizations);
+      }
+
       return { jwt: await this.jwt(checkExists) };
     }
 
     return { token };
   }
 
-  private async jwt(user: User) {
+  async jwt(user: User) {
     if (user.password) {
       delete user.password;
     }

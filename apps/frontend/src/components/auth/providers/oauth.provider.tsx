@@ -26,20 +26,20 @@ export const OauthProvider = () => {
   return (
     <div
       onClick={gotoLogin}
-      className={`cursor-pointer flex-1 bg-white h-[44px] rounded-[4px] flex justify-center items-center text-customColor16 gap-[4px]`}
+      className={`cursor-pointer w-full bg-white hover:bg-zinc-100 transition-all duration-200 h-[50px] rounded-[10px] flex justify-center items-center text-zinc-900 font-semibold text-[15px] gap-[10px] shadow-md hover:shadow-lg active:scale-[0.99]`}
     >
-      <div>
+      <div className="w-[24px] h-[24px] flex items-center justify-center shrink-0">
         <SafeImage
           src={oauthLogoUrl || '/icons/generic-oauth.svg'}
-          alt="genericOauth"
-          width={40}
-          height={40}
-          className="-mt-[7px]"
+          alt="DOS ID"
+          width={24}
+          height={24}
+          className="w-[24px] h-[24px] object-contain"
         />
       </div>
       <div>
         {t('sign_in_with', 'Sign in with')}&nbsp;
-        {oauthDisplayName || 'OAuth'}
+        {oauthDisplayName || 'DOS ID'}
       </div>
     </div>
   );

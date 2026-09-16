@@ -1,0 +1,14 @@
+---
+description: Nguyên tắc phản hồi và không lặp lại câu hỏi cũ
+alwaysApply: true
+---
+
+# Nguyên Tắc Phản Hồi & Giao Tiếp
+
+1. **Tuyệt đối không nhắc lại, lặp lại các kết luận hoặc câu hỏi cũ**:
+   - Không lặp lại việc so sánh trạng thái cũ (ví dụ: việc Beta behind Prod hay các thông báo trạng thái cũ) khi user không yêu cầu.
+   - Khi user hỏi câu hỏi mới hoặc đặt câu hỏi phản biện, chỉ tập trung giải quyết trực diện vấn đề được nêu.
+
+2. **Trả lời đúng trọng tâm kỹ thuật**:
+   - Phân tích đúng bản chất kiến trúc (OAuth 2.1, PKCE Bridge, Redirect URI security model).
+   - Giải thích ngắn gọn, súc tích, mạch lạc và đi thẳng vào giải pháp kỹ thuật.

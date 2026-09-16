@@ -14,7 +14,10 @@ export class MastraService {
       new Mastra({
         storage: pStore,
         agents: {
-          postiz: await this._loadToolsService.agent(),
+          // branding-guard-allow: 'postiz' is a backward-compatibility agent alias. Clients that registered the server under the upstream name must keep resolving; crove_post and post are the branded equivalents (docs/architecture.md §8.2).
+          postiz: await this._loadToolsService.agent('postiz'),
+          crove_post: await this._loadToolsService.agent('crove_post'),
+          post: await this._loadToolsService.agent('post'),
         },
         logger: new ConsoleLogger({
           level: 'info',

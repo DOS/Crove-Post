@@ -9,8 +9,13 @@ import {
   sanitizeUrl,
   sanitizeHexColor,
   applyBrandToString,
+  slugifyIdentifier,
+  joinBrandUrl,
   DEFAULT_BRAND_CONFIG,
 } from '../libraries/helpers/src/utils/brand.config';
+import { getMobileAppScheme } from '../libraries/helpers/src/utils/mobile.app.scheme';
+import { readdirSync, readFileSync, statSync } from 'fs';
+import { join, extname } from 'path';
 
 let failed = false;
 
@@ -32,6 +37,9 @@ console.log('=== Running Branding Guard Validations ===\n');
   assert(defaults.isCustomBrand === false, 'Default isCustomBrand should be false');
   assert(defaults.sourceUrl === DEFAULT_BRAND_CONFIG.sourceUrl, 'Default sourceUrl must point to upstream repository');
   assert(defaults.primaryColor === '#612BD3', 'Default primaryColor should be #612BD3');
+  // Fail closed: a deployment that never sets BRAND_CLAUDE_DIRECTORY_URL must
+  // hide the button, not fall back to the upstream listing.
+  assert(!defaults.claudeDirectoryUrl, 'Default claudeDirectoryUrl must be empty so the Add-to-Claude button fails closed');
 }
 
 // 2. Custom branding test
@@ -44,6 +52,7 @@ console.log('=== Running Branding Guard Validations ===\n');
     BRAND_LOGO_URL: 'https://crove.app/logo.png',
     BRAND_DEFAULT_EMAIL_DOMAIN: 'crove.app',
     MAIN_URL: 'https://crove.app',
+    BRAND_CLAUDE_DIRECTORY_URL: 'https://claude.ai/directory/crove',
   });
 
   assert(custom.name === 'Crove', 'Custom brand name matches');
@@ -56,6 +65,74 @@ console.log('=== Running Branding Guard Validations ===\n');
     custom.websiteUrl === 'https://crove.app' || custom.websiteUrl === 'https://crove.app/',
     'websiteUrl auto fallbacks to MAIN_URL when BRAND_WEBSITE_URL omitted'
   );
+  assert(
+    custom.claudeDirectoryUrl === 'https://claude.ai/directory/crove',
+    'claudeDirectoryUrl parsed from BRAND_CLAUDE_DIRECTORY_URL'
+  );
+}
+
+// 2b. MCP connector name. This string is emitted into generated client config
+// as a shell argument, a JSON key, a YAML key, a TOML table name and a URL
+// query param, so it must always be a safe lowercase slug — never the display
+// name, which can contain spaces and punctuation.
+{
+  assert(slugifyIdentifier('Crove (Beta)') === 'crove-beta', 'slugifyIdentifier hyphenates spaces and punctuation');
+  assert(slugifyIdentifier('  --Crove Post--  ') === 'crove-post', 'slugifyIdentifier trims leading/trailing hyphens');
+  assert(slugifyIdentifier('!!!') === '', 'slugifyIdentifier returns empty when nothing alphanumeric survives');
+  assert(slugifyIdentifier(undefined) === '', 'slugifyIdentifier tolerates undefined');
+
+  const derived = getBrandConfig({ BRAND_SHORT_NAME: 'Crove' });
+  assert(derived.mcpConnectorName === 'crove', 'mcpConnectorName derives from BRAND_SHORT_NAME when unset');
+
+  const beta = getBrandConfig({ BRAND_SHORT_NAME: 'Crove (Beta)' });
+  assert(beta.mcpConnectorName === 'crove-beta', 'mcpConnectorName slugifies a short name that is not shell-safe');
+
+  const explicit = getBrandConfig({
+    BRAND_SHORT_NAME: 'Crove',
+    BRAND_MCP_CONNECTOR_NAME: 'crove-mcp',
+  });
+  assert(explicit.mcpConnectorName === 'crove-mcp', 'BRAND_MCP_CONNECTOR_NAME overrides the derived slug');
+
+  const dirty = getBrandConfig({ BRAND_MCP_CONNECTOR_NAME: '  --Crove Post--  ' });
+  assert(dirty.mcpConnectorName === 'crove-post', 'An unsafe BRAND_MCP_CONNECTOR_NAME is still slugified, not passed through');
+
+  const unusable = getBrandConfig({ BRAND_NAME: '!!!', BRAND_SHORT_NAME: '!!!' });
+  assert(unusable.mcpConnectorName === 'mcp', 'mcpConnectorName falls back to "mcp" rather than emitting an empty key');
+
+  assert(
+    /^[a-z0-9]+(-[a-z0-9]+)*$/.test(getBrandConfig({}).mcpConnectorName),
+    'Default mcpConnectorName is a safe slug'
+  );
+}
+
+// 2c. joinBrandUrl. sanitizeUrl normalises a bare origin through the URL
+// constructor, so BRAND_DOCS_URL="https://docs.example.com" is stored as
+// "https://docs.example.com/". Naive `${docsUrl}/path` concatenation then
+// produces a double slash — this is the regression the helper exists to stop.
+{
+  const normalised = sanitizeUrl('https://docs.example.com')!;
+  assert(normalised === 'https://docs.example.com/', 'sanitizeUrl appends a trailing slash to a bare origin (precondition for the join tests)');
+  assert(joinBrandUrl(normalised, 'public-api') === 'https://docs.example.com/public-api', 'joinBrandUrl never emits a double slash');
+  assert(joinBrandUrl('https://docs.example.com', 'public-api') === 'https://docs.example.com/public-api', 'joinBrandUrl handles a base without a trailing slash');
+  assert(joinBrandUrl('https://docs.example.com/', '/public-api') === 'https://docs.example.com/public-api', 'joinBrandUrl handles a leading slash on the path');
+  assert(joinBrandUrl('https://docs.example.com//', '//public-api') === 'https://docs.example.com/public-api', 'joinBrandUrl collapses repeated slashes at the join');
+  assert(joinBrandUrl('https://docs.example.com/', '') === 'https://docs.example.com', 'joinBrandUrl with an empty path returns the base');
+  assert(joinBrandUrl(undefined, 'public-api') === '/public-api', 'joinBrandUrl with no base degrades to a root-relative path');
+  assert(joinBrandUrl(undefined, undefined) === '', 'joinBrandUrl with nothing returns an empty string rather than "undefined"');
+}
+
+// 2d. getMobileAppScheme. The backend redirects a live OAuth authorization
+// code to this scheme, so an unset variable must yield '' (callers then refuse
+// or omit the deep link) and never silently fall back to an upstream scheme.
+{
+  assert(getMobileAppScheme({ MOBILE_APP_SCHEME: 'crove://auth/callback' }) === 'crove://', 'getMobileAppScheme extracts the scheme prefix from a full callback URL');
+  assert(getMobileAppScheme({ MOBILE_APP_SCHEME: 'postiz://auth/callback' }) === 'postiz://', 'getMobileAppScheme returns whatever scheme is configured, without hardcoding one');
+  assert(getMobileAppScheme({ MOBILE_APP_SCHEME: '' }) === '', 'getMobileAppScheme returns empty for an unset variable so the mobile callback fails closed');
+  assert(getMobileAppScheme({}) === '', 'getMobileAppScheme returns empty when the variable is absent');
+  assert(getMobileAppScheme({ MOBILE_APP_SCHEME: '   ' }) === '', 'getMobileAppScheme returns empty for whitespace-only input');
+  assert(getMobileAppScheme({ MOBILE_APP_SCHEME: 'not-a-scheme' }) === '', 'getMobileAppScheme rejects a value with no scheme separator');
+  assert(getMobileAppScheme({ MOBILE_APP_SCHEME: 'javascript://alert(1)' }) === 'javascript://', 'getMobileAppScheme only parses the prefix; callers must not treat it as a safe URL');
+  assert(getMobileAppScheme({ NEXT_PUBLIC_MOBILE_APP_SCHEME: 'crove://cb' }) === 'crove://', 'getMobileAppScheme honours the NEXT_PUBLIC_ alias');
 }
 
 // 3. Security sanitization tests
@@ -92,6 +169,169 @@ console.log('=== Running Branding Guard Validations ===\n');
   assert(
     !!custom.sourceUrl && custom.sourceUrl.includes('postiz-app'),
     'AGPL requirement: sourceUrl must default to original upstream repository'
+  );
+}
+
+// 6. Repository scanner — catches actual branding leaks in tracked files.
+// The contract tests above only exercise the branding engine in memory;
+// they can never see a leaked image reference or a wrong FRONTEND_URL.
+// STRICT hits fail the run. INHERITED hits are upstream files that arrive
+// on every sync — reported loudly but tolerated until deliberately
+// deleted/rewritten (ratchet by moving a file from INHERITED to strict
+// once its cleanup lands).
+{
+  console.log('\n=== Repository Branding Scan ===\n');
+
+  const SKIP_DIRS = new Set([
+    'node_modules', '.git', '.next', 'dist', 'build', 'reports',
+    'coverage', '.artifacts', '.codex-artifacts', '.vercel',
+    '.playwright-mcp', 'dynamicconfig', 'var',
+    // local tooling/worktree copies of the repo — not source of truth
+    '.codex', '.claude', '.cursor', '.qwen', 'tests',
+  ]);
+  // Upstream attribution files: legal/inherited content where the
+  // upstream name is expected to appear.
+  const INHERITED = [
+    'LICENSE', 'ICLA.md', 'CCLA.md', 'README.md', 'SECURITY.md',
+    'docs/', '.github/workflows/sync-upstream.yml',
+    '.github/workflows/staging-conflicts.yml',
+    'scripts/branding-guard.ts', // this file asserts the defaults
+    'libraries/helpers/src/utils/brand.config.ts', // DEFAULT_BRAND_CONFIG
+    // 17 locale files carry the upstream support link, arrive on every sync
+    'libraries/react-shared-libraries/src/translation/locales/',
+    'chatgpt-app-submission.json', // upstream submission, pending rewrite
+    'sonar-project.properties', // upstream tenant key, pending deletion
+    'Jenkins/', 'railway.toml', '.devcontainer/', // dead upstream infra
+    '.github/workflows/issue-label-triggers.yml', // upstream automation
+    'libraries/nestjs-libraries/src/sentry/initialize.sentry.ts',
+    'CHANGELOG.md', 'ROADMAP.md',
+  ];
+  // Crove-owned files where a leak is always a bug.
+  const STRICT_EXTRA = [
+    'docker-compose.yaml',
+    '.github/workflows/build-extension.yaml',
+    '.github/workflows/publish-extension.yml',
+    'apps/extension/manifest.json',
+  ];
+  // Directories we own and actively edit — leaks here are strict.
+  const STRICT_PREFIXES = [
+    'apps/backend/src/', 'apps/frontend/src/', 'apps/crove-sso/',
+    'apps/sdk/',
+    'libraries/nestjs-libraries/src/', 'libraries/helpers/src/',
+    'libraries/react-shared-libraries/src/',
+    'scripts/',
+  ];
+  // Two families of leak, deliberately separate:
+  //   ATTRIBUTION — AGPL-3.0 obligations (repo, image, author). Must survive
+  //                 in LICENSE/README/docs, so those stay in INHERITED.
+  //   RUNTIME     — endpoints and install commands a customer actually
+  //                 executes. These are never attribution: they send Crove
+  //                 traffic or Crove credentials to upstream infrastructure.
+  // The RUNTIME family was missing entirely, which is how a rebranded
+  // @crove/node SDK shipped with a default _path of https://api.postiz.com.
+  const PATTERNS: Array<[RegExp, string]> = [
+    // --- attribution ---
+    [/platform\.postiz\.com/gi, 'upstream platform domain'],
+    [/gitroomhq\/postiz-app/gi, 'upstream container image'],
+    [/github\.com\/gitroomhq/gi, 'upstream repository URL'],
+    [/\bNevo David\b/g, 'upstream author name'],
+    [/\bpostiz-app\b/gi, 'upstream repository name'],
+    // --- runtime: upstream endpoints ---
+    [/\b(?:api|docs|affiliate|cli-auth)\.postiz\.com\b/gi, 'upstream runtime endpoint'],
+    // --- runtime: upstream install/skill instructions ---
+    [/gitroomhq\/postiz-agent/gi, 'upstream agent skill package'],
+    [/install\s+-g\s+postiz\b/gi, 'upstream CLI install command'],
+    // --- runtime: upstream-branded destinations shown to customers ---
+    [/claude\.ai\/directory\/postiz/gi, 'upstream Claude directory listing'],
+    [/'Postiz MCP'|"Postiz MCP"/g, 'upstream MCP server name'],
+    // --- runtime: upstream identifier baked into generated client config ---
+    // These are the connector keys customers paste into Claude/Cursor/Codex/
+    // etc. They must come from brandConfig.mcpConnectorName, not a literal.
+    // `postiz://` is deliberately NOT matched: it is a registered mobile URL
+    // scheme, not a connector key. [ \t] rather than \s so a match can never
+    // span a newline and report the wrong line number.
+    [/(?:^|[{,])[ \t]*postiz[ \t]*:/gm, 'upstream MCP connector key'],
+    [/\b(?:add|login)\s+postiz\b|(?:--name|name=)postiz\b/g, 'upstream MCP connector name in a command'],
+    [/mcp_servers\.postiz\b/g, 'upstream MCP connector name in a TOML table'],
+  ];
+  const TEXT_EXTS = new Set([
+    '.ts', '.tsx', '.js', '.mjs', '.cjs', '.json', '.jsonc', '.yaml',
+    '.yml', '.md', '.html', '.scss', '.css', '.sh', '.ps1', '.conf',
+    '.toml', '.properties', '', // extensionless (Dockerfile, LICENSE…)
+  ]);
+
+  function* walk(dir: string): Generator<string> {
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      let st;
+      try {
+        st = statSync(full);
+      } catch {
+        continue;
+      }
+      if (st.isDirectory()) {
+        if (!SKIP_DIRS.has(entry)) yield* walk(full);
+      } else {
+        yield full;
+      }
+    }
+  }
+
+  const repoRoot = join(__dirname, '..');
+  let strictHits = 0;
+  let inheritedHits = 0;
+  let allowedHits = 0;
+  for (const file of walk(repoRoot)) {
+    const rel = file.slice(repoRoot.length + 1).replace(/\\/g, '/');
+    const ext = extname(file);
+    if (!TEXT_EXTS.has(ext)) continue;
+    if (INHERITED.some((p) => rel === p || rel.startsWith(p))) continue;
+    let content;
+    try {
+      content = readFileSync(file, 'utf8');
+    } catch {
+      continue;
+    }
+    const strict =
+      STRICT_EXTRA.includes(rel) ||
+      STRICT_PREFIXES.some((p) => rel.startsWith(p));
+    const lines = content.split('\n');
+    for (const [pattern, label] of PATTERNS) {
+      // Per-match line numbers: the previous version reported one line for
+      // every match in the file, so a file with three leaks on three lines
+      // showed as "(3×)" against the first line only.
+      for (const match of content.matchAll(pattern)) {
+        const lineNo = content.slice(0, match.index ?? 0).split('\n').length;
+        const matchedLine = lines[lineNo - 1] ?? '';
+        const prevLine = lines[lineNo - 2] ?? '';
+        // Commented-out examples of BRAND_* attribution are documentation of
+        // the AGPL knob, not shipped config — never a strict leak.
+        if (/^\s*(#|\/\/|\/\*|\{\/\*)/.test(matchedLine)) continue;
+        // Deliberate upstream reference on the matched line or the line above
+        // it. Must carry a reason so the exception is reviewable, and is
+        // still counted and printed — exceptions stay visible, never silent.
+        if (/branding-guard-allow:/.test(`${prevLine}\n${matchedLine}`)) {
+          allowedHits += 1;
+          console.warn(`[ALLOWED] ${rel}:${lineNo} — ${label}`);
+          continue;
+        }
+        if (strict) {
+          strictHits += 1;
+          console.error(`[FAIL] ${rel}:${lineNo} — ${label}`);
+          failed = true;
+        } else {
+          inheritedHits += 1;
+          console.warn(`[INHERITED] ${rel}:${lineNo} — ${label}`);
+        }
+      }
+    }
+  }
+  assert(strictHits === 0, `Repo scan: 0 strict branding leaks (found ${strictHits})`);
+  console.log(
+    `Repo scan: ${inheritedHits} inherited upstream mentions (tolerated, see INHERITED list)`
+  );
+  console.log(
+    `Repo scan: ${allowedHits} deliberate upstream references (see branding-guard-allow comments)`
   );
 }
 

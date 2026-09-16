@@ -1,23 +1,44 @@
-<!-- Remember to first apply via [the contribution form](https://contribute.postiz.com/p/postiz) and sign the [CLA](https://contribute.postiz.com/p/postiz/cla) before submitting a PR. -->
-
 # What kind of change does this PR introduce?
 
-eg: Bug fix, feature, docs update, ...
+<!-- [ ] Bug fix | [ ] Feature | [ ] Architecture & Docs | [ ] Refactor | [ ] CI/CD -->
+<!-- Name the change type, scope/component, and summary of changes. -->
 
 # Why was this change needed?
 
-Please link to related issues when possible, and explain WHY you changed things, not WHAT you changed.
+<!-- Please describe the problem solved or requirement fulfilled, focusing on WHY rather than just WHAT. -->
 
-# Other information:
+# Technical Details & Scope
 
-eg: Did you discuss this change with anybody before working on it (not required, but can be a good idea for bigger changes). Any plans for the future, etc?
+<!-- Summary of changes across backend, frontend, database schema, or infrastructure. -->
+
+# Verification & Testing
+
+<!-- Describe how this change was tested (e.g. Unit tests, Playwright E2E, manual API testing). -->
+
+# QA
+
+<!--
+Write the steps here, replacing this whole comment. Leaving it as is, or writing
+"N/A" / "TBD" / a bare empty checkbox as the whole section, counts as no QA at all.
+
+Write real steps a reviewer can follow without asking you anything: setup, action,
+expected result. Keep them as numbered checkboxes so a reviewer can tick them off -
+the numbering is what the review board extracts, the checkbox is for the reviewer.
+Steps inside a fenced code block are ignored, so keep them as plain lines.
+
+Example of what it should look like:
+
+1. [ ] Link a webhook endpoint pointing at http://localhost:9999 (nothing listening)
+2. [ ] Approve an application to trigger a delivery
+3. [ ] Delivery should show 4 attempts, roughly 1m / 5m / 30m apart, then stop
+-->
 
 # Checklist:
 
-Put a "X" in the boxes below to indicate you have followed the checklist;
-
-- [ ] I have read the [CONTRIBUTING](https://github.com/gitroomhq/postiz-app/blob/main/CONTRIBUTING.md) guide.
-- [ ] I have signed the [Contributor License Agreement (CLA)](https://contribute.postiz.com/p/postiz/cla) ([ICLA](https://github.com/gitroomhq/postiz-app/blob/main/ICLA.md) for individuals, [CCLA](https://github.com/gitroomhq/postiz-app/blob/main/CCLA.md) for entities).
-- [ ] I confirm I have not used AI to submit this PR or generate code for it.
-- [ ] I checked that there were no similar issues or PRs already open for this.
-- [ ] This PR fixes just ONE issue
+- [ ] My code follows the project's code style and architectural conventions.
+- [ ] Local build passes (`pnpm run build`).
+- [ ] Branding guard validation passes (`pnpm dlx tsx scripts/branding-guard.ts`).
+- [ ] Tests and typecheck have been verified without errors.
+- [ ] Documentation has been updated (if applicable).
+- [ ] No secrets or sensitive credentials are included in this PR.
+- [ ] I have filled in the QA / Verification section above with real steps to verify this change.

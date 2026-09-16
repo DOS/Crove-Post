@@ -1,11 +1,11 @@
 <#
 .SYNOPSIS
-    Tự động hóa triển khai môi trường Production (crove.com & app.crove.com).
+    Automated deployment pipeline for the Crove Production environment (crove.com & post.crove.com).
 .DESCRIPTION
-    Script thực hiện:
-    1. Kiểm thử toàn diện SSO Worker, Branding Guard
-    2. Deploy Cloudflare Worker Crove SSO cho môi trường Production (sso.crove.com)
-    3. Hướng dẫn / Khởi chạy Docker Stack Production trên server
+    Script workflow:
+    1. Comprehensive testing for SSO Worker and Branding Guard
+    2. Deploy Cloudflare Worker Crove SSO for Production (sso.crove.com)
+    3. Output Docker compose stack commands for production server
 .EXAMPLE
     .\scripts\deploy-prod.ps1
 #>
@@ -22,49 +22,48 @@ Write-Host "==========================================================" -Foregro
 Write-Host "  CROVE PRODUCTION ENVIRONMENT - DEPLOYMENT PIPELINE" -ForegroundColor Yellow
 Write-Host "==========================================================" -ForegroundColor Cyan
 
-# 1. Chạy kiểm thử & Branding Guard
+# 1. Run tests & Branding Guard
 if (-not $SkipTests) {
-    Write-Host "`n[1/3] Đang chạy kiểm thử Vitest cho @crove/sso..." -ForegroundColor Green
+    Write-Host "`n[1/3] Running Vitest unit tests for @crove/sso..." -ForegroundColor Green
     pnpm --filter @crove/sso test
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Kiểm thử SSO thất bại! Dừng quá trình deploy."
+        Write-Error "SSO tests failed! Aborting deployment."
         exit 1
     }
 
-    Write-Host "`nĐang kiểm tra tính hợp lệ của Branding Guard..." -ForegroundColor Green
+    Write-Host "`nChecking Branding Guard validation..." -ForegroundColor Green
     pnpm dlx tsx scripts/branding-guard.ts
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Branding Guard thất bại! Dừng quá trình deploy."
+        Write-Error "Branding Guard validation failed! Aborting deployment."
         exit 1
     }
-    Write-Host "-> Toàn bộ kiểm thử và kiểm tra branding đã vượt qua!" -ForegroundColor Green
+    Write-Host "-> All tests and branding validation passed!" -ForegroundColor Green
 } else {
-    Write-Host "`n[1/3] Bỏ qua bước kiểm thử (-SkipTests)." -ForegroundColor Yellow
+    Write-Host "`n[1/3] Skipping tests (-SkipTests)." -ForegroundColor Yellow
 }
 
-# 2. Deploy Cloudflare Worker cho môi trường Production
-Write-Host "`n[2/3] Đang deploy Cloudflare Worker Crove SSO (Production)..." -ForegroundColor Green
+# 2. Deploy Cloudflare Worker for Production
+Write-Host "`n[2/3] Deploying Cloudflare Worker Crove SSO (Production)..." -ForegroundColor Green
 pnpm --filter @crove/sso run deploy:prod
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Deploy SSO Production lên Cloudflare thất bại."
+    Write-Error "Failed to deploy SSO Production to Cloudflare."
     exit 1
 }
-Write-Host "-> SSO Production Worker đã deploy thành công tới https://sso.crove.com" -ForegroundColor Green
+Write-Host "-> SSO Production Worker deployed successfully to https://sso.crove.com" -ForegroundColor Green
 
-# 3. Thông tin khởi chạy Docker Stack Production trên GCP Server
-Write-Host "`n[3/3] Cấu hình Docker Stack Production cho Server..." -ForegroundColor Green
-Write-Host "File cấu hình môi trường Production:" -ForegroundColor Cyan
-Write-Host "  - Docker Compose: scripts/docker-compose.prod.yaml"
-Write-Host "  - Environment:    scripts/crove-server.env"
-Write-Host "  - Tunnel Config:  scripts/tunnel-config.yml"
+# 3. Docker Stack Production deployment instructions
+Write-Host "`n[3/3] Configure Docker Stack Production on GCP Server..." -ForegroundColor Green
+Write-Host "Production environment configuration files:" -ForegroundColor Cyan
+Write-Host "  - scripts/crove-server.env" -ForegroundColor White
+Write-Host "  - scripts/docker-compose.prod.yaml" -ForegroundColor White
 
-Write-Host "`nLệnh khởi chạy Stack Production trên GCP VM (crove-server):" -ForegroundColor Yellow
+Write-Host "`nCommands to start Production Stack on GCP VM (crove-server):" -ForegroundColor Yellow
 Write-Host "  docker compose -f scripts/docker-compose.prod.yaml up -d" -ForegroundColor White
 
 Write-Host "`n==========================================================" -ForegroundColor Green
-Write-Host "  MÔI TRƯỜNG PRODUCTION ĐÃ SẴN SÀNG:" -ForegroundColor Green
-Write-Host "  - Landing Page:  https://crove.com (và https://www.crove.com)" -ForegroundColor Cyan
-Write-Host "  - App Dashboard: https://app.crove.com" -ForegroundColor Cyan
-Write-Host "  - SSO Bridge:    https://sso.crove.com" -ForegroundColor Cyan
+Write-Host "  PRODUCTION DEPLOYMENT READY!" -ForegroundColor Green
+Write-Host "  - Landing Page:  https://crove.com (and https://www.crove.com)" -ForegroundColor Cyan
+Write-Host "  - App Dashboard: https://post.crove.com" -ForegroundColor Cyan
+Write-Host "  - SSO Endpoint:  https://sso.crove.com" -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Green

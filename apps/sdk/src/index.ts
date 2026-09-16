@@ -12,10 +12,12 @@ function toQueryString(obj: Record<string, any>): string {
   return params.toString();
 }
 
-export default class Postiz {
+export default class Crove {
   constructor(
     private _apiKey: string,
-    private _path = 'https://api.postiz.com'
+    // Matches NEXT_PUBLIC_BACKEND_URL: the public API is served under /api,
+    // so every call below resolves to <base>/public/v1/...
+    private _path = 'https://post.crove.com/api'
   ) {}
 
   async post(posts: CreatePostDto) {

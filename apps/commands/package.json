@@ -1,5 +1,5 @@
 {
-  "name": "postiz-command",
+  "name": "@crove/commands",
   "version": "1.0.0",
   "description": "",
   "scripts": {
@@ -9,5 +9,6 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "AGPL-3.0",
+  "private": true
 }

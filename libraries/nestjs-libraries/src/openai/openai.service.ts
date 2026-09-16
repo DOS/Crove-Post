@@ -4,9 +4,15 @@ import { shuffle } from 'lodash';
 import { zodResponseFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || 'sk-proj-',
-});
+const getOpenAIClient = () => {
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY || 'sk-proj-',
+    ...(process.env.OPENAI_BASE_URL ? { baseURL: process.env.OPENAI_BASE_URL } : {}),
+  });
+};
+
+const getModel = () => process.env.OPENAI_MODEL_NAME || 'gpt-4.1';
+const getImageModel = () => process.env.OPENAI_IMAGE_MODEL || 'chatgpt-image-latest';
 
 const PicturePrompt = z.object({
   prompt: z.string(),
@@ -19,12 +25,13 @@ const VoicePrompt = z.object({
 @Injectable()
 export class OpenaiService {
   async generateImage(prompt: string, isVertical = false) {
+    const openai = getOpenAIClient();
     // gpt-image models always return base64 (b64_json) and do not accept the
     // `response_format` parameter, unlike the deprecated dall-e-3.
     const generate = (
       await openai.images.generate({
         prompt,
-        model: 'chatgpt-image-latest',
+        model: getImageModel(),
         size: isVertical ? '1024x1536' : '1024x1024',
       })
     ).data[0];
@@ -33,10 +40,11 @@ export class OpenaiService {
   }
 
   async generatePromptForPicture(prompt: string) {
+    const openai = getOpenAIClient();
     return (
       (
         await openai.chat.completions.parse({
-          model: 'gpt-4.1',
+          model: getModel(),
           messages: [
             {
               role: 'system',
@@ -54,10 +62,11 @@ export class OpenaiService {
   }
 
   async generateVoiceFromText(prompt: string) {
+    const openai = getOpenAIClient();
     return (
       (
         await openai.chat.completions.parse({
-          model: 'gpt-4.1',
+          model: getModel(),
           messages: [
             {
               role: 'system',
@@ -75,6 +84,7 @@ export class OpenaiService {
   }
 
   async generatePosts(content: string) {
+    const openai = getOpenAIClient();
     const posts = (
       await Promise.all([
         openai.chat.completions.create({
@@ -91,7 +101,7 @@ export class OpenaiService {
           ],
           n: 5,
           temperature: 1,
-          model: 'gpt-4.1',
+          model: getModel(),
         }),
         openai.chat.completions.create({
           messages: [
@@ -107,7 +117,7 @@ export class OpenaiService {
           ],
           n: 5,
           temperature: 1,
-          model: 'gpt-4.1',
+          model: getModel(),
         }),
       ])
     ).flatMap((p) => p.choices);
@@ -133,6 +143,7 @@ export class OpenaiService {
     );
   }
   async extractWebsiteText(content: string) {
+    const openai = getOpenAIClient();
     const websiteContent = await openai.chat.completions.create({
       messages: [
         {
@@ -145,7 +156,7 @@ export class OpenaiService {
           content,
         },
       ],
-      model: 'gpt-4.1',
+      model: getModel(),
     });
 
     const { content: articleContent } = websiteContent.choices[0].message;
@@ -154,6 +165,7 @@ export class OpenaiService {
   }
 
   async separatePosts(content: string, len: number) {
+    const openai = getOpenAIClient();
     const SeparatePostsPrompt = z.object({
       posts: z.array(z.string()),
     });
@@ -165,7 +177,7 @@ export class OpenaiService {
     const posts =
       (
         await openai.chat.completions.parse({
-          model: 'gpt-4.1',
+          model: getModel(),
           messages: [
             {
               role: 'system',
@@ -198,7 +210,7 @@ export class OpenaiService {
               return (
                 (
                   await openai.chat.completions.parse({
-                    model: 'gpt-4.1',
+                    model: getModel(),
                     messages: [
                       {
                         role: 'system',
@@ -228,13 +240,14 @@ export class OpenaiService {
   }
 
   async generateSlidesFromText(text: string) {
+    const openai = getOpenAIClient();
     for (let i = 0; i < 3; i++) {
       try {
         const message = `You are an assistant that takes a text and break it into slides, each slide should have an image prompt and voice text to be later used to generate a video and voice, image prompt should capture the essence of the slide and also have a back dark gradient on top, image prompt should not contain text in the picture, generate between 3-5 slides maximum`;
         const parse =
           (
             await openai.chat.completions.parse({
-              model: 'gpt-4.1',
+              model: getModel(),
               messages: [
                 {
                   role: 'system',

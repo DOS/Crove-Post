@@ -19,7 +19,7 @@ interface MenuItemInterface {
 }
 
 export const useMenuItem = () => {
-  const { isGeneral } = useVariables();
+  const { isGeneral, brandConfig } = useVariables();
   const t = useT();
   const { openModal } = useModals();
 
@@ -246,7 +246,10 @@ export const useMenuItem = () => {
           />
         </svg>
       ),
-      path: 'https://affiliate.postiz.com',
+      path: brandConfig?.affiliateUrl || '#',
+      // No affiliate program configured for this deployment — hide the entry
+      // rather than sending customers to the upstream program.
+      hide: !brandConfig?.affiliateUrl,
       role: ['ADMIN', 'SUPERADMIN', 'USER'],
       requireBilling: true,
     },

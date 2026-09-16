@@ -6,6 +6,9 @@ on:
 jobs:
   submit:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    environment: production
     steps:
       - uses: actions/checkout@v4
 
@@ -20,7 +23,7 @@ jobs:
         run: pnpm install
 
       - name: Zip extensions
-        run: FRONTEND_URL=https://platform.postiz.com pnpm run build:extension
+        run: FRONTEND_URL=https://app.crove.com pnpm run build:extension
 
       - name: Publish to Chrome Web Store
         uses: mnao305/chrome-extension-upload@v5.0.0

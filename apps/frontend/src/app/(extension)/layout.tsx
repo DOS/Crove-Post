@@ -8,6 +8,7 @@ import { Plus_Jakarta_Sans } from 'next/font/google';
 import clsx from 'clsx';
 import { VariableContextComponent } from '@gitroom/react/helpers/variable.context';
 import { getBrandConfig } from '@gitroom/helpers/utils/brand.config';
+import { getMobileAppScheme } from '@gitroom/helpers/utils/mobile.app.scheme';
 import UtmSaver from '@gitroom/helpers/utils/utm.saver';
 
 const jakartaSans = Plus_Jakarta_Sans({
@@ -47,10 +48,12 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           cloudflareUrl={process.env.CLOUDFLARE_BUCKET_URL || ''}
           mainUrl={process.env.MAIN_URL || ''}
           mcpUrl={process.env.MCP_URL}
+          mobileAppScheme={getMobileAppScheme(process.env)}
           dub={false}
           facebookPixel={process.env.NEXT_PUBLIC_FACEBOOK_PIXEL!}
           telegramBotName={process.env.TELEGRAM_BOT_NAME!}
           neynarClientId={process.env.NEYNAR_CLIENT_ID!}
+          appleClientId={process.env.APPLE_CLIENT_ID!}
           isSecured={!process.env.NOT_SECURED}
           isChatBase={false}
           disableImageCompression={!!process.env.DISABLE_IMAGE_COMPRESSION}

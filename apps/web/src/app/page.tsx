@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navbar } from '../components/navbar';
 import { Hero } from '../components/hero';
+import { Suite } from '../components/suite';
 import { Channels } from '../components/channels';
 import { Features } from '../components/features';
 import { InteractivePreview } from '../components/interactive-preview';
@@ -18,25 +19,28 @@ export default function LandingPage() {
       {/* Floating Glass Navbar Header */}
       <Navbar />
 
-      {/* Hero Section & Interactive App Mockup Showcase */}
+      {/* Hero Section & Interactive Business OS Mockup Showcase */}
       <Hero />
 
-      {/* 28+ Channels Grid */}
+      {/* Crove Business OS Suite Pillars (Post, Flow, Audience, Media, Insights) */}
+      <Suite />
+
+      {/* 28+ Channels Distribution Grid */}
       <Channels />
 
-      {/* Interactive Studio Preview */}
+      {/* Interactive AI Content Studio Preview */}
       <InteractivePreview />
 
-      {/* Features Bento Grid */}
+      {/* Features Bento Grid for Founders */}
       <Features />
 
-      {/* 3-Step Effortless Workflow */}
+      {/* 3-Step Effortless Business Workflow */}
       <HowItWorks />
 
-      {/* Objective Comparison */}
+      {/* Objective Comparison & Cost Savings */}
       <Comparison />
 
-      {/* Transparent Pricing (Monthly / Yearly) */}
+      {/* Transparent Pricing (Solo Starter / Founder Pro / Business Scale) */}
       <Pricing />
 
       {/* Testimonials & Social Proof */}

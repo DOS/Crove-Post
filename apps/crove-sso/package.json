@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "wrangler dev",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "cf-typegen": "wrangler types --include-runtime false",

@@ -2,15 +2,21 @@ name: "Branding Guard"
 
 on:
   push:
-    branches: ["main", "master"]
+    branches:
+      - main
+      - dev
   pull_request:
-    branches: ["main", "master"]
+    branches:
+      - main
+      - dev
   workflow_dispatch:
 
 jobs:
   branding-guard:
     name: "Validate Brand Engine & Contracts"
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -18,13 +24,12 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Setup PNPM
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
+        uses: pnpm/action-setup@v4
 
       - name: Run Branding Guard Tests
         run: |
-          pnpm dlx tsx scripts/branding-guard.ts
+          pnpm install --frozen-lockfile=false
+          npx tsx scripts/branding-guard.ts

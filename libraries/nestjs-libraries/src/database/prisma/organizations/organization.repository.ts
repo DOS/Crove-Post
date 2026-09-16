@@ -57,6 +57,7 @@ export class OrganizationRepository {
     return this._organization.model.organization.findFirst({
       where: {
         apiKey: api,
+        deletedAt: null,
       },
       include: {
         subscription: {
@@ -72,6 +73,19 @@ export class OrganizationRepository {
 
   getCount() {
     return this._organization.model.organization.count();
+  }
+
+  getSuperAdminUser(orgId: string) {
+    return this._userOrg.model.userOrganization.findFirst({
+      where: {
+        organizationId: orgId,
+        disabled: false,
+        user: {
+          isSuperAdmin: true,
+          deletedAt: null,
+        },
+      },
+    });
   }
 
   getUserOrg(id: string) {
@@ -114,6 +128,38 @@ export class OrganizationRepository {
             },
           },
           {
+            organization: {
+              OR: [
+                {
+                  paymentId: {
+                    equals: name,
+                  },
+                },
+                {
+                  subscription: {
+                    identifier: {
+                      equals: name,
+                    },
+                  },
+                },
+                {
+                  Integration: {
+                    some: {
+                      id: name,
+                    },
+                  },
+                },
+                {
+                  post: {
+                    some: {
+                      id: name,
+                    },
+                  },
+                },
+              ],
+            },
+          },
+          {
             user: {
               OR: [
                 {
@@ -141,13 +187,20 @@ export class OrganizationRepository {
       select: {
         id: true,
         role: true,
+        disabled: true,
         organization: {
           select: {
             id: true,
             name: true,
+            paymentId: true,
+            deletedAt: true,
             subscription: {
               select: {
                 subscriptionTier: true,
+                identifier: true,
+                isLifetime: true,
+                period: true,
+                cancelAt: true,
               },
             },
           },
@@ -157,6 +210,9 @@ export class OrganizationRepository {
             id: true,
             name: true,
             email: true,
+            activated: true,
+            providerName: true,
+            deletedAt: true,
           },
         },
       },
@@ -177,6 +233,7 @@ export class OrganizationRepository {
   async getOrgsByUserId(userId: string) {
     return this._organization.model.organization.findMany({
       where: {
+        deletedAt: null,
         users: {
           some: {
             userId,
@@ -209,6 +266,24 @@ export class OrganizationRepository {
     return this._organization.model.organization.findUnique({
       where: {
         id,
+      },
+    });
+  }
+
+  getOrgByIdWithSubscription(id: string) {
+    return this._organization.model.organization.findUnique({
+      where: {
+        id,
+      },
+      include: {
+        subscription: {
+          select: {
+            subscriptionTier: true,
+            totalChannels: true,
+            isLifetime: true,
+            createdAt: true,
+          },
+        },
       },
     });
   }
@@ -276,13 +351,14 @@ export class OrganizationRepository {
   }
 
   async createOrgAndUser(
-    body: Omit<CreateOrgUserDto, 'providerToken'> & { providerId?: string },
+    body: Omit<CreateOrgUserDto, 'providerToken'> & { providerId?: string; orgId?: string },
     hasEmail: boolean,
     ip: string,
     userAgent: string
   ) {
     return this._organization.model.organization.create({
       data: {
+        ...(body.orgId ? { id: body.orgId } : {}),
         name: body.company,
         apiKey: AuthService.fixedEncryption(makeId(20)),
         allowTrial: true,
@@ -391,14 +467,59 @@ export class OrganizationRepository {
     });
   }
 
-  async deleteTeamMember(orgId: string, userId: string) {
-    return this._userOrg.model.userOrganization.delete({
+  deleteOrganization(orgId: string) {
+    return this._organization.model.organization.update({
       where: {
-        userId_organizationId: {
-          userId,
-          organizationId: orgId,
+        id: orgId,
+      },
+      data: {
+        deletedAt: new Date(),
+      },
+    });
+  }
+
+  async deleteTeamMember(orgId: string, userId: string) {
+    return this._userOrg.model.userOrganization.deleteMany({
+      where: {
+        userId,
+        organizationId: orgId,
+      },
+    });
+  }
+
+  async createOrgForExistingUser(
+    userId: string,
+    orgName: string,
+    role: 'SUPERADMIN' | 'ADMIN' | 'USER' = 'SUPERADMIN',
+    orgId?: string
+  ) {
+    return this._organization.model.organization.create({
+      data: {
+        ...(orgId ? { id: orgId } : {}),
+        name: orgName,
+        apiKey: AuthService.fixedEncryption(makeId(20)),
+        allowTrial: true,
+        isTrailing: true,
+        users: {
+          create: {
+            role: Role[role] || Role.SUPERADMIN,
+            userId,
+          },
         },
       },
+    });
+  }
+
+  async updateOrganizationName(orgId: string, name: string) {
+    return this._organization.model.organization.update({
+      where: { id: orgId },
+      data: { name },
+    });
+  }
+
+  async findOrgByName(name: string) {
+    return this._organization.model.organization.findFirst({
+      where: { name, deletedAt: null },
     });
   }
 
@@ -434,6 +555,38 @@ export class OrganizationRepository {
       },
       data: {
         shortlink,
+      },
+    });
+  }
+
+  createOrgForUser(userId: string, name: string, orgId?: string) {
+    return this._organization.model.organization.create({
+      data: {
+        ...(orgId ? { id: orgId } : {}),
+        name,
+        apiKey: AuthService.fixedEncryption(makeId(20)),
+        allowTrial: false,
+        isTrailing: false,
+        users: {
+          create: {
+            role: Role.SUPERADMIN,
+            userId,
+          },
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+  }
+
+  getOrganizationName(orgId: string) {
+    return this._organization.model.organization.findUnique({
+      where: {
+        id: orgId,
+      },
+      select: {
+        name: true,
       },
     });
   }

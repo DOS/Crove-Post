@@ -8,80 +8,153 @@ import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
+import { joinBrandUrl } from '@gitroom/helpers/utils/brand.config';
 import { useDecisionModal } from '@gitroom/frontend/components/layout/new-modal';
 import { DeveloperComponent } from '@gitroom/frontend/components/developer/developer.component';
+import { McpClientIcon } from '@gitroom/frontend/components/public-api/mcp.client.icons';
 import clsx from 'clsx';
 
-const mcpClients = [
+// Remote clients can't set headers, they get a URL to paste (hint = where)
+export const remoteMcpClients = {
+  Claude:
+    'In Claude go to Settings > Connectors > Add custom connector and paste this URL.',
+  ChatGPT:
+    'In ChatGPT go to Settings > Connectors > Create and paste this URL.',
+} as const;
+
+// Clients with no MCP or CLI settings: you paste instructions into the chat,
+// the agent installs the CLI itself and asks you for the API key.
+// A function of the API base, because the upstream CLI defaults to the
+// upstream cloud — omitting POSTIZ_API_URL sends this deployment's API key to
+// api.postiz.com and posts to the wrong account.
+export const chatOnlyMcpClients = {
+  'Grok Bot': (apiBase: string) =>
+    `Install the CLI with \`npm install -g postiz\`, then install the skill with \`npx skills add gitroomhq/postiz-agent\`. Ask me for my API key, then set BOTH environment variables before using the CLI: POSTIZ_API_URL="${apiBase}" and POSTIZ_API_KEY. Do not skip POSTIZ_API_URL.`, // branding-guard-allow: upstream publishes the only CLI and skill package; Crove has no equivalent yet
+} as const;
+
+export const mcpClients = [
+  'OpenClaw',
+  'Hermes',
+  'NanoClaw',
   'Claude Code',
   'Cursor',
+  'Codex',
   'VS Code / Copilot',
   'Windsurf',
   'Amp',
-  'Codex',
   'Gemini CLI',
   'Warp',
 ] as const;
 
-type McpClient = (typeof mcpClients)[number];
+export type RemoteMcpClient = keyof typeof remoteMcpClients;
+export type ChatOnlyMcpClient = keyof typeof chatOnlyMcpClients;
+export type McpClient = (typeof mcpClients)[number];
+export type AnyMcpClient = RemoteMcpClient | ChatOnlyMcpClient | McpClient;
 
-const getMcpConfig = (
-  client: McpClient,
-  method: 'header' | 'path',
+// oauth: no API key, the client registers itself (DCR) and the user signs in to Postiz
+// apikey: the organization API key, as a Bearer header (or inside the URL for remote clients)
+export type McpAuth = 'oauth' | 'apikey';
+
+export const getMcpOauthUrl = (mcpBase: string) =>
+  `${mcpBase}/mcp-oauth-dynamic`;
+
+export const isRemoteMcpClient = (client: string): client is RemoteMcpClient =>
+  client in remoteMcpClients;
+
+export const isChatOnlyMcpClient = (
+  client: string
+): client is ChatOnlyMcpClient => client in chatOnlyMcpClients;
+
+export const getMcpConfig = (
+  client: AnyMcpClient,
+  auth: McpAuth,
   mcpBase: string,
-  apiKey: string
+  apiKey: string,
+  // brandConfig.mcpConnectorName — the key every generated snippet registers
+  // this server under. Passed in rather than read from context so the helper
+  // stays pure and testable.
+  connectorName: string
 ): { config: string; hint: string } => {
-  const urlWithKey = `${mcpBase}/mcp/${apiKey}`;
+  if (isChatOnlyMcpClient(client)) {
+    return {
+      config: chatOnlyMcpClients[client](mcpBase),
+      hint: 'Paste this into the chat. The agent will ask you for your API key.',
+    };
+  }
+  if (isRemoteMcpClient(client)) {
+    return {
+      config:
+        auth === 'oauth' ? getMcpOauthUrl(mcpBase) : `${mcpBase}/mcp/${apiKey}`,
+      hint: remoteMcpClients[client],
+    };
+  }
+
+  const oauthUrl = getMcpOauthUrl(mcpBase);
   const urlBase = `${mcpBase}/mcp`;
   const bearer = `Bearer ${apiKey}`;
 
   const json = (obj: object) => JSON.stringify(obj, null, 2);
 
-  if (method === 'path') {
+  if (auth === 'oauth') {
     switch (client) {
       case 'Claude Code':
         return {
-          config: `claude mcp add postiz --transport http "${urlWithKey}"`,
+          config: `claude mcp add ${connectorName} --transport http "${oauthUrl}"`,
           hint: 'Run this command in your terminal.',
         };
       case 'Cursor':
         return {
-          config: json({ mcpServers: { postiz: { url: urlWithKey } } }),
+          config: json({ mcpServers: { [connectorName]: { url: oauthUrl } } }),
           hint: 'Add to .cursor/mcp.json in your project root.',
         };
       case 'VS Code / Copilot':
         return {
           config: json({
-            servers: { postiz: { type: 'http', url: urlWithKey } },
+            servers: { [connectorName]: { type: 'http', url: oauthUrl } },
           }),
           hint: 'Add to .vscode/mcp.json in your project root.',
         };
       case 'Windsurf':
         return {
           config: json({
-            mcpServers: { postiz: { serverUrl: urlWithKey } },
+            mcpServers: { [connectorName]: { serverUrl: oauthUrl } },
           }),
           hint: 'Add to ~/.codeium/windsurf/mcp_config.json',
         };
       case 'Amp':
         return {
-          config: `amp mcp add postiz ${urlWithKey}`,
+          config: `amp mcp add ${connectorName} ${oauthUrl}`,
           hint: 'Run this command in your terminal.',
         };
       case 'Codex':
         return {
-          config: `# ~/.codex/config.toml\n\n[mcp_servers.postiz]\nurl = "${urlWithKey}"`,
-          hint: 'Add to ~/.codex/config.toml',
+          config: `# ~/.codex/config.toml\n\n[mcp_servers.${connectorName}]\nurl = "${oauthUrl}"`,
+          hint: `Add to ~/.codex/config.toml, then run: codex mcp login ${connectorName}`,
         };
       case 'Gemini CLI':
         return {
-          config: json({ mcpServers: { postiz: { url: urlWithKey } } }),
+          config: json({ mcpServers: { [connectorName]: { url: oauthUrl } } }),
           hint: 'Add to ~/.gemini/settings.json',
         };
       case 'Warp':
         return {
-          config: json({ postiz: { url: urlWithKey } }),
+          config: json({ [connectorName]: { url: oauthUrl } }),
           hint: 'Settings > MCP Servers > + Add, then paste this config.',
+        };
+      case 'Hermes':
+        return {
+          config: `# ~/.hermes/config.yaml\n\nmcp_servers:\n  ${connectorName}:\n    url: "${oauthUrl}"\n    auth: oauth`,
+          hint: 'Add to ~/.hermes/config.yaml, then run /reload-mcp in the chat.',
+        };
+      case 'OpenClaw':
+        return {
+          config: `openclaw mcp add ${connectorName} --url ${oauthUrl} --transport streamable-http --auth oauth && openclaw mcp login ${connectorName}`,
+          hint: 'Run this command in your terminal.',
+        };
+      case 'NanoClaw':
+        return {
+          config: `ncl groups config add-mcp-server --id <group-id> --name ${connectorName} --url ${oauthUrl}`,
+          hint: 'Run this in your terminal, replace <group-id> with the agent group that should get this server.',
         };
     }
   }
@@ -89,14 +162,17 @@ const getMcpConfig = (
   switch (client) {
     case 'Claude Code':
       return {
-        config: `claude mcp add --transport http postiz ${urlBase} --header "Authorization: ${bearer}"`,
+        config: `claude mcp add --transport http ${connectorName} ${urlBase} --header "Authorization: ${bearer}"`,
         hint: 'Run this command in your terminal.',
       };
     case 'Cursor':
       return {
         config: json({
           mcpServers: {
-            postiz: { url: urlBase, headers: { Authorization: bearer } },
+            [connectorName]: {
+              url: urlBase,
+              headers: { Authorization: bearer },
+            },
           },
         }),
         hint: 'Add to .cursor/mcp.json in your project root.',
@@ -105,7 +181,7 @@ const getMcpConfig = (
       return {
         config: json({
           servers: {
-            postiz: {
+            [connectorName]: {
               type: 'http',
               url: urlBase,
               headers: { Authorization: bearer },
@@ -118,7 +194,7 @@ const getMcpConfig = (
       return {
         config: json({
           mcpServers: {
-            postiz: {
+            [connectorName]: {
               serverUrl: urlBase,
               headers: { Authorization: bearer },
             },
@@ -130,21 +206,27 @@ const getMcpConfig = (
       return {
         config: json({
           'amp.mcpServers': {
-            postiz: { url: urlBase, headers: { Authorization: bearer } },
+            [connectorName]: {
+              url: urlBase,
+              headers: { Authorization: bearer },
+            },
           },
         }),
         hint: 'Add to your Amp settings.json',
       };
     case 'Codex':
       return {
-        config: `# ~/.codex/config.toml\n\n[mcp_servers.postiz]\nurl = "${urlBase}"\nhttp_headers = { "Authorization" = "${bearer}" }`,
+        config: `# ~/.codex/config.toml\n\n[mcp_servers.${connectorName}]\nurl = "${urlBase}"\nhttp_headers = { "Authorization" = "${bearer}" }`,
         hint: 'Add to ~/.codex/config.toml',
       };
     case 'Gemini CLI':
       return {
         config: json({
           mcpServers: {
-            postiz: { url: urlBase, headers: { Authorization: bearer } },
+            [connectorName]: {
+              url: urlBase,
+              headers: { Authorization: bearer },
+            },
           },
         }),
         hint: 'Add to ~/.gemini/settings.json',
@@ -152,14 +234,40 @@ const getMcpConfig = (
     case 'Warp':
       return {
         config: json({
-          postiz: { url: urlBase, headers: { Authorization: bearer } },
+          [connectorName]: { url: urlBase, headers: { Authorization: bearer } },
         }),
         hint: 'Settings > MCP Servers > + Add, then paste this config.',
+      };
+    case 'Hermes':
+      return {
+        config: `# ~/.hermes/config.yaml\n\nmcp_servers:\n  ${connectorName}:\n    url: "${urlBase}"\n    headers:\n      Authorization: "${bearer}"`,
+        hint: 'Add to ~/.hermes/config.yaml, then run /reload-mcp in the chat.',
+      };
+    case 'OpenClaw':
+      return {
+        config: json({
+          mcp: {
+            servers: {
+              [connectorName]: {
+                url: urlBase,
+                transport: 'streamable-http',
+                headers: { Authorization: bearer },
+              },
+            },
+          },
+        }),
+        hint: 'Add to ~/.openclaw/openclaw.json',
+      };
+    case 'NanoClaw':
+      // No headers flag, the key travels inside the URL like remote clients
+      return {
+        config: `ncl groups config add-mcp-server --id <group-id> --name ${connectorName} --url ${mcpBase}/mcp/${apiKey}`,
+        hint: 'Run this in your terminal, replace <group-id> with the agent group that should get this server.',
       };
   }
 };
 
-const CopyButton = ({
+export const CopyButton = ({
   text,
   label,
 }: {
@@ -202,27 +310,32 @@ const McpSection = ({
   mcpBase: string;
 }) => {
   const t = useT();
-  const [activeClient, setActiveClient] = useState<McpClient>('Claude Code');
-  const [method, setMethod] = useState<'header' | 'path'>('header');
+  const { billingEnabled, brandConfig } = useVariables();
+  const [activeClient, setActiveClient] = useState<AnyMcpClient>('Claude');
+  const [auth, setAuth] = useState<McpAuth>('oauth');
   const [revealed, setRevealed] = useState(false);
+
+  const connectorName = brandConfig?.mcpConnectorName || 'mcp';
 
   const { config, hint } = getMcpConfig(
     activeClient,
-    method,
+    auth,
     mcpBase,
-    user.publicApi
+    user.publicApi,
+    connectorName
   );
 
-  const remoteUrl = `${mcpBase}/mcp/${user.publicApi}`;
-  const cliUrl = `${mcpBase}/mcp`;
+  const baseUrl = auth === 'oauth' ? getMcpOauthUrl(mcpBase) : `${mcpBase}/mcp`;
 
-  const maskedConfig = revealed
-    ? config
-    : config.replace(new RegExp(user.publicApi.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '*'.repeat(user.publicApi.length));
+  const chatOnly = isChatOnlyMcpClient(activeClient);
 
-  const maskedRemoteUrl = revealed
-    ? remoteUrl
-    : remoteUrl.replace(user.publicApi, '*'.repeat(user.publicApi.length));
+  const maskedConfig =
+    revealed || auth === 'oauth' || chatOnly
+      ? config
+      : config.replace(
+          new RegExp(user.publicApi.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
+          '*'.repeat(user.publicApi.length)
+        );
 
   return (
     <div className="bg-newBgColorInnerInner rounded-[12px] border border-newBorder overflow-hidden">
@@ -239,9 +352,19 @@ const McpSection = ({
           </div>
         </div>
         <div className="flex gap-[6px] shrink-0 pt-[2px]">
+          {!!brandConfig?.claudeDirectoryUrl && billingEnabled && (
+            <a
+              className="cursor-pointer px-[16px] h-[36px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
+              href={brandConfig.claudeDirectoryUrl}
+              target="_blank"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+              {t('add_to_claude', 'Add to Claude')}
+            </a>
+          )}
           <a
             className="cursor-pointer px-[16px] h-[36px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
-            href="https://docs.postiz.com/mcp/introduction"
+            href={joinBrandUrl(brandConfig?.docsUrl, 'mcp/introduction')}
             target="_blank"
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
@@ -250,107 +373,123 @@ const McpSection = ({
         </div>
       </div>
       <div className="p-[20px] flex flex-col gap-[16px]">
-        <div className="flex flex-col gap-[6px]">
-          <div className="text-[13px] font-[600] text-customColor18">
-            {t('auth_method', 'Authentication')}
-          </div>
-          <div className="flex gap-[6px]">
-            {(['header', 'path'] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                className={clsx(
-                  'cursor-pointer px-[14px] h-[36px] text-[13px] font-[500] rounded-[8px] transition-colors',
-                  method === m
-                    ? 'bg-[#612BD3] text-white'
-                    : 'bg-btnSimple text-customColor18 hover:bg-boxHover hover:text-textColor'
-                )}
-                onClick={() => setMethod(m)}
-              >
-                {m === 'header'
-                  ? t('cli_claude_code_codex', 'CLI (Claude Code / Codex)')
-                  : t('remote_servers', 'Remote servers (ChatGPT, Claude)')}
-              </button>
-            ))}
-          </div>
-        </div>
-        {method === 'header' && (
+        {!chatOnly && (
           <div className="flex flex-col gap-[6px]">
             <div className="text-[13px] font-[600] text-customColor18">
-              {t('mcp_client', 'Client')}
+              {t('auth_method', 'Authentication')}
             </div>
-            <div className="flex flex-wrap gap-[6px]">
-              {mcpClients.map((client) => (
+            <div className="flex gap-[6px]">
+              {(['oauth', 'apikey'] as const).map((m) => (
                 <button
-                  key={client}
+                  key={m}
                   type="button"
                   className={clsx(
                     'cursor-pointer px-[14px] h-[36px] text-[13px] font-[500] rounded-[8px] transition-colors',
-                    activeClient === client
+                    auth === m
                       ? 'bg-[#612BD3] text-white'
                       : 'bg-btnSimple text-customColor18 hover:bg-boxHover hover:text-textColor'
                   )}
-                  onClick={() => setActiveClient(client)}
+                  onClick={() => setAuth(m)}
                 >
-                  {client}
+                  {m === 'oauth'
+                    ? t('sign_in_no_api_key', 'Sign in with Postiz (no API key)')
+                    : t('api_key', 'API Key')}
                 </button>
               ))}
             </div>
           </div>
         )}
+        <div className="flex flex-col gap-[6px]">
+          <div className="text-[13px] font-[600] text-customColor18">
+            {t('mcp_client', 'Client')}
+          </div>
+          <div className="flex flex-wrap gap-[6px]">
+            {[
+              ...Object.keys(remoteMcpClients),
+              ...mcpClients,
+              ...Object.keys(chatOnlyMcpClients),
+            ].map((client) => (
+              <button
+                key={client}
+                type="button"
+                className={clsx(
+                  'cursor-pointer px-[14px] h-[36px] text-[13px] font-[500] rounded-[8px] transition-colors flex items-center gap-[8px]',
+                  activeClient === client
+                    ? 'bg-[#612BD3] text-white'
+                    : 'bg-btnSimple text-customColor18 hover:bg-boxHover hover:text-textColor'
+                )}
+                onClick={() =>
+                  setActiveClient(client as AnyMcpClient)
+                }
+              >
+                <McpClientIcon client={client} />
+                {client}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="flex flex-col gap-[8px]">
           <div className="text-[12px] text-customColor18 font-[500]">
-            {method === 'header'
-              ? hint
-              : t(
-                  'remote_server_url_hint',
-                  'Paste this URL into your remote MCP client (ChatGPT, Claude, etc.).'
-                )}
+            {hint}
+            {auth === 'oauth' &&
+              !chatOnly &&
+              ` ${t(
+                'oauth_sign_in_hint',
+                'Your agent will open a browser window to sign in to Postiz.'
+              )}`}
           </div>
           <pre className="bg-newBgColorInner border border-newBorder rounded-[8px] p-[16px] text-[13px] whitespace-pre-wrap break-all overflow-x-auto leading-[1.6]">
-            {method === 'header' ? maskedConfig : maskedRemoteUrl}
+            {maskedConfig}
           </pre>
           <div className="flex gap-[8px]">
-            <button
-              type="button"
-              onClick={() => setRevealed(!revealed)}
-              className="cursor-pointer px-[16px] h-[36px] bg-btnSimple hover:bg-boxHover transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+            {auth === 'apikey' && !chatOnly && (
+              <button
+                type="button"
+                onClick={() => setRevealed(!revealed)}
+                className="cursor-pointer px-[16px] h-[36px] bg-btnSimple hover:bg-boxHover transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
               >
-                {revealed ? (
-                  <>
-                    <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
-                    <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
-                    <line x1="1" y1="1" x2="23" y2="23" />
-                  </>
-                ) : (
-                  <>
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </>
-                )}
-              </svg>
-              {revealed ? t('hide', 'Hide') : t('reveal', 'Reveal')}
-            </button>
-            <CopyButton
-              text={method === 'header' ? config : remoteUrl}
-              label={t('copy', 'Copy')}
-            />
-            {method === 'header' && (
-              <CopyButton
-                text={cliUrl}
-                label={t('copy_url', 'Copy URL')}
-              />
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  {revealed ? (
+                    <>
+                      <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
+                      <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
+                      <line x1="1" y1="1" x2="23" y2="23" />
+                    </>
+                  ) : (
+                    <>
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </>
+                  )}
+                </svg>
+                {revealed ? t('hide', 'Hide') : t('reveal', 'Reveal')}
+              </button>
             )}
+            <CopyButton text={config} label={t('copy', 'Copy')} />
+            {!isRemoteMcpClient(activeClient) && !chatOnly && (
+              <CopyButton text={baseUrl} label={t('copy_url', 'Copy URL')} />
+            )}
+            {activeClient === 'Claude' &&
+              billingEnabled &&
+              !!brandConfig?.claudeDirectoryUrl && (
+                <a
+                  className="cursor-pointer px-[16px] h-[36px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
+                  href={brandConfig.claudeDirectoryUrl}
+                  target="_blank"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+                  {t('add_to_claude', 'Add to Claude')}
+                </a>
+              )}
           </div>
         </div>
       </div>
@@ -358,59 +497,64 @@ const McpSection = ({
   );
 };
 
-const localCliSteps = [
+// One canonical list, not separate "Locally" and "CI" variants. This
+// deployment runs no CLI auth server, so the upstream `postiz auth:login`
+// device flow would authenticate against cli-auth.postiz.com — into the
+// upstream cloud, not this instance. Every step is therefore API-key based.
+//
+// POSTIZ_API_URL is mandatory, not optional: without it the CLI defaults to
+// api.postiz.com, so the key in step 3 is transmitted upstream and the posts
+// land on the wrong account.
+//
+// Placeholders are substituted at render time by CliSection and by the
+// onboarding modal, which is why this stays a module-level constant.
+export const localCliSteps = [
   {
     label: 'Install the CLI',
-    code: 'npm install -g postiz',
+    code: 'npm install -g postiz', // branding-guard-allow: upstream publishes the only CLI; Crove ships no equivalent yet
   },
   {
-    label: 'Run: postiz auth:login',
-    code: 'postiz auth:login',
-  },
-  {
-    label: 'Install the Postiz skill for your AI agent',
-    code: 'npx skills add gitroomhq/postiz-agent',
-  },
-] as const;
-
-const ciCliSteps = [
-  {
-    label: 'Install the CLI',
-    code: 'npm install -g postiz',
+    label: 'Point the CLI at this instance (required)',
+    code: 'export POSTIZ_API_URL="{API_URL}"',
   },
   {
     label: 'Set your API key as an environment variable',
     code: 'export POSTIZ_API_KEY="{API_KEY}"',
   },
   {
-    label: 'Install the Postiz skill for your AI agent',
-    code: 'npx skills add gitroomhq/postiz-agent',
+    label: 'Install the skill for your AI agent',
+    code: 'npx skills add gitroomhq/postiz-agent', // branding-guard-allow: upstream publishes the only agent skill; Crove ships no equivalent yet
   },
 ] as const;
 
-const CliSection = ({ apiKey }: { apiKey: string }) => {
+const CliSection = ({
+  apiKey,
+  apiBaseUrl,
+}: {
+  apiKey: string;
+  apiBaseUrl: string;
+}) => {
   const t = useT();
-  const [mode, setMode] = useState<'local' | 'ci'>('local');
+  const { brandConfig } = useVariables();
   const [revealed, setRevealed] = useState(false);
 
-  const steps =
-    mode === 'local'
-      ? localCliSteps.map((step) => ({ ...step }))
-      : ciCliSteps.map((step) => ({
-          ...step,
-          code: step.code.replace('{API_KEY}', apiKey),
-        }));
+  const steps = localCliSteps.map((step) => ({
+    ...step,
+    code: step.code
+      .replace('{API_URL}', apiBaseUrl)
+      .replace('{API_KEY}', apiKey),
+  }));
 
   const displaySteps =
-    mode === 'ci' && !revealed
-      ? steps.map((step) => ({
+    revealed || !apiKey
+      ? steps
+      : steps.map((step) => ({
           ...step,
           code: step.code.replace(
             new RegExp(apiKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
             '*'.repeat(apiKey.length)
           ),
-        }))
-      : steps;
+        }));
 
   return (
     <div className="bg-newBgColorInnerInner rounded-[12px] border border-newBorder overflow-hidden">
@@ -429,7 +573,7 @@ const CliSection = ({ apiKey }: { apiKey: string }) => {
         <div className="flex gap-[6px] shrink-0 pt-[2px]">
           <a
             className="cursor-pointer px-[16px] h-[36px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
-            href="https://docs.postiz.com/cli/introduction"
+            href={joinBrandUrl(brandConfig?.docsUrl, 'cli/introduction')}
             target="_blank"
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
@@ -438,25 +582,6 @@ const CliSection = ({ apiKey }: { apiKey: string }) => {
         </div>
       </div>
       <div className="p-[20px] flex flex-col gap-[16px]">
-        <div className="flex gap-[6px]">
-          {(['local', 'ci'] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              className={clsx(
-                'cursor-pointer px-[14px] h-[36px] text-[13px] font-[500] rounded-[8px] transition-colors',
-                mode === m
-                  ? 'bg-[#612BD3] text-white'
-                  : 'bg-btnSimple text-customColor18 hover:bg-boxHover hover:text-textColor'
-              )}
-              onClick={() => setMode(m)}
-            >
-              {m === 'local'
-                ? t('locally', 'Locally')
-                : t('ci_remote_servers', 'CI / Remote servers')}
-            </button>
-          ))}
-        </div>
         {displaySteps.map((step, i) => (
           <div key={i} className="flex flex-col gap-[6px]">
             <div className="text-[13px] font-[600] text-customColor18">
@@ -468,38 +593,36 @@ const CliSection = ({ apiKey }: { apiKey: string }) => {
           </div>
         ))}
         <div className="flex gap-[8px]">
-          {mode === 'ci' && (
-            <button
-              type="button"
-              onClick={() => setRevealed(!revealed)}
-              className="cursor-pointer px-[16px] h-[36px] bg-btnSimple hover:bg-boxHover transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
+          <button
+            type="button"
+            onClick={() => setRevealed(!revealed)}
+            className="cursor-pointer px-[16px] h-[36px] bg-btnSimple hover:bg-boxHover transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                {revealed ? (
-                  <>
-                    <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
-                    <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
-                    <line x1="1" y1="1" x2="23" y2="23" />
-                  </>
-                ) : (
-                  <>
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </>
-                )}
-              </svg>
-              {revealed ? t('hide', 'Hide') : t('reveal', 'Reveal')}
-            </button>
-          )}
+              {revealed ? (
+                <>
+                  <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
+                  <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
+                  <line x1="1" y1="1" x2="23" y2="23" />
+                </>
+              ) : (
+                <>
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </>
+              )}
+            </svg>
+            {revealed ? t('hide', 'Hide') : t('reveal', 'Reveal')}
+          </button>
           <CopyButton
             text={steps.map((s) => s.code).join(' && ')}
             label={t('copy_all', 'Copy All')}
@@ -512,7 +635,7 @@ const CliSection = ({ apiKey }: { apiKey: string }) => {
 
 const PublicApiContent = () => {
   const user = useUser();
-  const { backendUrl, frontEndUrl, mcpUrl } = useVariables();
+  const { backendUrl, frontEndUrl, mcpUrl, brandConfig } = useVariables();
   const toaster = useToaster();
   const fetch = useFetch();
   const decision = useDecisionModal();
@@ -585,7 +708,7 @@ const PublicApiContent = () => {
           <div className="flex gap-[6px] shrink-0 pt-[2px]">
             <a
               className="cursor-pointer px-[16px] h-[36px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
-              href="https://docs.postiz.com/public-api"
+              href={joinBrandUrl(brandConfig?.docsUrl, 'public-api')}
               target="_blank"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
@@ -700,7 +823,7 @@ const PublicApiContent = () => {
         </div>
       </div>
 
-      <CliSection apiKey={user.publicApi} />
+      <CliSection apiKey={user.publicApi} apiBaseUrl={mcpBase} />
 
       <McpSection user={user} mcpBase={mcpBase} />
     </div>

@@ -15,6 +15,12 @@ export interface VariableContextInterface {
   oauthLogoUrl: string;
   oauthDisplayName: string;
   mcpUrl?: string;
+  /**
+   * URL-scheme prefix derived from MOBILE_APP_SCHEME (e.g. "postiz://").
+   * Empty when the deployment has no mobile app, in which case callers must
+   * not emit a deep link at all.
+   */
+  mobileAppScheme?: string;
   cloudflareUrl: string;
   mainUrl: string;
   frontEndUrl: string;
@@ -27,6 +33,7 @@ export interface VariableContextInterface {
   facebookPixel: string;
   telegramBotName: string;
   neynarClientId: string;
+  appleClientId: string;
   isSecured: boolean;
   disableImageCompression: boolean;
   disableXAnalytics: boolean;
@@ -56,6 +63,7 @@ const VariableContext = createContext({
   googleAdsTrialTracking: '',
   oauthDisplayName: '',
   mcpUrl: '',
+  mobileAppScheme: '',
   cloudflareUrl: '',
   mainUrl: '',
   frontEndUrl: '',
@@ -68,6 +76,7 @@ const VariableContext = createContext({
   telegramBotName: '',
   facebookPixel: '',
   neynarClientId: '',
+  appleClientId: '',
   disableImageCompression: false,
   disableXAnalytics: false,
   language: '',

@@ -11,6 +11,7 @@ import dayjs from 'dayjs';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { Organization, ShortLinkPreference, User } from '@prisma/client';
 import { AutopostService } from '@gitroom/nestjs-libraries/database/prisma/autopost/autopost.service';
+import { isEcosystemSyncEnabled } from '@gitroom/helpers/utils/ecosystem.config';
 
 @Injectable()
 export class OrganizationService {
@@ -19,7 +20,7 @@ export class OrganizationService {
     private _notificationsService: NotificationService
   ) {}
   async createOrgAndUser(
-    body: Omit<CreateOrgUserDto, 'providerToken'> & { providerId?: string },
+    body: Omit<CreateOrgUserDto, 'providerToken'> & { providerId?: string; orgId?: string },
     ip: string,
     userAgent: string
   ) {
@@ -52,8 +53,16 @@ export class OrganizationService {
     return this._organizationRepository.getOrgById(id);
   }
 
+  getOrgByIdWithSubscription(id: string) {
+    return this._organizationRepository.getOrgByIdWithSubscription(id);
+  }
+
   getOrgByApiKey(api: string) {
     return this._organizationRepository.getOrgByApiKey(api);
+  }
+
+  async hasSuperAdminUser(orgId: string) {
+    return !!(await this._organizationRepository.getSuperAdminUser(orgId));
   }
 
   getUserOrg(id: string) {
@@ -155,7 +164,10 @@ export class OrganizationService {
     return { added: true };
   }
 
-  async deleteTeamMember(org: Organization, userId: string) {
+  async deleteTeamMember(org: Organization | string, userId: string) {
+    if (typeof org === 'string') {
+      return this._organizationRepository.deleteTeamMember(org, userId);
+    }
     const userOrgs = await this._organizationRepository.getOrgsByUserId(userId);
     const findOrgToDelete = userOrgs.find((orgUser) => orgUser.id === org.id);
     if (!findOrgToDelete) {
@@ -163,8 +175,8 @@ export class OrganizationService {
     }
 
     // @ts-ignore
-    const myRole = org.users[0].role;
-    const userRole = findOrgToDelete.users[0].role;
+    const myRole = org.users?.[0]?.role;
+    const userRole = findOrgToDelete.users?.[0]?.role;
     const myLevel = myRole === 'USER' ? 0 : myRole === 'ADMIN' ? 1 : 2;
     const userLevel = userRole === 'USER' ? 0 : userRole === 'ADMIN' ? 1 : 2;
 
@@ -191,5 +203,72 @@ export class OrganizationService {
       orgId,
       shortlink
     );
+  }
+
+  async createOrgForExistingUser(
+    userId: string,
+    orgName: string,
+    role: 'SUPERADMIN' | 'ADMIN' | 'USER' = 'SUPERADMIN',
+    orgId?: string
+  ) {
+    return this._organizationRepository.createOrgForExistingUser(
+      userId,
+      orgName,
+      role,
+      orgId
+    );
+  }
+
+  async updateOrganizationName(orgId: string, name: string) {
+    return this._organizationRepository.updateOrganizationName(orgId, name);
+  }
+
+  async deleteOrganization(orgId: string) {
+    return this._organizationRepository.deleteOrganization(orgId);
+  }
+
+  async createOrgForUser(
+    userId: string,
+    body: { name?: string },
+    userAuthHeader?: string
+  ) {
+    let orgId: string | undefined;
+    let orgName = body.name || 'New Organization';
+
+    // If ecosystem sync is enabled AND user is authenticated via OAuth Bearer token (API Delegation)
+    if (isEcosystemSyncEnabled() && userAuthHeader && userAuthHeader.startsWith('Bearer ')) {
+      const apiUrl = process.env.POSTIZ_OAUTH_URL || 'https://api.dos.me';
+      try {
+        const response = await fetch(`${apiUrl}/organizations`, {
+          method: 'POST',
+          headers: {
+            Authorization: userAuthHeader,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: orgName,
+          }),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data?.id) {
+            orgId = data.id;
+            orgName = data.name || orgName;
+          }
+        }
+      } catch (err) {
+        // Fallback to local creation if remote call fails
+      }
+    }
+
+    return this._organizationRepository.createOrgForUser(userId, orgName, orgId);
+  }
+
+  async getOrganizationName(orgId: string) {
+    return this._organizationRepository.getOrganizationName(orgId);
+  }
+
+  async findOrgByName(name: string) {
+    return this._organizationRepository.findOrgByName(name);
   }
 }

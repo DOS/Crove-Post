@@ -1,24 +1,29 @@
-# Postiz NodeJS SDK
+# Crove NodeJS SDK
 
-This is the NodeJS SDK for [Postiz](https://postiz.com).
+This is the NodeJS SDK for [Crove](https://crove.com).
 
 You can start by installing the package:
 
 ```bash
-npm install @postiz/node
+npm install @crove/node
 ```
 
 ## Usage
 ```typescript
-import Postiz from '@postiz/node';
-const postiz = new Postiz('your api key', 'your self-hosted instance (optional)');
+import Crove from '@crove/node';
+const crove = new Crove('your api key', 'your self-hosted instance (optional)');
 ```
 
+The second argument defaults to `https://post.crove.com/api`. Pass your own
+base URL if you run a self-hosted instance.
+
 The available methods are:
-- `post(posts: CreatePostDto)` - Schedule a post to Postiz
+- `post(posts: CreatePostDto)` - Schedule a post to Crove
 - `postList(filters: GetPostsDto)` - Get a list of posts
-- `upload(file: Buffer, extension: string)` - Upload a file to Postiz
+- `upload(file: Buffer, extension: string)` - Upload a file to Crove
 - `integrations()` - Get a list of connected channels
 - `deletePost(id: string)` - Delete a post by ID
 
-Alternatively you can use the SDK with curl, check the [Postiz API documentation](https://docs.postiz.com/public-api) for more information.
+Your API key is available in the application under **Settings → Developer**.
+Alternatively you can use the SDK with curl against the same
+`/public/v1/*` routes.

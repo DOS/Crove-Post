@@ -13,23 +13,15 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
 import clsx from 'clsx';
 import { GoogleProvider } from '@gitroom/frontend/components/auth/providers/google.provider';
+import { AppleProvider } from '@gitroom/frontend/components/auth/providers/apple.provider';
 import { OauthProvider } from '@gitroom/frontend/components/auth/providers/oauth.provider';
 import { useFireEvents } from '@gitroom/helpers/utils/use.fire.events';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { useTrack } from '@gitroom/react/helpers/use.track';
 import { TrackEnum } from '@gitroom/nestjs-libraries/user/track.enum';
 import { FarcasterProvider } from '@gitroom/frontend/components/auth/providers/farcaster.provider';
-import dynamic from 'next/dynamic';
-import { WalletUiProvider } from '@gitroom/frontend/components/auth/providers/placeholder/wallet.ui.provider';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import useCookie from 'react-use-cookie';
-const WalletProvider = dynamic(
-  () => import('@gitroom/frontend/components/auth/providers/wallet.provider'),
-  {
-    ssr: false,
-    loading: () => <WalletUiProvider />,
-  }
-);
 type Inputs = {
   email: string;
   password: string;
@@ -40,29 +32,44 @@ type Inputs = {
 export function Register() {
   const getQuery = useSearchParams();
   const fetch = useFetch();
-  const [provider] = useState(getQuery?.get('provider')?.toUpperCase());
+  const [provider] = useState(getQuery?.get('provider')?.toUpperCase() || 'GENERIC');
   const [code, setCode] = useState(getQuery?.get('code') || '');
+  const [state] = useState(getQuery?.get('state') || '');
   const [show, setShow] = useState(false);
   useEffect(() => {
-    if (provider && code) {
+    if (code) {
       load();
     }
   }, []);
   const load = useCallback(async () => {
-    const { token } = await (
-      await fetch(`/auth/oauth/${provider?.toUpperCase() || 'LOCAL'}/exists`, {
-        method: 'POST',
-        body: JSON.stringify({
-          code,
-        }),
-      })
-    ).json();
-    if (token) {
-      setCode(token);
+    try {
+      const response = await fetch(
+        `/auth/oauth/${provider?.toUpperCase() || 'GENERIC'}/exists`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            code,
+            state,
+          }),
+        }
+      );
+      if (!response.ok) {
+        setShow(true);
+        return;
+      }
+      const data = await response.json();
+      if (data?.token) {
+        setCode(data.token);
+        setShow(true);
+      } else {
+        window.location.href = '/';
+      }
+    } catch (e) {
+      console.error('Failed to verify oauth code:', e);
       setShow(true);
     }
-  }, [provider, code]);
-  if (!code && !provider) {
+  }, [provider, code, state]);
+  if (!code && !getQuery?.get('provider')) {
     return <RegisterAfter token="" provider="LOCAL" />;
   }
   if (!show) {
@@ -89,8 +96,13 @@ export function RegisterAfter({
   provider: string;
 }) {
   const t = useT();
-  const { isGeneral, genericOauth, neynarClientId, billingEnabled } =
-    useVariables();
+  const {
+    isGeneral,
+    genericOauth,
+    neynarClientId,
+    appleClientId,
+    billingEnabled,
+  } = useVariables();
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const fireEvents = useFireEvents();
@@ -157,107 +169,126 @@ export function RegisterAfter({
           <div className="text-[14px] mt-[32px] mb-[12px]">
             {t('continue_with', 'Continue With')}
           </div>
-          <div className="flex flex-col">
-            {!isAfterProvider &&
-              (!isGeneral ? (
-                <GithubProvider />
-              ) : (
-                <div className="gap-[8px] flex">
-                  {genericOauth && isGeneral ? (
-                    <OauthProvider />
-                  ) : (
-                    <GoogleProvider />
+          <div className="flex flex-col text-[14px]">
+            {!isAfterProvider && isGeneral && genericOauth ? (
+              <div className="flex flex-col gap-4 mt-2">
+                <OauthProvider />
+                <p className="text-xs text-zinc-400 text-center mt-2 leading-relaxed">
+                  {t(
+                    'sso_description',
+                    'Sign in or create your account seamlessly with DOS ID.'
                   )}
-                  {!!neynarClientId && <FarcasterProvider />}
-                  {billingEnabled && <WalletProvider />}
-                </div>
-              ))}
-            {!isAfterProvider && (
-              <div className="h-[20px] mb-[24px] mt-[24px] relative">
-                <div className="absolute w-full h-[1px] bg-fifth top-[50%] -translate-y-[50%]" />
-                <div
-                  className={`absolute z-[1] justify-center items-center w-full start-0 -top-[4px] flex`}
-                >
-                  <div className="px-[16px]">{t('or', 'or')}</div>
+                </p>
+                <div className="text-center mt-4">
+                  <p className="text-sm">
+                    {t('already_have_an_account', 'Already Have An Account?')}&nbsp;
+                    <Link href="/auth/login" className="underline cursor-pointer">
+                      {t('sign_in', 'Sign In')}
+                    </Link>
+                  </p>
                 </div>
               </div>
-            )}
-            <div className="flex flex-col gap-[12px]">
-              <div className="text-textColor">
+            ) : (
+              <>
                 {!isAfterProvider && (
                   <>
-                    <Input
-                      label="Email"
-                      translationKey="label_email"
-                      {...form.register('email')}
-                      type="email"
-                      placeholder={t('email_address', 'Email Address')}
-                    />
-                    <Input
-                      label="Password"
-                      translationKey="label_password"
-                      {...form.register('password')}
-                      autoComplete="off"
-                      type="password"
-                      placeholder={t('label_password', 'Password')}
-                    />
+                    {!isGeneral ? (
+                      <GithubProvider />
+                    ) : (
+                      <div className="gap-[8px] flex">
+                        <GoogleProvider />
+                        {!!appleClientId && <AppleProvider />}
+                        {!!neynarClientId && <FarcasterProvider />}
+                      </div>
+                    )}
+                    <div className="h-[20px] mb-[24px] mt-[24px] relative">
+                      <div className="absolute w-full h-[1px] bg-fifth top-[50%] -translate-y-[50%]" />
+                      <div
+                        className={`absolute z-[1] justify-center items-center w-full start-0 -top-[4px] flex`}
+                      >
+                        <div className="px-[16px]">{t('or', 'or')}</div>
+                      </div>
+                    </div>
                   </>
                 )}
-                <Input
-                  label="Company"
-                  translationKey="label_company"
-                  {...form.register('company')}
-                  autoComplete="off"
-                  type="text"
-                  placeholder={t('label_company', 'Company')}
-                />
-              </div>
-              <div className={clsx('text-[12px]')}>
-                {t(
-                  'by_registering_you_agree_to_our',
-                  'By registering you agree to our'
-                )}
-                &nbsp;
-                <a
-                  href={`https://postiz.com/terms`}
-                  className="underline hover:font-bold"
-                  rel="nofollow"
-                >
-                  {t('terms_of_service', 'Terms of Service')}
-                </a>
-                &nbsp;
-                {t('and', 'and')}&nbsp;
-                <a
-                  href={`https://postiz.com/privacy`}
-                  rel="nofollow"
-                  className="underline hover:font-bold"
-                >
-                  {t('privacy_policy', 'Privacy Policy')}
-                </a>
-                &nbsp;
-              </div>
-              <div className="text-center mt-6">
-                <div className="w-full flex">
-                  <Button
-                    type="submit"
-                    className="flex-1 rounded-[10px] !h-[52px]"
-                    loading={loading}
-                  >
-                    {t('create_account', 'Create Account')}
-                  </Button>
+                <div className="flex flex-col gap-[12px]">
+                  <div className="text-textColor">
+                    {!isAfterProvider && (
+                      <>
+                        <Input
+                          label="Email"
+                          translationKey="label_email"
+                          {...form.register('email')}
+                          type="email"
+                          placeholder={t('email_address', 'Email Address')}
+                        />
+                        <Input
+                          label="Password"
+                          translationKey="label_password"
+                          {...form.register('password')}
+                          autoComplete="off"
+                          type="password"
+                          placeholder={t('label_password', 'Password')}
+                        />
+                      </>
+                    )}
+                    <Input
+                      label="Company"
+                      translationKey="label_company"
+                      {...form.register('company')}
+                      autoComplete="off"
+                      type="text"
+                      placeholder={t('label_company', 'Company')}
+                    />
+                  </div>
+                  <div className={clsx('text-[12px]')}>
+                    {t(
+                      'by_registering_you_agree_to_our',
+                      'By registering you agree to our'
+                    )}
+                    &nbsp;
+                    <a
+                      href={`https://postiz.com/terms`}
+                      className="underline hover:font-bold"
+                      rel="nofollow"
+                    >
+                      {t('terms_of_service', 'Terms of Service')}
+                    </a>
+                    &nbsp;
+                    {t('and', 'and')}&nbsp;
+                    <a
+                      href={`https://postiz.com/privacy`}
+                      rel="nofollow"
+                      className="underline hover:font-bold"
+                    >
+                      {t('privacy_policy', 'Privacy Policy')}
+                    </a>
+                    &nbsp;
+                  </div>
+                  <div className="text-center mt-6">
+                    <div className="w-full flex">
+                      <Button
+                        type="submit"
+                        className="flex-1 rounded-[10px] !h-[52px]"
+                        loading={loading}
+                      >
+                        {t('create_account', 'Create Account')}
+                      </Button>
+                    </div>
+                    <p className="mt-4 text-sm">
+                      {t('already_have_an_account', 'Already Have An Account?')}
+                      &nbsp;
+                      <Link
+                        href="/auth/login"
+                        className="underline  cursor-pointer"
+                      >
+                        {t('sign_in', 'Sign In')}
+                      </Link>
+                    </p>
+                  </div>
                 </div>
-                <p className="mt-4 text-sm">
-                  {t('already_have_an_account', 'Already Have An Account?')}
-                  &nbsp;
-                  <Link
-                    href="/auth/login"
-                    className="underline  cursor-pointer"
-                  >
-                    {t('sign_in', 'Sign In')}
-                  </Link>
-                </p>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         </div>
       </form>

@@ -102,7 +102,6 @@ export const startMcp = async (app: INestApplication) => {
       crove_post: agent,
       post: agent,
     },
-    agents: { postiz: agent },
     appResources,
   };
 

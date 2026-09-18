@@ -25,7 +25,6 @@ export class LoadToolsService {
 
   async loadTools(mcpOnly = false) {
     const directTools = (
->>>>>>> upstream/main
       await Promise.all<{ name: string; tool: any }>(
         toolList
           .map(

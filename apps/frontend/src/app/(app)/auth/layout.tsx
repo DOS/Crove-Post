@@ -4,6 +4,8 @@ export const dynamic = 'force-dynamic';
 import { ReactNode } from 'react';
 import loadDynamic from 'next/dynamic';
 import { TestimonialComponent } from '@gitroom/frontend/components/auth/testimonial.component';
+import { MantineWrapper } from '@gitroom/react/helpers/mantine.wrapper';
+import { Toaster } from '@gitroom/react/toaster/toaster';
 import { LogoTextComponent } from '@gitroom/frontend/components/ui/logo-text.component';
 import { getBrandNameServerSide } from '@gitroom/helpers/utils/is.general.server.side';
 import { LanguageComponent } from '@gitroom/frontend/components/layout/language.component';
@@ -19,6 +21,8 @@ export default async function AuthLayout({
   const brandName = getBrandNameServerSide();
 
   return (
+    <MantineWrapper>
+    <Toaster />
     <div className="bg-[#0E0E0E] flex flex-1 p-[12px] gap-[12px] min-h-screen w-screen text-white relative">
       <div className="absolute top-4 right-4 z-50">
         <LanguageComponent />
@@ -41,5 +45,6 @@ export default async function AuthLayout({
         <TestimonialComponent />
       </div>
     </div>
+    </MantineWrapper>
   );
 }

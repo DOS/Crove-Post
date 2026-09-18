@@ -8,12 +8,10 @@ import {
   Query,
   Param,
 } from '@nestjs/common';
-import OpenAI from 'openai';
 import {
   CopilotRuntime,
   OpenAIAdapter,
   copilotRuntimeNodeHttpEndpoint,
-  copilotRuntimeNextJSAppRouterEndpoint,
 } from '@copilotkit/runtime';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
 import { Organization } from '@prisma/client';
@@ -24,12 +22,23 @@ import { Request, Response } from 'express';
 import { RequestContext } from '@mastra/core/di';
 import { CheckPolicies } from '@gitroom/backend/services/auth/permissions/permissions.ability';
 import { AuthorizationActions, Sections } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
+import OpenAI from 'openai';
 
 export type ChannelsContext = {
   integrations: string;
   organization: string;
   ui: string;
 };
+
+// the copilot runtime writes its own CORS headers on the response, keep them aligned with main.ts
+const copilotCors = () => ({
+  origin: [
+    process.env.FRONTEND_URL,
+    'http://localhost:6274',
+    ...(process.env.MAIN_URL ? [process.env.MAIN_URL] : []),
+  ],
+  credentials: !process.env.NOT_SECURED,
+});
 
 @Controller('/copilot')
 export class CopilotController {
@@ -54,6 +63,7 @@ export class CopilotController {
 
     const copilotRuntimeHandler = copilotRuntimeNodeHttpEndpoint({
       endpoint: '/copilot/chat',
+      cors: copilotCors(),
       runtime: new CopilotRuntime(),
       serviceAdapter: new OpenAIAdapter({
         openai: openai as any,
@@ -82,7 +92,7 @@ export class CopilotController {
     const requestContext = new RequestContext<ChannelsContext>();
     requestContext.set(
       'integrations',
-      req?.body?.variables?.properties?.integrations || []
+      req?.body?.body?.forwardedProps?.integrations || []
     );
 
     requestContext.set('organization', JSON.stringify(organization));
@@ -103,17 +113,17 @@ export class CopilotController {
       ...(process.env.OPENAI_BASE_URL ? { baseURL: process.env.OPENAI_BASE_URL } : {}),
     });
 
-    const copilotRuntimeHandler = copilotRuntimeNextJSAppRouterEndpoint({
+    const copilotRuntimeHandler = copilotRuntimeNodeHttpEndpoint({
       endpoint: '/copilot/agent',
+      cors: copilotCors(),
       runtime,
-      // properties: req.body.variables.properties,
       serviceAdapter: new OpenAIAdapter({
         openai: openai as any,
         model: process.env.OPENAI_MODEL_NAME || 'gpt-4.1',
       }),
     });
 
-    return copilotRuntimeHandler.handleRequest(req, res);
+    return copilotRuntimeHandler(req, res);
   }
 
   @Get('/credits')

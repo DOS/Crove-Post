@@ -1,5 +1,0 @@
-import type { Env } from '../src/env';
-
-declare module 'cloudflare:workers' {
-  interface ProvidedEnv extends Env {}
-}

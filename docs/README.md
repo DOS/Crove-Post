@@ -29,7 +29,6 @@ The project is structured as a **Monorepo (PNPM Workspaces)**:
 │   ├── orchestrator/   # Temporal Worker (Workflows & Activities for scheduled posting)
 │   ├── frontend/       # Next.js 16 (App Router) + React 19 + Tailwind CSS 3
 │   ├── extension/      # Chrome Extension Manifest V3 (Cookie capture & social bridge)
-│   └── crove-sso/      # Cloudflare Worker SSO Bridge (OAuth 2.1 PKCE)
 ├── libraries/
 │   ├── helpers/        # Shared utilities, Brand Config Engine, Fetch wrappers
 │   ├── nestjs-libraries/# 34+ Social Providers, Email, Database Prisma, Mastra MCP

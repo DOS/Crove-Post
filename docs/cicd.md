@@ -8,7 +8,6 @@ The Crove Post CI/CD system provides end-to-end automation: source code verifica
 
 | Workflow | File | Trigger | Purpose |
 | :--- | :--- | :--- | :--- |
-| **Deploy SSO Bridge** | `.github/workflows/deploy-sso.yml` | Push to `apps/crove-sso/**` or dispatch | Runs Vitest (31 tests) + deploys Cloudflare Worker to `sso.crove.com` (main) or `beta-sso.crove.com` (dev). |
 | **Build & Deploy Containers** | `.github/workflows/build-deploy-crove.yml` | Push to `dev` or published release | Runs Branding Guard -> Builds & pushes GHCR image `ghcr.io/dos/crove-post` (`beta` / `latest`). |
 | **Build & Publish Containers** | `.github/workflows/build-containers.yml` | Push to `main` / `dev` or tags | Multi-arch container build (amd64 + arm64) for `ghcr.io/dos/crove-post`. |
 | **Branding Guard CI** | `.github/workflows/branding-guard.yml` | Push / PR to `main` or `dev` | Validates runtime branding engine contracts and AGPL-3.0 compliance. |
@@ -52,9 +51,8 @@ The Crove Post CI/CD system provides end-to-end automation: source code verifica
 
 | Script | Path | Purpose |
 | :--- | :--- | :--- |
-| **Deploy Beta** | `scripts/deploy-beta.ps1` | Runs tests, deploys SSO Beta, and outputs container instructions |
-| **Deploy Prod** | `scripts/deploy-prod.ps1` | Runs tests, deploys SSO Prod, and outputs container instructions |
-| **Deploy SSO** | `scripts/deploy-sso.ps1` | Independent SSO deployment with `-Environment beta` or `prod` |
+| **Deploy Beta** | `scripts/deploy-beta.ps1` | Runs Branding Guard, validates beta contract, and outputs container instructions |
+| **Deploy Prod** | `scripts/deploy-prod.ps1` | Runs Branding Guard and outputs container instructions |
 | **Branding Guard** | `scripts/branding-guard.ts` | Comprehensive contract validation suite for runtime branding |
 | **Build All** | `scripts/build-all.ps1` | Full parallel/sequential workspace build verification |
 | **Dev Environment** | `scripts/dev.ps1` | Starts development server on Windows PowerShell |

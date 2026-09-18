@@ -1,5 +1,11 @@
 # Kiến Trúc Single Sign-On (SSO) & OAuth 2.1 PKCE Bridge
 
+> **STATUS 2026-09: Triển khai bridge đã dời vào `api.dos.me` (PKCE bridge central,
+> `POSTIZ_OAUTH_*` trỏ tới `https://api.dos.me/sso/*`). Cloudflare Worker
+> `apps/crove-sso` (`sso.crove.com` / `beta-sso.crove.com`) đã bị gỡ bỏ - xem
+> `docs/README.md` và CHANGELOG. Tài liệu này giữ lại làm bản ghi thiết kế lịch sử
+> cho bài toán bridge; các đoạn hướng dẫn `cd apps/crove-sso` bên dưới không còn
+> áp dụng.
 ## 1. Tổng Quan
 
 Hệ thống cho phép người dùng **Crove** đăng nhập thông qua tài khoản **DOS ID** (sử dụng Supabase OAuth 2.1) mà **không làm thay đổi hoặc can thiệp trực tiếp vào mã nguồn OAuth mặc định của Postiz**.

@@ -78,9 +78,6 @@ jobs:
       - name: Validate Beta deployment script and compose contract
         run: pnpm run validate:beta-deploy
 
-      - name: Test SSO Worker (vitest)
-        run: pnpm run test:sso
-
       # The suites drive the real Prisma client, so the schema must exist in
       # the throwaway database first. --skip-generate because the postinstall
       # hook already generated the client. No --accept-data-loss: this is an

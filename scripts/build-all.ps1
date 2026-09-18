@@ -7,7 +7,6 @@
     - apps/frontend (App Dashboard Next.js)
     - apps/backend (API NestJS)
     - apps/orchestrator (Temporal Background Jobs)
-    - apps/crove-sso (Cloudflare Worker SSO Bridge)
 .EXAMPLE
     .\scripts\build-all.ps1
 #>
@@ -18,10 +17,7 @@ Write-Host "==========================================================" -Foregro
 Write-Host "  CROVE MONOREPO - FULL BUILD & VALIDATION" -ForegroundColor Yellow
 Write-Host "==========================================================" -ForegroundColor Cyan
 
-# 1. Build & Test SSO Worker
-if ($LASTEXITCODE -ne 0) { Write-Error "SSO Test failed!"; exit 1 }
-
-# 2. Build Landing Page
+# 1. Build Landing Page
 Write-Host "`n[1/3] Build Landing Page (@crove/web)..." -ForegroundColor Green
 pnpm --filter @crove/web run build
 if ($LASTEXITCODE -ne 0) { Write-Error "Web Build failed!"; exit 1 }

@@ -51,9 +51,8 @@ The Crove Post CI/CD system provides end-to-end automation: source code verifica
 
 | Script | Path | Purpose |
 | :--- | :--- | :--- |
-| **Deploy Beta** | `scripts/deploy-beta.ps1` | Runs tests, deploys SSO Beta, and outputs container instructions |
-| **Deploy Prod** | `scripts/deploy-prod.ps1` | Runs tests, deploys SSO Prod, and outputs container instructions |
-| **Deploy SSO** | `scripts/deploy-sso.ps1` | Independent SSO deployment with `-Environment beta` or `prod` |
+| **Deploy Beta** | `scripts/deploy-beta.ps1` | Runs Branding Guard, validates beta contract, and outputs container instructions |
+| **Deploy Prod** | `scripts/deploy-prod.ps1` | Runs Branding Guard and outputs container instructions |
 | **Branding Guard** | `scripts/branding-guard.ts` | Comprehensive contract validation suite for runtime branding |
 | **Build All** | `scripts/build-all.ps1` | Full parallel/sequential workspace build verification |
 | **Dev Environment** | `scripts/dev.ps1` | Starts development server on Windows PowerShell |

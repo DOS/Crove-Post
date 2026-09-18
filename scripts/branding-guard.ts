@@ -215,7 +215,7 @@ console.log('=== Running Branding Guard Validations ===\n');
   ];
   // Directories we own and actively edit — leaks here are strict.
   const STRICT_PREFIXES = [
-    'apps/backend/src/', 'apps/frontend/src/', 'apps/crove-sso/',
+    'apps/backend/src/', 'apps/frontend/src/',
     'apps/sdk/',
     'libraries/nestjs-libraries/src/', 'libraries/helpers/src/',
     'libraries/react-shared-libraries/src/',

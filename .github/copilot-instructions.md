@@ -11,7 +11,6 @@
 - `apps/backend`: NestJS REST API Gateway, Controllers, OAuth & Webhook endpoints.
 - `apps/frontend`: Next.js 16 (App Router) + React 19 + Tailwind CSS 3 UI.
 - `apps/orchestrator`: Temporal Worker for scheduled posting workflows and background activities.
-- `apps/crove-sso`: Cloudflare Worker SSO bridge (optional edge fallback).
 - `libraries/nestjs-libraries`: Database layer (Prisma), 34+ Social Providers, Email, Notifications, Mastra MCP Server.
 - `libraries/helpers`: Runtime branding engine, Fetch wrappers, Subdomain management, Auth helper utilities.
 - `libraries/react-shared-libraries`: Reusable React components, translations, UI forms.

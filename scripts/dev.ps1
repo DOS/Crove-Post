@@ -7,7 +7,7 @@
     - App Frontend Dashboard (Port 4200)
     - Backend API & Orchestrator (Port 3000 internal / background)
 .PARAMETER Mode
-    'all' (Full stack: Web + App + Backend), 'web' (Landing Page only), 'app' (App Frontend only), 'sso' (SSO Worker only)
+    'all' (Full stack: Web + App + Backend), 'web' (Landing Page only), 'app' (App Frontend only)
 .EXAMPLE
     .\scripts\dev.ps1 -Mode all
 .EXAMPLE
@@ -17,7 +17,7 @@
 [CmdletBinding()]
 param (
     [Parameter(Position = 0)]
-    [ValidateSet("all", "web", "app", "sso")]
+    [ValidateSet("all", "web", "app")]
     [string]$Mode = "all"
 )
 
@@ -33,10 +33,6 @@ switch ($Mode) {
     "app" {
         Write-Host "Starting App Frontend (apps/frontend)..." -ForegroundColor Green
         pnpm --filter @crove/frontend run dev
-    }
-    "sso" {
-        Write-Host "Starting local SSO Worker..." -ForegroundColor Green
-        pnpm --filter @crove/sso run dev
     }
     "all" {
         Write-Host "Starting Landing Page, Frontend & Backend in parallel..." -ForegroundColor Green

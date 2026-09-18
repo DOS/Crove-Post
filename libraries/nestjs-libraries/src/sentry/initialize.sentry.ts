@@ -63,7 +63,14 @@ export const initializeSentry = (appName: string, allowLogs = false) => {
           recordOutputs: true,
         }),
       ],
-      tracesSampleRate: 1.0,
+      tracesSampler: ({ name, attributes, normalizedRequest, inheritOrSampleWith }) => {
+        const path = String(
+          normalizedRequest?.url || attributes?.['http.target'] || attributes?.['url.path'] || name || ''
+        );
+        return inheritOrSampleWith(
+          path.includes('/public/v1/analytics/') ? 0.01 : 0.2
+        );
+      },
       enableLogs: true,
       // Bootstrap payloads and ticket exchanges must not enter telemetry.
       beforeSend(event) {
@@ -86,8 +93,7 @@ export const initializeSentry = (appName: string, allowLogs = false) => {
       },
 
       // Profiling
-      profileSessionSampleRate:
-        process.env.NODE_ENV === 'development' ? 1.0 : 0.3,
+      profileSessionSampleRate: process.env.NODE_ENV === 'development' ? 1.0 : 0.2,
       profileLifecycle: 'trace',
     });
   } catch (err) {

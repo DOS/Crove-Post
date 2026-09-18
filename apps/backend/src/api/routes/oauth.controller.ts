@@ -28,6 +28,7 @@ import {
 import { TokenExchangeDto } from '@gitroom/nestjs-libraries/dtos/oauth/token-exchange.dto';
 import { RegisterClientDto } from '@gitroom/nestjs-libraries/dtos/oauth/register-client.dto';
 import { RevokeTokenDto } from '@gitroom/nestjs-libraries/dtos/oauth/revoke-token.dto';
+import { extractBasicCredentials } from '@gitroom/nestjs-libraries/chat/oauth-types';
 
 @ApiTags('OAuth')
 @Controller('/oauth')
@@ -65,7 +66,10 @@ export class OAuthController {
   }
 
   @Post('/token')
-  async token(@Body() body: TokenExchangeDto) {
+  async token(
+    @Body() body: TokenExchangeDto,
+    @Headers('authorization') authorization?: string
+  ) {
     if (body.grant_type !== 'authorization_code') {
       throw new HttpException(
         { error: 'unsupported_grant_type' },
@@ -73,10 +77,21 @@ export class OAuthController {
       );
     }
 
+    // client_secret_basic puts the credentials in the Authorization header,
+    // client_secret_post and public clients put them in the body
+    const basic = extractBasicCredentials(authorization);
+    const clientId = basic?.clientId || body.client_id;
+    if (!clientId) {
+      throw new HttpException(
+        { error: 'invalid_client' },
+        HttpStatus.UNAUTHORIZED
+      );
+    }
+
     return this._oauthService.exchangeCodeForToken(
       body.code,
-      body.client_id,
-      body.client_secret,
+      clientId,
+      basic?.clientSecret || body.client_secret,
       body.code_verifier,
       body.redirect_uri
     );

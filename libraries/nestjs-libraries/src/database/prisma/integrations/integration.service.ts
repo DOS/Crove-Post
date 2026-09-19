@@ -21,6 +21,7 @@ import {
   RefreshToken,
 } from '@gitroom/nestjs-libraries/integrations/social.abstract';
 import { IntegrationTimeDto } from '@gitroom/nestjs-libraries/dtos/integrations/integration.time.dto';
+import { isCroveBillingGated } from '@gitroom/nestjs-libraries/dos-billing/crove-billing-gate';
 import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
 import { PlugDto } from '@gitroom/nestjs-libraries/dtos/plugs/plug.dto';
 import { difference, uniq } from 'lodash';
@@ -152,6 +153,10 @@ export class IntegrationService {
 
   getIntegrationsList(org: string) {
     return this._integrationRepository.getIntegrationsList(org);
+  }
+
+  getChannelHealth(org: string, includeDeleted = false) {
+    return this._integrationRepository.getChannelHealth(org, includeDeleted);
   }
 
   getIntegrationForOrder(id: string, order: string, user: string, org: string) {
@@ -369,7 +374,7 @@ export class IntegrationService {
       await this._integrationRepository.getIntegrationsList(org)
     ).filter((f) => !f.disabled);
     if (
-      !!process.env.STRIPE_PUBLISHABLE_KEY &&
+      isCroveBillingGated() &&
       integrations.length >= totalChannels
     ) {
       throw new Error('You have reached the maximum number of channels');

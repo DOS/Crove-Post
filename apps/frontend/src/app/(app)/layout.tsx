@@ -67,7 +67,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           plontoKey={process.env.NEXT_PUBLIC_POLOTNO!}
           stripeClient={process.env.STRIPE_PUBLISHABLE_KEY!}
           isChatBase={!!process.env.CHATBASE_TOKEN}
-          billingEnabled={!!process.env.STRIPE_PUBLISHABLE_KEY}
+          billingEnabled={!!process.env.STRIPE_PUBLISHABLE_KEY || process.env.DOS_SHARED_BILLING === 'true'}
           discordUrl={process.env.NEXT_PUBLIC_DISCORD_SUPPORT!}
           frontEndUrl={process.env.FRONTEND_URL!}
           isGeneral={!!process.env.IS_GENERAL}
@@ -92,6 +92,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           googleAdsId={process.env.NEXT_PUBLIC_GTM_ID}
           googleAdsTrialTracking={process.env.NEXT_PUBLIC_TRACKING_TRIAL}
           language={language}
+          mediaProcessing={
+            process.env.STORAGE_PROVIDER === 'cloudflare' &&
+            !!process.env.RUNPOD_API_KEY &&
+            !!process.env.RUNPOD_ENDPOINT_ID
+          }
           transloadit={
             process.env.TRANSLOADIT_AUTH && process.env.TRANSLOADIT_TEMPLATE
               ? [

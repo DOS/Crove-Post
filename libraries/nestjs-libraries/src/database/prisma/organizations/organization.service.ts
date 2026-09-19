@@ -1,4 +1,5 @@
 import { CreateOrgUserDto } from '@gitroom/nestjs-libraries/dtos/auth/create.org.user.dto';
+import { isCroveBillingGated } from '@gitroom/nestjs-libraries/dos-billing/crove-billing-gate';
 import { HttpException, Injectable } from '@nestjs/common';
 import { OrganizationRepository } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.repository';
 import { NotificationService } from '@gitroom/nestjs-libraries/database/prisma/notifications/notification.service';
@@ -56,12 +57,21 @@ export class OrganizationService {
     return this._organizationRepository.getOrgByIdWithSubscription(id);
   }
 
+  getAccountOverview(orgId: string) {
+    return this._organizationRepository.getAccountOverview(orgId);
+  }
+
   getOrgByApiKey(api: string) {
     return this._organizationRepository.getOrgByApiKey(api);
   }
 
-  async hasSuperAdminUser(orgId: string) {
-    return !!(await this._organizationRepository.getSuperAdminUser(orgId));
+  async canUseSuperAdminApi(orgId: string) {
+    const [superAdmin, privilegedOther] = await Promise.all([
+      this._organizationRepository.getSuperAdminUser(orgId),
+      this._organizationRepository.getPrivilegedNonSuperAdminUser(orgId),
+    ]);
+
+    return !!superAdmin && !privilegedOther;
   }
 
   getUserOrg(id: string) {
@@ -111,7 +121,7 @@ export class OrganizationService {
     const tier =
       // @ts-ignore
       org?.subscription?.subscriptionTier ||
-      (!process.env.STRIPE_PUBLISHABLE_KEY ? 'ULTIMATE' : 'FREE');
+      (!isCroveBillingGated() ? 'ULTIMATE' : 'FREE');
 
     if (!pricing[tier].team_members) {
       throw new HttpException(

@@ -45,10 +45,11 @@ export class OpenaiService {
     segments: { start: number; end: number; text: string }[],
     maxClips: number
   ) {
+    const openai = getOpenAIClient();
     const { clips } = (
       await openai.chat.completions.parse(
         {
-          model: 'gpt-4.1',
+          model: getModel(),
           messages: [
             {
               role: 'system',

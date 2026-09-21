@@ -27,6 +27,9 @@ Last verified: 2026-09-21 (fork `dev` vs `upstream/main`).
 | `.github/workflows/*` | Fork CI (build.yml, sync-upstream.yml, branding-guard.yml, build-containers.yml) | Low (fork-owned workflows) |
 | `.env.example` | Fork env sections (branding, DOS billing, ecosystem, SSO) | Low |
 | `apps/sdk` package naming | `@crove/node` branding | Low |
+| `libraries/nestjs-libraries/src/openai/openai.service.ts` | `pickClips` (sync 2026-09-21) uses the fork `getOpenAIClient()`/`getModel()` pattern so OPENAI_BASE_URL / OPENAI_MODEL_NAME keep working; upstream hardcodes a module-level client and model | Low (file gains upstream methods over time) |
+| `libraries/nestjs-libraries/src/upload/local.storage.ts` | `removeFile` containment guard (path.relative check refusing to unlink outside the upload directory) - CodeQL js/path-injection hardening | Low |
+| `libraries/nestjs-libraries/src/database/prisma/clipping/clipping.service.ts` | Fixed-format failure logging (data passed as arguments, not interpolated) - CodeQL js/tainted-format-string hardening | Low |
 
 ## 3. Planned divergence (accepted, not yet done)
 

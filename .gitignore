@@ -71,3 +71,7 @@ scripts/*.env
 .playwright-mcp/
 .cloudflared/
 
+
+# playwright
+playwright-report/
+test-results/

@@ -33,6 +33,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Beta container recreated with the same immutable image digest; a one-off boot hang after recreate (backend blocked pre-Nest with no network sockets) was cleared by a plain `docker restart`.
 
 ### Added
+- **Prod Compose Phase B Executed on crove-server (2026-09-21, JOY approved)**:
+  - Installed `scripts/docker-compose.prod.yaml` at `/opt/crove` (backups kept), recreated crove-post / crove-redis / cloudflared with the I-B4 image pin + healthcheck; crove-post reports `healthy`.
+  - Adopted the S18 healthchecks across the Temporal stack: temporal, temporal-postgresql and temporal-elasticsearch all report `healthy`; functional proof via tctl after every step.
+  - Rotated `CROVE_TEMPORAL_POSTGRES_PASSWORD` from the well-known dev default to a 32-char random secret (env files + DB role updated together; temporal reconnects with the new password).
+  - Removed the legacy `crove-postgres` and `postiz-redis` containers (prod verified on Supabase + `crove-redis`; volumes retained).
+  - Two evidence-based corrections merged back into `scripts/docker-compose.prod.yaml`: dynamicconfig stays `development-sql.yaml` (the auto-setup image ships no production template and `./dynamicconfig` shadows the image dir), and the temporal healthcheck probes `$(hostname -i)` instead of localhost (the server binds the container IP - localhost probes reported `unhealthy` while the server was fine).
+  - `docs/ops/prod-compose-reconciliation.md` updated from "plan" to "executed" with deviations and residual items (pg_hba trust rows internal-only, `crove_postgres-volume` kept 2 weeks, crove-web dormant).
 - **Frontend Test Track (Minimal Batch)**:
   - Added a vitest + Testing Library baseline for shared form primitives (`vitest.frontend.config.ts`, `tests/frontend/`, `pnpm run test:frontend`, CI step in `build.yml`): 14 tests over Button, Textarea and Checkbox. Frontend previously had zero tests.
   - Added a Playwright smoke E2E harness (`playwright.config.ts`, `tests/e2e/`, `pnpm run test:e2e`): public checks (auth redirect, Crove branding, DOS ID presence, login page) verified against beta; the authenticated compose -> schedule -> calendar flow is scaffolded and activates with `E2E_DOS_EMAIL` / `E2E_DOS_PASSWORD` once a dedicated beta test account exists. Not wired into CI yet.

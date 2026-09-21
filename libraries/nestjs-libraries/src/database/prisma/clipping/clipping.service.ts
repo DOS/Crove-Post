@@ -115,7 +115,7 @@ export class ClippingService {
       try {
         await this.storage.removeFile(key);
       } catch (err) {
-        console.error(`Could not remove clipping file ${key}:`, err);
+        console.error('Could not remove clipping file:', key, err);
       }
     }
   }
@@ -1034,7 +1034,7 @@ export class ClippingService {
     }
 
     if (!customer) {
-      console.error(`Clipping ${clippingId} failed:`, error);
+      console.error('Clipping failed:', clippingId, error);
     }
 
     const keys = this.keys(clippingId);

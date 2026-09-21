@@ -9,6 +9,8 @@ import { runWithContext } from './async.storage';
 import { createOAuthMiddleware } from './oauth-middleware';
 import { getBrandConfig } from '@gitroom/helpers/utils/brand.config';
 import { UPLOAD_WIDGET_URI, uploadWidgetHtml } from '@gitroom/nestjs-libraries/chat/ui/upload.widget';
+import { CLIPPING_WIDGET_URI, clippingWidgetHtml } from '@gitroom/nestjs-libraries/chat/ui/clipping.widget';
+import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
 const fixAcceptHeader = (req: Request) => {
   const value = 'application/json, text/event-stream';
   req.headers.accept = value;
@@ -69,12 +71,25 @@ export const startMcp = async (app: INestApplication) => {
     'crove_post_generate_video',
     'crove_post_generate_video_options',
     'crove_post_video_function',
+    // clipping renders new videos (AI picked cuts, burned-in captions)
+    'clippingTool',
+    'clippingStatusTool',
+    'clippingWidgetTicketTool',
+    'crove_post_clippingTool',
+    'crove_post_clippingStatusTool',
+    'crove_post_clippingWidgetTicketTool',
   ];
   const claudeTools = Object.fromEntries(
     Object.entries(tools).filter(([name]) => !claudeHiddenTools.includes(name))
   ) as typeof tools;
 
   const backendUrl = process.env.NEXT_PUBLIC_OVERRIDE_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
+  // this runs before the backend listens: a bucket url that doesn't parse only
+  // costs the widget its thumbnails, never the boot
+  let storageOrigin: string | undefined;
+  try {
+    storageOrigin = new URL(UploadFactory.createStorage().publicUrl!('')).origin;
+  } catch (err) {}
 
   // MCP Apps widgets (ui:// resources). They run in the host's sandboxed iframe,
   // which can only reach the domains listed in the csp
@@ -90,6 +105,25 @@ export const startMcp = async (app: INestApplication) => {
         prefersBorder: true,
       },
     },
+    ...(UploadFactory.clippingEnabled()
+      ? {
+          [CLIPPING_WIDGET_URI]: {
+            name: 'Video Clipping',
+            description: 'Progress of a video clipping and the clips it made',
+            html: clippingWidgetHtml(backendUrl!),
+            meta: {
+              csp: {
+                connectDomains: [new URL(backendUrl!).origin],
+                // the thumbnails of the clips live wherever the storage serves files
+                ...(storageOrigin ? { resourceDomains: [storageOrigin] } : {}),
+              },
+              // the "Copy link" button of a clip
+              permissions: { clipboardWrite: {} },
+              prefersBorder: true,
+            },
+          },
+        }
+      : {}),
   };
 
   const serverConfig = {
@@ -117,11 +151,14 @@ export const startMcp = async (app: INestApplication) => {
     appResources,
   });
 
+  // a widget of a hidden tool is hidden with it
+  const { [CLIPPING_WIDGET_URI]: hiddenWidget, ...claudeAppResources } = appResources as Record<string, (typeof appResources)[typeof UPLOAD_WIDGET_URI]>;
+
   const claudeOauthServer = new MCPServer({
     name: `${brand.name} MCP`,
     version: '1.0.0',
     tools: claudeTools,
-    appResources,
+    appResources: claudeAppResources,
   });
 
   // Two RFC 8414 path-based issuers backed by the same endpoints and code.

@@ -1,5 +1,7 @@
 # Crove Post Roadmap
 
+> **Current batch (approved 2026-09-21):** the Minimal Batch - foundation safety (upstream sync, eslint 9 CI green, crove-sso leftovers, prod compose drift) and test/docs baseline (Playwright smoke, Vitest baseline, CLAUDE.md corrections, ADR-0001 + fork-delta inventory). Scope and deferrals: `docs/refactor/minimal-batch.md`. UI items below stay deferred until that batch is reviewed on beta.
+
 ## 1. Frontend & UI/UX Modernization (Crove OS Standards)
 
 - [ ] **Design System & Visual Refresh**:

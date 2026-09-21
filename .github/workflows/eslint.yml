@@ -49,7 +49,7 @@ jobs:
 
       - name: Install ESLint SARIF Formatter
         run: |
-          pnpm add -D @microsoft/eslint-formatter-sarif@2.1.7
+          pnpm add -D @microsoft/eslint-formatter-sarif@3.1.0
 
       - name: Run ESLint
         # Transitional: violations are now VISIBLE as a failed step instead of

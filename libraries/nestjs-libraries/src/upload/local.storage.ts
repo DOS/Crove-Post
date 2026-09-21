@@ -1,5 +1,10 @@
 import { IUploadProvider, UploadedStream } from './upload.interface';
 import { createWriteStream, mkdirSync, unlink, writeFileSync } from 'fs';
+import {
+  isAbsolute as isAbsolutePath,
+  relative as relativePath,
+  resolve as resolvePath,
+} from 'path';
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import { isSafePublicHttpsUrl } from '@gitroom/nestjs-libraries/dtos/webhooks/webhook.url.validator';
@@ -140,10 +145,19 @@ export class LocalStorage implements IUploadProvider {
   // Accepts either the public URL or the filesystem path
   async removeFile(filePath: string): Promise<void> {
     const publicPrefix = process.env.FRONTEND_URL + '/uploads';
-    const localPath = filePath.startsWith(publicPrefix)
+    const requested = filePath.startsWith(publicPrefix)
       ? this.uploadDirectory + filePath.slice(publicPrefix.length)
       : filePath;
-    // Logic to remove the file from the filesystem goes here
+    // Containment: whatever form the caller passes (public URL, stored key or
+    // absolute path), never unlink anything outside the upload directory
+    const resolvedRoot = resolvePath(this.uploadDirectory);
+    const localPath = resolvePath(requested);
+    const relativeToRoot = relativePath(resolvedRoot, localPath);
+    if (relativeToRoot.startsWith('..') || isAbsolutePath(relativeToRoot)) {
+      return Promise.reject(
+        new Error('Refusing to remove a file outside the upload directory')
+      );
+    }
     return new Promise((resolve, reject) => {
       unlink(localPath, (err) => {
         if (err) {

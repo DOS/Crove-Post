@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **ESLint Workflow Green via eslint 9 Migration**:
+  - Bumped eslint 8.57 -> ^9 and @typescript-eslint/* 7.18 -> ^8; the ESLint workflow had been red because eslint 8 cannot parse the flat `eslint.config.mjs`, so eslint crashed before producing the SARIF file.
+  - CI SARIF formatter moved to `@microsoft/eslint-formatter-sarif@3.1.0`; dead `.eslintignore` removed (eslint 9 ignores node_modules by default). Flat config unchanged; violations stay visible through the SARIF upload under the transitional `continue-on-error` gate (audit C9).
+
 ### Fixed
 - **Customer-Facing UI, SDK and MCP Announcing Upstream Infrastructure (Upstream Endpoint Leaks)**:
   - Root cause: the Branding Guard scanned only AGPL attribution (repo, image, author), so it reported "0 strict branding leaks" while runtime endpoints still pointed at upstream infrastructure.
@@ -28,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Beta container recreated with the same immutable image digest; a one-off boot hang after recreate (backend blocked pre-Nest with no network sockets) was cleared by a plain `docker restart`.
 
 ### Added
+- **Frontend Test Track (Minimal Batch)**:
+  - Added a vitest + Testing Library baseline for shared form primitives (`vitest.frontend.config.ts`, `tests/frontend/`, `pnpm run test:frontend`, CI step in `build.yml`): 14 tests over Button, Textarea and Checkbox. Frontend previously had zero tests.
+  - Added a Playwright smoke E2E harness (`playwright.config.ts`, `tests/e2e/`, `pnpm run test:e2e`): public checks (auth redirect, Crove branding, DOS ID presence, login page) verified against beta; the authenticated compose -> schedule -> calendar flow is scaffolded and activates with `E2E_DOS_EMAIL` / `E2E_DOS_PASSWORD` once a dedicated beta test account exists. Not wired into CI yet.
+  - Added `docs/ops/prod-compose-reconciliation.md` cataloging the prod compose drift on `crove-server` (repo audit hardening vs the older VM deploy copy, legacy `crove-postgres` / `postiz-redis` remnants) and the ordered maintenance-window plan.
 - **Refactor Documentation Suite (Minimal Batch)**:
   - Added `docs/adr/0001-upstream-sync-and-fork-delta.md` recording the verified upstream-sync policy: the pnpm/App Router/SWR+Zustand structure originated upstream (commit `4ba51565` is contained in `upstream/main`), so the daily sync corridor stays open for both backend and frontend.
   - Added `docs/fork-delta.md` inventorying every deliberate fork divergence (owned paths, diverging shared files, planned divergence, frozen contracts).

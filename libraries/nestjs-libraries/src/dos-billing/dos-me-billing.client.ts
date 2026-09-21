@@ -104,6 +104,18 @@ export class DosMeBillingClient {
       err.body = body;
       throw err;
     }
+    // dos.me wraps every success payload in { success: true, data: ... } —
+    // unwrap once so callers see the endpoint shape directly.
+    if (
+      body &&
+      typeof body === 'object' &&
+      'success' in body &&
+      'data' in body &&
+      body.data !== null &&
+      typeof body.data === 'object'
+    ) {
+      return body.data as T;
+    }
     return body as T;
   }
 }

@@ -64,7 +64,9 @@ describe('Textarea', () => {
     expect(screen.getByText('Required field')).toBeTruthy();
   });
 
-  it('does not register with the form in disableForm mode', () => {
+  it('accepts typed input without a form provider (disableForm)', () => {
+    // disableForm skips react-hook-form registration entirely, so the bare
+    // component must still behave as a plain controlled-by-DOM textarea
     render(<Textarea label="Biography" name="bio" disableForm />);
     const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: 'free text' } });

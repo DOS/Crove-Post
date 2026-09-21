@@ -29,13 +29,12 @@ describe('Checkbox', () => {
     });
   });
 
-  it('reflects the checked prop', () => {
-    const { container } = render(
-      <Checkbox label="Enabled" disableForm checked />
+  it('renders the checkmark only when checked', () => {
+    const { container, rerender } = render(
+      <Checkbox label="Enabled" disableForm checked={false} />
     );
-    // the outer div carries the component classes; the check visual state is
-    // derived from checked - just assert the structure rendered
-    expect(container.querySelector('div')).toBeTruthy();
-    expect(screen.getByText('Enabled')).toBeTruthy();
+    expect(container.querySelector('svg')).toBeNull();
+    rerender(<Checkbox label="Enabled" disableForm checked />);
+    expect(container.querySelector('svg')).toBeTruthy();
   });
 });

@@ -45,4 +45,4 @@ Merge conflicts only arise when we edit files upstream also edits. Work that onl
 - `git branch -r --contains 4ba51565` includes `upstream/main`: the pnpm restructure originated upstream.
 - `git show upstream/main:package.json`: `swr 2.2.5`, `zustand 5.0.5`, `next 16.3.1`, `react 19.2.4`, no Redux.
 - `git ls-tree`-style check: `libraries/frontend-library` does not exist on `upstream/main`; `apps/frontend/package.json` does.
-- Upstream commits per month (git log count): 2025-12: 75, 2026-01: 122, 2026-02: 98, 2026-03: 105, 2026-04: 80, 2026-05: 89, 2026-06: 68, 2026-07: 99, 2026-08: 121, 2026-09 (through the 20th): 103.
+- Upstream commits per month (git log count, approximate - exact counts shift with the moment of measurement): 2025-12: 75, 2026-01: 122, 2026-02: 98, 2026-03: 105, 2026-04: 80, 2026-05: 89, 2026-06: 68, 2026-07: 99, 2026-08: ~119-121, 2026-09 (first three weeks): ~103-109.

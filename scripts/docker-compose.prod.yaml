@@ -1,6 +1,12 @@
 # ==============================================================================
 # CROVE PRODUCTION DOCKER COMPOSE STACK (scripts/docker-compose.prod.yaml)
 # Hosts: post.crove.com (App), crove.com & www.crove.com (Landing Page)
+#
+# Deployment notes (validated live 2026-09-21):
+# - Compose interpolation (e.g. CROVE_TEMPORAL_POSTGRES_PASSWORD) reads
+#   /opt/crove/.env on the VM - keep that file in sync with crove-server.env.
+#   The env_file: block below only feeds container env, not interpolation.
+# - Run compose from /opt/crove so the relative env_file path resolves.
 # ==============================================================================
 
 services:
@@ -48,10 +54,12 @@ services:
 
   crove-web:
     # NOTE (audit I-B6/I-E4): CI does not build this image (build-containers.yml
-    # only builds crove-post) and no crove-web container runs on the VM — the
-    # production landing page is served by Vercel (apps/web, vercel.json).
-    # Keep this service only if the crove.com tunnel route is actually used;
-    # verify DNS before deleting. Set CROVE_WEB_IMAGE to pin a tag.
+    # only builds crove-post), ghcr.io/dos/crove-web does not exist, and no
+    # crove-web container runs on the VM - the production landing page is
+    # served by Vercel (apps/web, vercel.json). CONFIRMED 2026-09-21: a
+    # `docker compose up` that includes this service fails the whole group on
+    # the missing image. Exclude crove-web from `up` invocations; do not
+    # delete the service definition without re-verifying the DNS routing.
     image: ${CROVE_WEB_IMAGE:-ghcr.io/dos/crove-web:latest}
     container_name: crove-web
     restart: always
@@ -106,8 +114,11 @@ services:
     # below turn a silent wedge into a detected, restarted failure.
     healthcheck:
       test:
+        # Temporal binds its services to the container IP, not localhost, so
+        # the probe must target the container address. $$ escapes compose
+        # interpolation; the shell inside the container expands the rest.
         - CMD-SHELL
-        - 'bash -c "</dev/tcp/localhost/7233" || exit 1'
+        - 'bash -c "</dev/tcp/$$(hostname -i)/7233" || exit 1'
       interval: 30s
       timeout: 10s
       retries: 5
@@ -121,7 +132,10 @@ services:
       # Must match the password set on the temporal-postgresql service above.
       - POSTGRES_PWD=${CROVE_TEMPORAL_POSTGRES_PASSWORD:?CROVE_TEMPORAL_POSTGRES_PASSWORD is required}
       - POSTGRES_SEEDS=temporal-postgresql
-      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/production-sql.yaml
+      # The auto-setup image ships only development-sql.yaml / development-cass.yaml
+      # (verified 2026-09-21); there is no production-sql template, and the
+      # ./dynamicconfig mount shadows the image dir anyway.
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
       - ENABLE_ES=true
       - ES_SEEDS=temporal-elasticsearch
       - ES_VERSION=v7

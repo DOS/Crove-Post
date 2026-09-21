@@ -34,6 +34,7 @@
     "start:prod:web": "pnpm --filter ./apps/web run start",
     "dev:docker": "docker compose -f ./docker-compose.dev.yaml up -d",
     "validate:beta-deploy": "node scripts/validate-beta-compose.mjs",
+    "test:frontend": "vitest run --config vitest.frontend.config.ts",
     "commands:build:development": "pnpm --filter ./apps/commands run build",
     "prisma-generate": "pnpm exec prisma generate --schema ./libraries/nestjs-libraries/src/database/prisma/schema.prisma",
     "prisma-db-push": "pnpm exec prisma db push --accept-data-loss --schema ./libraries/nestjs-libraries/src/database/prisma/schema.prisma",

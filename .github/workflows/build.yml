@@ -90,5 +90,8 @@ jobs:
         # known ids, so they must not run concurrently against each other.
         run: pnpm exec jest --config tests/bootstrap.jest.cjs --ci --passWithNoTests --runInBand
 
+      - name: Test frontend primitives (vitest)
+        run: pnpm run test:frontend
+
       - name: Build applications
         run: pnpm run build

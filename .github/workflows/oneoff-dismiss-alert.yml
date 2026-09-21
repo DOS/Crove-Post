@@ -17,6 +17,14 @@ jobs:
   dismiss:
     runs-on: ubuntu-latest
     steps:
+      - name: Debug - GET the alert as GITHUB_TOKEN
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "=== GET alert 1567 ==="
+          gh api repos/DOS/Crove-Post/code-scanning/alerts/1567 2>&1 | head -30 || true
+          echo "=== GET open alerts on dev ==="
+          gh api "repos/DOS/Crove-Post/code-scanning/alerts?ref=dev&state=open" --jq '.[] | {number: .number, rule: .rule.id, url: .html_url}' 2>&1 | head -10 || true
       - name: Dismiss alert
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

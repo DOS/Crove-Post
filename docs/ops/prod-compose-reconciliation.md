@@ -31,10 +31,10 @@ still defines services the source of record dropped.
 
 ### Completed (Phase A - zero runtime impact)
 
-1. Added `CROVE_TEMPORAL_POSTGRES_PASSWORD=temporal` to
-   `/opt/crove/crove-server.env` - matches the password temporal-postgresql was
-   initialized with, so the repo file becomes interpolable without changing any
-   runtime state. Comment marks it for rotation in the window.
+1. Added `CROVE_TEMPORAL_POSTGRES_PASSWORD` to `/opt/crove/crove-server.env`,
+   set to the same value temporal-postgresql was initialized with, so the repo
+   file becomes interpolable without changing any runtime state. Comment marks
+   it for rotation in the window.
 
 ## Reconciliation window (Phase B - needs a maintenance slot)
 
@@ -49,9 +49,10 @@ Order matters; each step is a separate rollback point.
    adopt the three S18 healthchecks. Restart order: temporal-postgresql ->
    temporal-elasticsearch -> temporal -> temporal-ui/admin-tools. Verify a test
    workflow executes (schedule a post on beta, which shares this cluster).
-4. Rotate `CROVE_TEMPORAL_POSTGRES_PASSWORD` (current value is the well-known
-   dev default `temporal`): update the env file, reset the temporal user's
-   password inside temporal-postgresql, then recreate the temporal services.
+4. Rotate `CROVE_TEMPORAL_POSTGRES_PASSWORD` (the running value is the
+   well-known Temporal dev default, deliberately not written here): update the
+   env file, reset the temporal user's password inside temporal-postgresql,
+   then recreate the temporal services.
 5. Retire legacy: confirm nothing connects to the local `crove-postgres`
    (app DB is Supabase) and nothing uses `postiz-redis`, then
    `docker compose rm`/`down` them and delete `postgres-volume` after a

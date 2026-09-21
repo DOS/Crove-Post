@@ -1,48 +1,31 @@
-This project is Postiz, a tool to schedule social media and chat posts to 28+ channels.
+This project is **Crove Post** (`@crove/*`), a fork of [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0) that schedules social media posts to 37 channels.
 You can add posts to the calendar, they will be added into a workflow and posted at the right time.
-You can find things like:
-- Schedule posts
-- Calendar view
-- Analytics
-- Team management
-- Media library
 
-This project is a monorepo with a root only package.json of dependencies.
-Made with PNPM.
-We have 3 important folders
+Fork-specific surfaces (not in upstream): DOS ID SSO (`api.dos.me`), DOS shared billing (`libraries/nestjs-libraries/src/dos-billing`), runtime branding engine (`libraries/helpers/src/utils/brand.config.ts` + `scripts/branding-guard.ts`), DOS ecosystem sync / first-party bootstrap (`apps/backend/src/ecosystem`), and the `apps/web` marketing site. Everything else intentionally tracks upstream. See `docs/adr/0001-upstream-sync-and-fork-delta.md` and `docs/fork-delta.md`.
 
-- apps/backend - this is where the API code is (NESTJS)
-- apps/orchestrator - this is temporal, it's for background jobs (NESTJS) it contains all the workflows and activities
-- apps/frontend - this is the code of the frontend (Vite ReactJS)
-- /libraries contains a lot of services shared between backend and orchestrator and frontend components.
-
-We are using only pnpm, don't use any other dependency manager.
+This project is a monorepo with a root-only package.json of dependencies.
+Made with PNPM. We are using only pnpm, don't use any other dependency manager.
 Never install frontend components from npmjs, focus on writing native components.
 
-The project uses tailwind 3, before writing any component look at:
-- /apps/frontend/src/app/colors.scss
-- /apps/frontend/src/app/global.scss
-- /apps/frontend/tailwind.config.js
+## Layout
 
-All the --color-custom* are deprecated, don't use them.
+- apps/backend - NestJS API. Controllers are thin; most logic lives in libraries.
+- apps/orchestrator - NestJS Temporal worker: workflows, activities, signals.
+- apps/frontend - Next.js 16 App Router dashboard (React 19, port 4200). This is Next.js, not Vite.
+- apps/web - fork-owned Next.js marketing site.
+- apps/extension - Chrome MV3 extension (Vite + crxjs).
+- apps/sdk - published public SDK (`@crove/node`, built with tsup).
+- apps/commands - NestJS CLI commands.
+- libraries/nestjs-libraries - shared backend services: database (Prisma), integrations, uploads, billing, dos-billing, ecosystem, temporal, chat/MCP.
+- libraries/react-shared-libraries - shared frontend primitives: form controls, toaster, translation.
+- libraries/helpers - shared utils (`custom.fetch`, `brand.config`, `ecosystem.config`).
 
-And check other components in the system before to get the right design.
+## Frontend
 
-When working on the backend we need to pass the 3 layers:
-DTO >> Controller >> Service >> Repository (no shortcuts)
-In some cases we will have
-DTO >> Controller >> Manager >> Service >> Repository.
+- Routing lives in `/apps/frontend/src/app` with route groups `(app)`, `(extension)`, `(provider)`.
+- Always use SWR to fetch stuff, and use the "useFetch" hook from `/libraries/helpers/src/utils/custom.fetch.tsx`.
 
-Most of the server logic should be inside of libs/server.
-The backend repository is mostly used to write controller, and import files from libs.server.
-
-For the frontend follow this:
-- Many of the UI components lives in /apps/frontend/src/components/ui
-- Routing is in /apps/frontend/src/app
-- Components are in /apps/frontend/src/components
-- always use SWR to fetch stuff, and use "useFetch" hook from /libraries/helpers/src/utils/custom.fetch.tsx
-
-When using SWR, each one have to be in a separate hook and must comply with react-hooks/rules-of-hooks, never put eslint-disable-next-line on it.
+When using SWR, each one has to be in a separate hook and must comply with react-hooks/rules-of-hooks, never put eslint-disable-next-line on it.
 
 It means that this is valid:
 const useCommunity = () => {
@@ -57,10 +40,42 @@ const useCommunity = () => {
   };
 }
 
-- Linting of the project can run only from the root.
-- Use only pnpm.
-- Never use RAW SQL queries, always use Prisma.
-- The system is in production with many users, if you want to change something, you need to be sure that you are not breaking anything for existing users and a migration might be needed
+- Client state uses Zustand (composer store, modal manager, timezone store). There is no Redux.
+- Styling is Tailwind 3 + SCSS tokens. Before writing any component look at:
+  - `/apps/frontend/src/app/colors.scss`
+  - `/apps/frontend/src/app/global.scss`
+  - `/apps/frontend/tailwind.config.cjs` (note: `.cjs`)
+
+All the --color-custom* are deprecated, don't use them; use the `--new-*` tokens. The design language is documented in `DESIGN.md`.
+`/apps/frontend/src/app/polonto.css` is vendored Polotno/Blueprint CSS, do not hand-edit it.
+
+- Most UI is in `/apps/frontend/src/components`: `new-launch` (post composer), `launches` (planner/calendar), `layout` (app shell), `billing` (DOS shared billing), `agents` (CopilotKit chat), `media` (Polotno editor), `public-api`, `settings`, `auth`.
+- `/apps/frontend/src/components/ui` is nearly empty. Shared form primitives live in `/libraries/react-shared-libraries/src/form`.
+- Backend DTOs are reused in forms via `classValidatorResolver` (intentional coupling, keep it).
+
+## Backend
+
+When working on the backend we need to pass the 3 layers:
+DTO >> Controller >> Service >> Repository (no shortcuts)
+In some cases we will have
+DTO >> Controller >> Manager >> Service >> Repository.
+
+Most of the server logic lives in `/libraries/nestjs-libraries`.
+The backend app is mostly used to write controllers and import from the libraries.
+
+- Never use RAW SQL queries, always use Prisma (schema at `/libraries/nestjs-libraries/src/database/prisma/schema.prisma`).
+- The database is PostgreSQL on Supabase with PgBouncer; the Prisma datasource uses `directUrl` for migrations.
+- Publishing pipeline: `PostsService` starts a Temporal workflow (`postWorkflowV*`); workers run in `apps/orchestrator` with one activity worker per provider task queue.
+- Code must always be generic: provider-specific logic only inside the provider file in `/libraries/nestjs-libraries/src/integrations/social`. Extend the provider interface and call it generically; never write `if (facebookProvider) {}` inside a generic file.
+
+## Temporal rules (load-bearing)
+
+- Workflow files that are already in origin/main can never be changed in place, because changing a workflow fails all its activities. Instead create a new workflow with the version, and everywhere the workflow is being called, change it to the new workflow version.
+- Workflow activity parameters cannot be changed, as it will break the workflow. If we need to change the parameters, create a new activity with the new parameters, and then create a new workflow that uses the new activity.
+
+## Working rules
+
+- The system is in production with many users: make sure changes do not break anything for existing users, and a migration might be needed.
 - Whenever you generate a PR, PR description, or similar, **always** follow the PR Template (.github/PULL_REQUEST_TEMPLATE.md)
 - Every PR description **must** contain a `# QA` section with real, numbered steps a reviewer can follow to verify the change (setup, action, expected result), written so they can be run without asking the author anything. This is not optional and applies to humans and agents alike, including one-line fixes. The section is extracted verbatim and shown on the review board, so:
   - Use the exact heading `# QA` (`# Testing`, `# Test plan`, `# How to test`, `# How to verify`, `# Verification`, `# Steps to test` and `# Manual testing` are also recognised, but prefer `# QA`). The whole heading must match, so something like `## Testing philosophy` is not picked up.
@@ -70,6 +85,6 @@ const useCommunity = () => {
 - Avoid as much as possible creating new files with pure logic of algorithms, it's usually wrong
 - When you write code, make sure that what you add looks like something similar somewhere else in the code, don't make weird patterns
 - When you finished running, run another agents that matches the new code with the existing system code, to see that it looks similar and is not a weird pattern.
-- Workflows files can never be changed if they are already in origin/main, because changing a workflow will fail all its activities, instead create a new workflow with the version, and everywhere the workflow being called, change it to the new workflow version.
-- Workflows activities parameters cannot be changed, as it will break the workflow, if we need to change the parameters, if we need to change the parameters, we need to create a new activity with the new parameters, and then create a new workflow that uses the new activity.
-- Code must always be generic, there can't be a way that a specific logic, let's say facebook or instagram, appear in a file that use a generic logic, instead, we need to edit the interface of the provider, add another function, and then generically call it from the generic code, and then implement the specific logic in the provider implementation. we can't have something like if(facebookProvider) {} inside a non facebook provider file. 
+- Linting of the project can run only from the root.
+- Use only pnpm.
+- Branding guard (`scripts/branding-guard.ts`, enforced in CI) blocks reintroducing upstream endpoints or branding; use `branding-guard-allow:` comments only for deliberate references.

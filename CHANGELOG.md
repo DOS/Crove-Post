@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Beta container recreated with the same immutable image digest; a one-off boot hang after recreate (backend blocked pre-Nest with no network sockets) was cleared by a plain `docker restart`.
 
 ### Added
+- **Refactor Documentation Suite (Minimal Batch)**:
+  - Added `docs/adr/0001-upstream-sync-and-fork-delta.md` recording the verified upstream-sync policy: the pnpm/App Router/SWR+Zustand structure originated upstream (commit `4ba51565` is contained in `upstream/main`), so the daily sync corridor stays open for both backend and frontend.
+  - Added `docs/fork-delta.md` inventorying every deliberate fork divergence (owned paths, diverging shared files, planned divergence, frozen contracts).
+  - Added `docs/refactor/minimal-batch.md` (approved 2026-09-21) plus its Vietnamese dark-theme reading copy `docs/refactor/minimal-batch-vi.html`: foundation safety (upstream sync, eslint 9 CI green, crove-sso leftovers, prod compose drift) and test/docs baseline (Playwright smoke, Vitest baseline, CLAUDE.md corrections).
 - **MCP Client Icons & Onboarding Enhancements (Upstream Sync)**:
   - Added Nanoclaw and other third-party MCP client icons support in Public API.
   - Upgraded onboarding experience and interactive modal walkthroughs.

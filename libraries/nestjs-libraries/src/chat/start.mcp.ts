@@ -75,9 +75,6 @@ export const startMcp = async (app: INestApplication) => {
     'clippingTool',
     'clippingStatusTool',
     'clippingWidgetTicketTool',
-    'crove_post_clippingTool',
-    'crove_post_clippingStatusTool',
-    'crove_post_clippingWidgetTicketTool',
   ];
   const claudeTools = Object.fromEntries(
     Object.entries(tools).filter(([name]) => !claudeHiddenTools.includes(name))

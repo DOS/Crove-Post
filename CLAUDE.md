@@ -1,4 +1,4 @@
-This project is **Crove Post** (`@crove/*`), a fork of [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0) that schedules social media posts through 36 provider integrations (see `libraries/nestjs-libraries/src/integrations/integration.manager.ts`).
+This project is **Crove Post** (`@crove/*`), a fork of [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0) that schedules social media posts through 35 provider integrations (see `libraries/nestjs-libraries/src/integrations/integration.manager.ts`).
 You can add posts to the calendar, they will be added into a workflow and posted at the right time.
 
 Fork-specific surfaces (not in upstream): DOS ID SSO (`api.dos.me`), DOS shared billing (`libraries/nestjs-libraries/src/dos-billing`), runtime branding engine (`libraries/helpers/src/utils/brand.config.ts` + `scripts/branding-guard.ts`), DOS ecosystem sync / first-party bootstrap (`apps/backend/src/ecosystem`), and the `apps/web` marketing site. Everything else intentionally tracks upstream. See `docs/adr/0001-upstream-sync-and-fork-delta.md` and `docs/fork-delta.md`.

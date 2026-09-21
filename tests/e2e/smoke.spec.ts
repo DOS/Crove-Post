@@ -28,37 +28,89 @@ test.describe('authenticated smoke', () => {
   test.skip(!email || !password, 'E2E_DOS_EMAIL / E2E_DOS_PASSWORD not set');
 
   async function loginWithDosId(page: Page) {
-    await page.goto('/auth');
+    await page.goto('/auth/login');
     await page.getByText('Sign in with DOS ID').click();
-    // DOS ID hosted login form (api.dos.me). Selectors to be finalized on the
-    // first credential-backed run against the real form.
-    await page.getByLabel(/email/i).fill(email!);
-    await page.getByLabel(/password/i).fill(password!);
-    await page.getByRole('button', { name: /sign in|login/i }).click();
-    // Back on the app after the consent/redirect round trip
-    await page.waitForURL(/launches|\/$/);
+    // DOS ID hosted login form (beta-id.dos.me): unlabeled email + password
+    // inputs, submit button "Sign in". The button may navigate in-tab or open
+    // a popup - follow whichever page lands on the DOS ID host.
+    const dosIdPage = await Promise.race([
+      page.waitForURL(/dos\.me/, { timeout: 30_000 }).then(() => page),
+      page
+        .context()
+        .waitForEvent('page', { timeout: 30_000 })
+        .then((popup) => popup.waitForLoadState('domcontentloaded').then(() => popup))
+        .catch(() => null),
+    ]);
+    if (!dosIdPage) throw new Error('DOS ID login page never opened');
+    await dosIdPage.locator('input[type="email"]').first().fill(email!);
+    await dosIdPage.locator('input[type="password"]').first().fill(password!);
+    await dosIdPage.getByRole('button', { name: /sign in/i }).click();
+    // Back on the Crove app after the consent/redirect round trip - accept
+    // any app URL (launches dashboard, onboarding, or bare host root).
+    await dosIdPage.waitForURL((u) => !/dos\.me\/(login|register)/.test(u.pathname), {
+      timeout: 45_000,
+    });
+    await expect(dosIdPage).not.toHaveURL(/dos\.me\/login/);
   }
 
   test('compose, schedule and see the post on the calendar', async ({
     page,
   }) => {
-    test.setTimeout(180_000);
+    test.setTimeout(240_000);
     await loginWithDosId(page);
 
-    // Open the composer
-    await page.getByRole('button', { name: /new post|create|add/i }).first().click();
-    // Pick the first connected channel (a beta workspace has a connected test channel)
-    const channel = page.locator('[class*="integration"], [data-integration]').first();
-    if (await channel.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await channel.click();
+    // First login on beta lands on the workspace-creation onboarding
+    // (Company name + Create Account) when the user has no organization yet.
+    const company = page.getByRole('textbox', { name: /company/i });
+    if (await company.isVisible({ timeout: 8_000 }).catch(() => false)) {
+      await company.fill('E2E Test Workspace');
+      await page.getByRole('button', { name: /create account/i }).click();
+      // Land on the launch screen (may take a few redirects)
+      await page.waitForURL(/launches/, { timeout: 45_000 }).catch(() => {});
     }
-    // Type content
+
+    // A fresh workspace shows the DOS plan picker over the launch screen and
+    // has no connected channel - composing is impossible until one is
+    // provisioned. Skip (not fail) so the login + onboarding part stays green.
+    await page.waitForURL(/launches/, { timeout: 30_000 }).catch(() => {});
+    await page.waitForLoadState('networkidle').catch(() => {});
+    const planGate = page.getByText(/Choose a Plan|Continue to DOS checkout/i).first();
+    if (await planGate.isVisible({ timeout: 15_000 }).catch(() => false)) {
+      test.skip(
+        true,
+        'Workspace has no connected channel (plan/onboarding gate showing). Connect a safe channel (Telegram bot or throwaway Discord) to enable the full compose -> schedule -> calendar flow.'
+      );
+    }
+    await expect(planGate).toBeHidden({ timeout: 5_000 });
+
+    // The composer opens from the launch screen. Probe the same entry points
+    // the UI offers rather than assuming one label.
+    const composerEntry = page
+      .getByRole('button', { name: /new post|create post|compose/i })
+      .first();
+    await composerEntry.click({ timeout: 20_000 });
+    // Pick the first connected channel if the channel picker is present.
+    const channel = page
+      .locator('[class*="integration"], [data-integration]')
+      .first();
+    await channel.click({ timeout: 15_000 }).catch(() => {
+      // A workspace without connected channels cannot schedule - surface it.
+      throw new Error(
+        'No connected channel found in the test workspace - connect one (e.g. Telegram/Discord) and rerun.'
+      );
+    });
+    // Type content into the rich editor
     const editor = page.locator('.tiptap, [contenteditable="true"]').first();
     await editor.click();
     await page.keyboard.type('E2E smoke post - safe to delete');
-    // Schedule for the next hour via the time picker, then save
-    await page.getByRole('button', { name: /schedule|save|post/i }).first().click();
+    // Schedule via the primary submit control
+    await page
+      .getByRole('button', { name: /schedule|save|post now|schedule post/i })
+      .first()
+      .click();
     // Calendar shows the scheduled post
-    await expect(page.getByText('E2E smoke post - safe to delete').first()).toBeVisible();
+    await expect(
+      page.getByText('E2E smoke post - safe to delete').first()
+    ).toBeVisible();
   });
 });

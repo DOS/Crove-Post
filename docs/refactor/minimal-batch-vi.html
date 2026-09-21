@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<title>Crove Post - Kế hoạch Minimal Batch (2026-09-21)</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0f1113;
+    color: #e6e8ea;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    line-height: 1.7;
+    padding: 40px 20px 80px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 1.9rem; color: #fff; letter-spacing: -0.02em; margin-bottom: 6px; }
+  h1 .accent { color: #FF2E29; }
+  .meta { color: #9aa0a6; font-size: 0.92rem; margin-bottom: 32px; }
+  h2 {
+    font-size: 1.25rem; color: #fff; margin: 36px 0 14px;
+    padding-bottom: 8px; border-bottom: 1px solid #26292d;
+  }
+  h2::before { content: "// "; color: #FF2E29; font-weight: 700; }
+  h3 { font-size: 1.05rem; color: #f2b8b5; margin: 22px 0 10px; }
+  p { margin-bottom: 12px; }
+  ul, ol { margin: 0 0 14px 22px; }
+  li { margin-bottom: 6px; }
+  strong { color: #fff; }
+  code {
+    background: #1a1d20; border: 1px solid #2a2d31; border-radius: 4px;
+    padding: 1px 6px; font-size: 0.88em; color: #ffb3b0;
+    font-family: Consolas, monospace;
+  }
+  table { width: 100%; border-collapse: collapse; margin: 14px 0 20px; font-size: 0.93rem; }
+  th, td { text-align: left; padding: 9px 12px; border: 1px solid #26292d; vertical-align: top; }
+  th { background: #17191c; color: #fff; font-weight: 600; }
+  tr:nth-child(even) td { background: #131518; }
+  .ok { color: #34d399; font-weight: 600; }
+  .no { color: #FF2E29; font-weight: 600; }
+  .card {
+    background: #15171a; border: 1px solid #26292d; border-left: 3px solid #FF2E29;
+    border-radius: 8px; padding: 16px 20px; margin: 18px 0;
+  }
+  .footer { margin-top: 48px; color: #6b7075; font-size: 0.85rem; border-top: 1px solid #26292d; padding-top: 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Crove Post <span class="accent">Minimal Batch</span></h1>
+<p class="meta">Kế hoạch đã duyệt ngày 21/09/2026 - lợi ích lớn nhất, xung đột upstream nhỏ nhất. Bản gốc tiếng Anh nằm trong repo: <code>docs/refactor/minimal-batch.md</code></p>
+
+<div class="card">
+  <strong>Nguyên tắc chọn việc:</strong> xung đột merge chỉ phát sinh khi sửa file mà upstream cũng đang sửa. Việc chỉ <strong>thêm file mới</strong> (test, docs, CI, loading/error routes) thì conflict bằng 0. Hai file upstream "churn" mạnh nhất (<code>calendar.tsx</code> và thư mục composer) bị loại khỏi batch này một cách cố ý.
+</div>
+
+<h2>Sự thật đã kiểm chứng bằng git (đính chính so với lần báo trước)</h2>
+<p>Trước đó tao (agent) nói "fork viết lại frontend, upstream vẫn Nx + Redux" - <strong>sai</strong>. Bằng chứng git:</p>
+<ul>
+  <li>Commit <code>4ba51565 "feat: move to pnpm"</code> (06/05/2025) nằm trong <code>upstream/main</code> - chính upstream Postiz tự chuyển pnpm, tự bỏ Redux, tự lên SWR + Zustand + Next 16 App Router.</li>
+  <li>Fork chỉ <strong>thêm lớp của mình</strong>: DOS ID/SSO, DOS billing, branding engine, ecosystem sync, trang web marketing. Phần còn lại giữ y chang upstream - đúng như JOY nhớ.</li>
+  <li>Upstream chạy đều ~3-4 commit/ngày quanh năm (12/2025: 75, 01/2026: 122, 08/2026: 121...). <strong>Không có mùa yên để chờ</strong> - nên làm ngay.</li>
+</ul>
+
+<h2>Việc sẽ làm</h2>
+
+<h3>1. Nền an toàn (~2 ngày agent)</h3>
+<ol>
+  <li>Chạy sync upstream mới nhất, merge PR sync về <code>dev</code>.</li>
+  <li>Nâng eslint 9 + typescript-eslint 8 để CI lint <strong>xanh</strong> (hiện đang đỏ vì eslint 8 không đọc được flat config).</li>
+  <li>Dọn rác <code>apps/crove-sso</code> còn sót trên máy (build artifact đã bị xóa khỏi git).</li>
+  <li>Canh chỉnh compose drift trên VM prod crove-server (việc vận hành, không đụng repo).</li>
+</ol>
+
+<h3>2. Test + docs nền tảng (~2 ngày agent)</h3>
+<ol>
+  <li>Playwright smoke e2e một flow chính: đăng nhập → soạn post → lên lịch → thấy trên calendar (chạy trên beta).</li>
+  <li>Vitest + Testing Library cho 2-3 form primitives quan trọng nhất.</li>
+  <li>Sửa CLAUDE.md (đang ghi sai "Vite ReactJS", sai tên file config) + thêm map kiến trúc frontend.</li>
+  <li>ADR-0001: chính sách sync upstream + <code>docs/fork-delta.md</code> liệt kê mọi chỗ fork lệch upstream.</li>
+  <li>Docs kế hoạch: bản EN trong repo + bản HTML này.</li>
+</ol>
+
+<h2>Cố tình KHÔNG làm trong batch này</h2>
+<table>
+  <tr><th>Việc hoãn</th><th>Khi nào đánh lại</th></tr>
+  <tr><td>Rebuild composer split-view + calendar (@dnd-kit, TanStack Query)</td><td>Sau batch này, dựa trên UX thật trên beta</td></tr>
+  <tr><td>Gộp token màu + purge polonto.css 16.5k dòng</td><td>Batch riêng, chấp nhận xung đột rộng</td></tr>
+  <tr><td>Tailwind v4, Radix UI kit, Recharts</td><td>Khi có module rebuild thật sự cần</td></tr>
+  <tr><td>Gỡ Mantine 5 (còn 9 file)</td><td>Khi rebuild shell/composer</td></tr>
+</table>
+
+<h2>Cam kết</h2>
+<ul>
+  <li><span class="ok">Không chặn</span> UAT DOS billing đang chờ trên prod - batch không đụng billing/auth.</li>
+  <li>Mỗi việc 1 PR nhỏ: agent review → deploy beta → Playwright smoke → merge → JOY UAT.</li>
+  <li>Ước lượng tổng: ~5-8 ngày agent, khoảng 1.5-2 tuần lịch.</li>
+</ul>
+
+<div class="footer">
+  Crove Post (fork của Postiz) - tài liệu nội bộ cho JOY. Sinh ngày 21/09/2026. Bản gốc tiếng Anh: <code>docs/refactor/minimal-batch.md</code>
+</div>
+
+</div>
+</body>
+</html>

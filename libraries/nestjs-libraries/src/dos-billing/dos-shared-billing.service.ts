@@ -1,5 +1,6 @@
 import { HttpException, Injectable, Logger } from '@nestjs/common';
-import { Provider, User } from '@prisma/client';
+import { Provider, Role, User } from '@prisma/client';
+import { OrganizationRepository } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.repository';
 import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
 import { isDosSharedBillingEnabled } from './crove-billing-gate';
 import { DosMeBillingClient } from './dos-me-billing.client';
@@ -16,7 +17,8 @@ export class DosSharedBillingService {
 
   constructor(
     private readonly client: DosMeBillingClient,
-    private readonly subscriptions: SubscriptionService
+    private readonly subscriptions: SubscriptionService,
+    private readonly organizations: OrganizationRepository
   ) {}
 
   enabled() {
@@ -40,6 +42,21 @@ export class DosSharedBillingService {
         `DOS shared billing is on but user ${user.id} has no DOS UUID providerId`
       );
       return mapDosPlanToCrove('free');
+    }
+
+    // Only the organization OWNER (role SUPERADMIN - the owner role this
+    // codebase assigns to org creators) may drive the org's subscription
+    // from their DOS entitlement. A member login - even ADMIN - must never
+    // clear or downgrade a paid org subscription: clearDosSyncedSubscription
+    // is deleteMany({ organizationId }) and a free-plan member login wiped
+    // the JOY org's ULTIMATE subscription on 2026-09-22. Members get a
+    // read-only view of their own DOS plan instead.
+    const membership = await this.organizations
+      .getOrgsByUserId(user.id)
+      .then((orgs) => orgs.find((o) => o.id === organizationId));
+    if (membership?.users?.[0]?.role !== Role.SUPERADMIN) {
+      const entitlement = await this.client.getEntitlement(dosUserId);
+      return mapDosPlanToCrove(entitlement.plan);
     }
 
     const entitlement = await this.client.getEntitlement(dosUserId);

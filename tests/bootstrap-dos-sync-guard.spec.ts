@@ -10,8 +10,10 @@ import { OrganizationRepository } from '@gitroom/nestjs-libraries/database/prism
 // clearDosSyncedSubscription (deleteMany by organizationId). Only the org
 // owner's login may write; members get a read-only view of their own plan.
 
-// Stub the two repository modules so their real implementations (and the
-// wide prisma import graph behind them) never load in this CJS jest context.
+// Stub the two repository modules with explicit jest.mock factories so the
+// suite stays isolated: interaction assertions run against the instances
+// injected through the constructor, and the real prisma-backed
+// implementations never load in this CJS jest context.
 jest.mock(
   '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service',
   () => ({ SubscriptionService: class SubscriptionService {} })

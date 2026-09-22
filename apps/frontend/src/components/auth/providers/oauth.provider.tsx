@@ -10,6 +10,12 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
 // initiated SSO flow resets the error-page retry budget.
 export const DOS_OAUTH_RETRY_KEY = 'dos_oauth_retry_count';
 
+// Cap for the automatic redirect only: if we auto-started a flow and are
+// back on an auth page without completing it within 10s (IdP error bounce,
+// remembered-deny, callback without code), show the manual button instead of
+// contributing to a browser/IdP redirect storm. Manual clicks are exempt.
+const DOS_OAUTH_AUTOSTART_TS_KEY = 'dos_oauth_autostart_ts';
+
 export const OauthProvider = ({ autoStart = false }: { autoStart?: boolean }) => {
   const fetch = useFetch();
   const { oauthLogoUrl, oauthDisplayName } = useVariables();
@@ -40,10 +46,22 @@ export const OauthProvider = ({ autoStart = false }: { autoStart?: boolean }) =>
   useEffect(() => {
     if (!autoStart || startedRef.current) return;
     startedRef.current = true;
+    const lastStart = Number(
+      window.sessionStorage.getItem(DOS_OAUTH_AUTOSTART_TS_KEY) || '0'
+    );
+    if (Date.now() - lastStart < 10_000) {
+      setAutoFailed(true);
+      return;
+    }
+    window.sessionStorage.setItem(
+      DOS_OAUTH_AUTOSTART_TS_KEY,
+      String(Date.now())
+    );
     gotoLogin().then((ok) => {
       if (!ok) {
         // Auto-start could not even fetch the link - fall back to the
         // manual button instead of a dead redirecting state.
+        window.sessionStorage.removeItem(DOS_OAUTH_AUTOSTART_TS_KEY);
         setAutoFailed(true);
       }
     });

@@ -32,7 +32,6 @@ type Inputs = {
 export function Register() {
   const getQuery = useSearchParams();
   const fetch = useFetch();
-  const t = useT();
   const [provider] = useState(getQuery?.get('provider')?.toUpperCase() || 'GENERIC');
   const [code, setCode] = useState(getQuery?.get('code') || '');
   const [state] = useState(getQuery?.get('state') || '');
@@ -80,13 +79,7 @@ export function Register() {
     }
   }, [provider, code, state]);
   if (error) {
-    return (
-      <AuthErrorState
-        status={error.status}
-        message={error.message}
-        onRetry={load}
-      />
-    );
+    return <AuthErrorState status={error.status} message={error.message} />;
   }
   if (!code && !getQuery?.get('provider')) {
     return <RegisterAfter token="" provider="LOCAL" />;
@@ -110,11 +103,9 @@ const RETRY_LIMIT = 2;
 function AuthErrorState({
   status,
   message,
-  onRetry,
 }: {
   status?: number;
   message: string;
-  onRetry: () => void;
 }) {
   const t = useT();
   const fetch = useFetch();

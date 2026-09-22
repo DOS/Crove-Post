@@ -100,6 +100,17 @@ export const ContinueIntegration: FC<{
       };
     }
 
+    if (provider === 'reddit') {
+      // The dos.me Reddit OAuth broker (docs/platform/REDDIT-OAUTH-BROKER.md)
+      // returns a one-time delivery handle instead of a Reddit authorization
+      // code; an ?error=... param means the user denied the authorization.
+      return {
+        state: searchParams.state || '',
+        code: searchParams.handle || '',
+        refresh: searchParams.refresh || '',
+      };
+    }
+
     return searchParams;
   }, []);
 

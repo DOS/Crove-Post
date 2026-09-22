@@ -89,6 +89,11 @@ export class RedditProvider extends SocialAbstract implements SocialProvider {
   }
 
   async refreshToken(refreshToken: string): Promise<AuthTokenDetails> {
+    // NOT brokered: the dos.me broker (below) only covers the connect/exchange
+    // flow. This refresh grant runs against Reddit directly with the app
+    // credentials, and removing REDDIT_CLIENT_ID/REDDIT_CLIENT_SECRET from the
+    // env would break the 401 recovery every scheduled post older than an hour
+    // depends on.
     const { access_token: accessToken, expires_in: expiresIn } = await (
       await this.fetch('https://www.reddit.com/api/v1/access_token', {
         method: 'POST',
@@ -124,14 +129,47 @@ export class RedditProvider extends SocialAbstract implements SocialProvider {
     };
   }
 
+  // dos.me Reddit OAuth broker (docs/platform/REDDIT-OAUTH-BROKER.md): the
+  // broker owns the Reddit app credentials for the connect flow. Crove sends
+  // the user to the broker authorize URL, receives a one-time delivery handle
+  // back at its returnTo, and exchanges that handle server-side for the token
+  // bundle. REDDIT_CLIENT_ID/SECRET are unused here and stay only for the
+  // refresh grant above.
+  private brokerUrl() {
+    return (process.env.DOS_ME_API_URL || 'https://api.dos.me').replace(
+      /\/+$/,
+      ''
+    );
+  }
+
+  private brokerProduct() {
+    if (process.env.REDDIT_BROKER_PRODUCT) {
+      return process.env.REDDIT_BROKER_PRODUCT;
+    }
+
+    // The beta stack runs on beta-post.crove.com; the broker resolves the
+    // returnTo from this label server-side, so it must match the deployment.
+    return (process.env.FRONTEND_URL || '').indexOf('beta') > -1
+      ? 'crove-post-beta'
+      : 'crove-post-prod';
+  }
+
+  private brokerApiKey() {
+    const key = process.env.DOS_ME_INTERNAL_API_KEY || '';
+    if (key.length < 32) {
+      throw new Error('DOS_ME_INTERNAL_API_KEY is not configured');
+    }
+    return key;
+  }
+
   async generateAuthUrl() {
-    const state = makeId(6);
+    // The broker rejects product states below 128 bits of entropy (>= 22
+    // alphanumeric chars), so this state is longer than the other providers'.
+    const state = makeId(32);
     const codeVerifier = makeId(30);
-    const url = `https://www.reddit.com/api/v1/authorize?client_id=${
-      process.env.REDDIT_CLIENT_ID
-    }&response_type=code&state=${state}&redirect_uri=${encodeURIComponent(
-      `${process.env.FRONTEND_URL}/integrations/social/reddit`
-    )}&duration=permanent&scope=${encodeURIComponent(this.scopes.join(' '))}`;
+    const url = `${this.brokerUrl()}/oauth/reddit/authorize?product=${
+      this.brokerProduct()
+    }&state=${state}`;
     return {
       url,
       codeVerifier,
@@ -139,35 +177,22 @@ export class RedditProvider extends SocialAbstract implements SocialProvider {
     };
   }
 
+  // `code` carries the broker's one-time delivery handle, not a Reddit
+  // authorization code: the broker exchanged the code server-side already.
   async authenticate(params: { code: string; codeVerifier: string }) {
-    const {
-      access_token: accessToken,
-      refresh_token: refreshToken,
-      expires_in: expiresIn,
-      scope,
-    } = await (
-      await this.fetch('https://www.reddit.com/api/v1/access_token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          Authorization: `Basic ${Buffer.from(
-            `${process.env.REDDIT_CLIENT_ID}:${process.env.REDDIT_CLIENT_SECRET}`
-          ).toString('base64')}`,
-        },
-        body: new URLSearchParams({
-          grant_type: 'authorization_code',
-          code: params.code,
-          redirect_uri: `${process.env.FRONTEND_URL}/integrations/social/reddit`,
-        }),
-      })
-    ).json();
+    if (!params.code) {
+      // The broker redirects back with only ?error=... when the user denies
+      // the authorization (or the flow expires before the callback).
+      return 'Reddit authorization was denied or expired, please connect again.';
+    }
 
-    this.checkScopes(this.scopes, scope);
+    const bundle = await this.fetchTokenBundle(params.code);
+    this.checkScopes(this.scopes, bundle.scopes);
 
     const { name, id, icon_img } = await (
       await this.fetch('https://oauth.reddit.com/api/v1/me', {
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${bundle.accessToken}`,
         },
       })
     ).json();
@@ -175,12 +200,66 @@ export class RedditProvider extends SocialAbstract implements SocialProvider {
     return {
       id,
       name,
-      accessToken,
-      refreshToken,
-      expiresIn,
+      accessToken: bundle.accessToken,
+      refreshToken: bundle.refreshToken,
+      expiresIn: bundle.expiresIn,
       picture: icon_img?.split?.('?')?.[0] || '',
       username: name,
     };
+  }
+
+  private async fetchTokenBundle(handle: string): Promise<{
+    accessToken: string;
+    refreshToken?: string;
+    expiresIn: number;
+    scopes: string[];
+  }> {
+    try {
+      const response = await this.fetch(
+        `${this.brokerUrl()}/oauth/reddit/token-delivery/${encodeURIComponent(
+          handle
+        )}`,
+        {
+          method: 'POST',
+          headers: {
+            'X-API-Key': this.brokerApiKey(),
+            Accept: 'application/json',
+          },
+        },
+        'reddit'
+      );
+
+      let body: any = await response.json();
+      // dos.me wraps some endpoints in { success, data } - unwrap defensively.
+      if (
+        body &&
+        typeof body === 'object' &&
+        'success' in body &&
+        'data' in body &&
+        body.data
+      ) {
+        body = body.data;
+      }
+
+      const accessToken = body?.accessToken ?? body?.access_token;
+      if (!accessToken) {
+        throw new Error('token bundle has no access token');
+      }
+
+      return {
+        accessToken,
+        refreshToken: body?.refreshToken ?? body?.refresh_token,
+        expiresIn: body?.expiresIn ?? body?.expires_in ?? 3600,
+        scopes: Array.isArray(body?.scopes)
+          ? body.scopes
+          : String(body?.scopes ?? '')
+              .split(/[\s,]+/)
+              .filter(Boolean),
+      };
+    } catch (err: any) {
+      console.log(`Reddit broker token delivery failed: ${err?.message}`);
+      throw err;
+    }
   }
 
   private async uploadFileToReddit(accessToken: string, path: string) {

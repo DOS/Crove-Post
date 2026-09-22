@@ -80,7 +80,7 @@ export function Login() {
           <div className="flex flex-col">
             {isGeneral && genericOauth ? (
               <div className="flex flex-col gap-4 mt-2">
-                <OauthProvider />
+                <OauthProvider autoStart />
                 <p className="text-xs text-zinc-400 text-center mt-2 leading-relaxed">
                   {t(
                     'sso_description',

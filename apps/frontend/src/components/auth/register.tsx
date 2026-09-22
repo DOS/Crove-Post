@@ -122,7 +122,7 @@ function AuthErrorState({
       console.error('Failed to restart the SSO flow:', e);
     }
     window.location.href = '/auth/login';
-  }, [attempts]);
+  }, [attempts, fetch]);
   return (
     <div className="flex flex-1 flex-col justify-center gap-[16px]">
       <h1 className="text-[40px] font-[500] -tracking-[0.8px] text-start">

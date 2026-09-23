@@ -16,6 +16,7 @@ import {
   AnyMcpClient,
   CopyButton,
   getMcpConfig,
+  getMcpOauthUrl,
   isChatOnlyMcpClient,
   localCliSteps,
   McpAuth,

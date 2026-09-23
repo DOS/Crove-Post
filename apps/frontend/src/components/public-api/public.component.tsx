@@ -22,6 +22,11 @@ export const remoteMcpClients = {
     'In ChatGPT go to Settings > Connectors > Create and paste this URL.',
 } as const;
 
+// The upstream one-click connector directory URLs (claude.ai/directory,
+// chatgpt.com/plugins, cursor.com/marketplace) are deliberately NOT
+// reproduced here: they route this deployment's users to the upstream cloud.
+// Connector cards are brand-gated via brandConfig URLs instead.
+
 // Clients with no MCP or CLI settings: you paste instructions into the chat,
 // the agent installs the CLI itself and asks you for the API key.
 // A function of the API base, because the upstream CLI defaults to the

@@ -623,7 +623,10 @@ const OnboardingStep2: FC<{ onBack: () => void; onNext: () => void }> = ({
           {agent === apiTab ? (
             apiSection
           ) : isChatOnlyMcpClient(agent) ? (
-            chatSection
+            <>
+              {connectorSection}
+              {chatSection}
+            </>
           ) : (
             <>
               {connectorSection}

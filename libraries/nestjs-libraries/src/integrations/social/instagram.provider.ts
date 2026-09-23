@@ -6,7 +6,7 @@ import {
   PostResponse,
   SocialProvider,
 } from '@gitroom/nestjs-libraries/integrations/social/social.integrations.interface';
-import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
+import { makeSecureId } from '@gitroom/nestjs-libraries/services/make.secure.id';
 import { timer } from '@gitroom/helpers/utils/timer';
 import dayjs from 'dayjs';
 import {
@@ -103,7 +103,7 @@ export class InstagramProvider
     status: number
   ):
     | {
-        type: 'refresh-token' | 'bad-body' | 'retry';
+        type: 'refresh-token' | 'bad-body' | 'retry' | 'disconnect';
         value: string;
       }
     | undefined {
@@ -330,6 +330,20 @@ export class InstagramProvider
       };
     }
 
+    // Meta put the account behind a checkpoint: the token is still valid, so a
+    // refresh cannot help and every post fails until the user logs in on
+    // Instagram and re-connects the channel.
+    if (
+      body.indexOf('You cannot access the app till you log in to') > -1 ||
+      body.indexOf('Session key is malformed') > -1
+    ) {
+      return {
+        type: 'disconnect' as const,
+        value:
+          'Instagram requires you to log in at instagram.com and follow its instructions before posting can resume. After that, please reconnect this channel.',
+      };
+    }
+
     if (body.indexOf('190,') > -1) {
       return {
         type: 'bad-body' as const,
@@ -423,7 +437,7 @@ export class InstagramProvider
   }
 
   async generateAuthUrl() {
-    const state = makeId(6);
+    const state = makeSecureId(6);
     return {
       url:
         `https://www.facebook.com/${META_GRAPH_API_VERSION}/dialog/oauth` +
@@ -433,7 +447,7 @@ export class InstagramProvider
         )}` +
         `&state=${state}` +
         `&scope=${encodeURIComponent(this.scopes.join(','))}`,
-      codeVerifier: makeId(10),
+      codeVerifier: makeSecureId(10),
       state,
     };
   }

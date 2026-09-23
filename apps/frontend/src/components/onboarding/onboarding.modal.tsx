@@ -16,12 +16,12 @@ import {
   AnyMcpClient,
   CopyButton,
   getMcpConfig,
-  getMcpOauthUrl,
   isChatOnlyMcpClient,
   localCliSteps,
   McpAuth,
   McpClient,
   mcpClients,
+  mcpConnectorUrls,
 } from '@gitroom/frontend/components/public-api/public.component';
 import { McpClientIcon } from '@gitroom/frontend/components/public-api/mcp.client.icons';
 
@@ -623,7 +623,10 @@ const OnboardingStep2: FC<{ onBack: () => void; onNext: () => void }> = ({
           {agent === apiTab ? (
             apiSection
           ) : isChatOnlyMcpClient(agent) ? (
-            chatSection
+            <>
+              {connectorSection}
+              {chatSection}
+            </>
           ) : (
             <>
               {connectorSection}

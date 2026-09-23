@@ -17,6 +17,7 @@ export const initializeSentryBasic = (
     /^NetworkError when attempting to fetch resource\.$/i,
     /^NetworkError when attempting to fetch resource\. .*/i,
     /^Object captured as promise rejection with keys: code, message$/i,
+    /^Called on script loaded before session recording is available$/i,
   ];
 
   // Browser wallet extensions (Phantom, MetaMask, etc.) reject with a plain
@@ -55,7 +56,7 @@ export const initializeSentryBasic = (
       sendDefaultPii: true,
       ...extension,
       debug: environment === 'development',
-      tracesSampleRate: 0.2,
+      tracesSampleRate: 0.1,
 
       // Server tracing starts before the proxy exchanges the launch ticket.
       beforeSendTransaction(event) {

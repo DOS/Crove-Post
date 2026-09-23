@@ -6,6 +6,7 @@ import {
   SocialProvider,
 } from '@gitroom/nestjs-libraries/integrations/social/social.integrations.interface';
 import { makeSecureId } from '@gitroom/nestjs-libraries/services/make.secure.id';
+import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { RedditSettingsDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/reddit.dto';
 import { timer } from '@gitroom/helpers/utils/timer';
 import {

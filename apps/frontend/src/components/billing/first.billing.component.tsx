@@ -21,6 +21,7 @@ import {
   FAQSection,
 } from '@gitroom/frontend/components/billing/faq.component';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import { useDubClickId } from '@gitroom/frontend/components/layout/dubAnalytics';
 import SafeImage from '@gitroom/react/helpers/safe.image';
@@ -57,6 +58,7 @@ export const FirstBillingComponent = () => {
   const fetch = useFetch();
   const modals = useModals();
   const t = useT();
+  const toaster = useToaster();
   const [datafast_visitor_id] = useCookie('datafast_visitor_id', '');
   const [datafast_session_id] = useCookie('datafast_session_id', '');
   const sharedDosBilling = !!user?.sharedDosBilling;
@@ -87,15 +89,20 @@ export const FirstBillingComponent = () => {
   const startDosCheckout = useCallback(async () => {
     setDosCheckoutLoading(true);
     try {
-      const result = await (
-        await fetch('/billing/subscribe', {
-          method: 'POST',
-          body: JSON.stringify({
-            billing: tier,
-            period: 'MONTHLY',
-          }),
-        })
-      ).json();
+      const response = await fetch('/billing/subscribe', {
+        method: 'POST',
+        body: JSON.stringify({
+          billing: tier,
+          period: 'MONTHLY',
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        toaster.show(
+          result.message || 'Subscription update failed, please try again later'
+        );
+        return;
+      }
       if (result.url) {
         window.location.href = result.url;
         return;
@@ -106,7 +113,7 @@ export const FirstBillingComponent = () => {
     } finally {
       setDosCheckoutLoading(false);
     }
-  }, [fetch, tier]);
+  }, [fetch, tier, toaster]);
 
   const showYouTube = () => {
     modals.openModal({

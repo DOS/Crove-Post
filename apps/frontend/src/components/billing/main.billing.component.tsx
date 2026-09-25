@@ -264,7 +264,14 @@ export const MainBillingComponent: FC<{
     setSubscription(sub);
   }, [sub]);
   const updatePayment = useCallback(async () => {
-    const { portal } = await (await fetch('/billing/portal')).json();
+    // dos.me returns 409 no_stripe_subscription for accounts without a
+    // dos-managed plan - never navigate to an undefined portal.
+    const response = await fetch('/billing/portal');
+    const { portal, message } = await response.json().catch(() => ({}));
+    if (!response.ok || !portal) {
+      toast.show(message || 'Payment portal is not available for this account');
+      return;
+    }
     window.location.href = portal;
   }, []);
   const currentPackage = useMemo(() => {
@@ -281,22 +288,35 @@ export const MainBillingComponent: FC<{
     }
     return subscription?.subscriptionTier;
   }, [subscription, initialChannels, monthlyOrYearly, period, sharedDosBilling]);
+  // dos.me owns checkout/portal/cancel: they only exist for a dos-managed
+  // paid plan, so hide both buttons for FREE and legacy tiers (e.g.
+  // comped ULTIMATE) where the calls can only answer 409.
+  const showPortalAndCancel =
+    !sharedDosBilling ||
+    subscription?.subscriptionTier === 'STANDARD' ||
+    subscription?.subscriptionTier === 'PRO';
   const moveToCheckout = useCallback(
     (billing: 'STANDARD' | 'PRO' | 'FREE', reactivate = false) =>
       async () => {
         if (reactivate) {
           setLoading(true);
-          const { cancel_at } = await (
-            await fetch('/billing/cancel', {
-              method: 'POST',
-              body: JSON.stringify({
-                feedback: '',
-              }),
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            })
-          ).json();
+          const response = await fetch('/billing/cancel', {
+            method: 'POST',
+            body: JSON.stringify({
+              feedback: '',
+            }),
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+          const { cancel_at, message } = await response
+            .json()
+            .catch(() => ({}));
+          if (!response.ok) {
+            setLoading(false);
+            toast.show(message || 'Could not reactivate the subscription');
+            return;
+          }
           setSubscription((subs) => ({
             ...subs!,
             cancelAt: cancel_at,
@@ -365,17 +385,23 @@ export const MainBillingComponent: FC<{
             });
 
             setLoading(true);
-            const { cancel_at } = await (
-              await fetch('/billing/cancel', {
-                method: 'POST',
-                body: JSON.stringify({
-                  feedback: info,
-                }),
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-              })
-            ).json();
+            const response = await fetch('/billing/cancel', {
+              method: 'POST',
+              body: JSON.stringify({
+                feedback: info,
+              }),
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+            const { cancel_at, message } = await response
+              .json()
+              .catch(() => ({}));
+            if (!response.ok) {
+              setLoading(false);
+              toast.show(message || 'Could not cancel the subscription');
+              return;
+            }
             setSubscription((subs) => ({
               ...subs!,
               cancelAt: cancel_at,
@@ -393,17 +419,26 @@ export const MainBillingComponent: FC<{
           return;
         }
         setLoading(true);
-        const { url, portal, blocked } = await (
-          await fetch('/billing/subscribe', {
-            method: 'POST',
-            body: JSON.stringify({
-              period: monthlyOrYearly === 'on' ? 'YEARLY' : 'MONTHLY',
-              utm,
-              billing,
-              ...(dub ? { dub } : {}),
-            }),
-          })
-        ).json();
+        const response = await fetch('/billing/subscribe', {
+          method: 'POST',
+          body: JSON.stringify({
+            period: monthlyOrYearly === 'on' ? 'YEARLY' : 'MONTHLY',
+            utm,
+            billing,
+            ...(dub ? { dub } : {}),
+          }),
+        });
+        const { url, portal, blocked, message } = await response
+          .json()
+          .catch(() => ({}));
+        if (!response.ok) {
+          // A 4xx (no dos.me plan row, stripe error, ...) used to fall through
+          // to the success branch and toast "Subscription updated" + mutate
+          // the tier optimistically - surface the real failure instead.
+          setLoading(false);
+          toast.show(message || 'Subscription update failed, please try again later');
+          return;
+        }
         if (blocked) {
           setLoading(false);
           await deleteDialog(
@@ -604,7 +639,7 @@ export const MainBillingComponent: FC<{
             </div>
           ))}
       </div>
-      {!!subscription?.id && (
+      {!!subscription?.id && showPortalAndCancel && (
         <div className="flex justify-center mt-[20px] gap-[10px]">
           <Button onClick={updatePayment}>
             {t(

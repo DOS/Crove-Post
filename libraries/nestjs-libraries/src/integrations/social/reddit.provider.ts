@@ -91,31 +91,19 @@ export class RedditProvider extends SocialAbstract implements SocialProvider {
   }
 
   async refreshToken(refreshToken: string): Promise<AuthTokenDetails> {
-    // NOT brokered: the dos.me broker (below) only covers the connect/exchange
-    // flow. This refresh grant runs against Reddit directly with the app
-    // credentials, and removing REDDIT_CLIENT_ID/REDDIT_CLIENT_SECRET from the
-    // env would break the 401 recovery every scheduled post older than an hour
-    // depends on.
-    const { access_token: accessToken, expires_in: expiresIn } = await (
-      await this.fetch('https://www.reddit.com/api/v1/access_token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          Authorization: `Basic ${Buffer.from(
-            `${process.env.REDDIT_CLIENT_ID}:${process.env.REDDIT_CLIENT_SECRET}`
-          ).toString('base64')}`,
-        },
-        body: new URLSearchParams({
-          grant_type: 'refresh_token',
-          refresh_token: refreshToken,
-        }),
-      })
-    ).json();
+    // Brokered like the connect flow: the dos.me broker holds the Reddit app
+    // credentials and exposes POST /oauth/reddit/refresh (same bundle shape as
+    // token-delivery), so Crove needs no Reddit client credentials at all.
+    const bundle = await this.fetchRefreshBundle(refreshToken);
+    // Reddit usually does not rotate the refresh token - when the broker
+    // omits the field the old one stays valid and MUST be kept, or the next
+    // refresh would fire with a blank token.
+    const effectiveRefreshToken = bundle.refreshToken || refreshToken;
 
     const { name, id, icon_img } = await (
       await this.fetch('https://oauth.reddit.com/api/v1/me', {
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${bundle.accessToken}`,
         },
       })
     ).json();
@@ -123,20 +111,19 @@ export class RedditProvider extends SocialAbstract implements SocialProvider {
     return {
       id,
       name,
-      accessToken,
-      refreshToken: refreshToken,
-      expiresIn,
+      accessToken: bundle.accessToken,
+      refreshToken: effectiveRefreshToken,
+      expiresIn: bundle.expiresIn,
       picture: icon_img?.split?.('?')?.[0] || '',
       username: name,
     };
   }
 
   // dos.me Reddit OAuth broker (docs/platform/REDDIT-OAUTH-BROKER.md): the
-  // broker owns the Reddit app credentials for the connect flow. Crove sends
-  // the user to the broker authorize URL, receives a one-time delivery handle
-  // back at its returnTo, and exchanges that handle server-side for the token
-  // bundle. REDDIT_CLIENT_ID/SECRET are unused here and stay only for the
-  // refresh grant above.
+  // broker owns the Reddit app credentials for connect AND refresh. Crove
+  // sends the user to the broker authorize URL, receives a one-time delivery
+  // handle back at its returnTo, and exchanges that handle server-side for
+  // the token bundle; refreshes go through /oauth/reddit/refresh.
   private brokerUrl() {
     return (process.env.DOS_ME_API_URL || 'https://api.dos.me').replace(
       /\/+$/,
@@ -231,37 +218,73 @@ export class RedditProvider extends SocialAbstract implements SocialProvider {
         'reddit'
       );
 
-      let body: any = await response.json();
-      // dos.me wraps some endpoints in { success, data } - unwrap defensively.
-      if (
-        body &&
-        typeof body === 'object' &&
-        'success' in body &&
-        'data' in body &&
-        body.data
-      ) {
-        body = body.data;
-      }
-
-      const accessToken = body?.accessToken ?? body?.access_token;
-      if (!accessToken) {
-        throw new Error('token bundle has no access token');
-      }
-
-      return {
-        accessToken,
-        refreshToken: body?.refreshToken ?? body?.refresh_token,
-        expiresIn: body?.expiresIn ?? body?.expires_in ?? 3600,
-        scopes: Array.isArray(body?.scopes)
-          ? body.scopes
-          : String(body?.scopes ?? '')
-              .split(/[\s,]+/)
-              .filter(Boolean),
-      };
+      return this.parseBundle(await response.json());
     } catch (err: any) {
       console.log(`Reddit broker token delivery failed: ${err?.message}`);
       throw err;
     }
+  }
+
+  private async fetchRefreshBundle(refreshToken: string): Promise<{
+    accessToken: string;
+    refreshToken?: string;
+    expiresIn: number;
+    scopes: string[];
+  }> {
+    try {
+      const response = await this.fetch(
+        `${this.brokerUrl()}/oauth/reddit/refresh`,
+        {
+          method: 'POST',
+          headers: {
+            'X-API-Key': this.brokerApiKey(),
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        },
+        'reddit'
+      );
+
+      return this.parseBundle(await response.json());
+    } catch (err: any) {
+      console.log(`Reddit broker refresh failed: ${err?.message}`);
+      throw err;
+    }
+  }
+
+  private parseBundle(body: any): {
+    accessToken: string;
+    refreshToken?: string;
+    expiresIn: number;
+    scopes: string[];
+  } {
+    // dos.me wraps some endpoints in { success, data } - unwrap defensively.
+    if (
+      body &&
+      typeof body === 'object' &&
+      'success' in body &&
+      'data' in body &&
+      body.data
+    ) {
+      body = body.data;
+    }
+
+    const accessToken = body?.accessToken ?? body?.access_token;
+    if (!accessToken) {
+      throw new Error('token bundle has no access token');
+    }
+
+    return {
+      accessToken,
+      refreshToken: body?.refreshToken ?? body?.refresh_token,
+      expiresIn: body?.expiresIn ?? body?.expires_in ?? 3600,
+      scopes: Array.isArray(body?.scopes)
+        ? body.scopes
+        : String(body?.scopes ?? '')
+            .split(/[\s,]+/)
+            .filter(Boolean),
+    };
   }
 
   private async uploadFileToReddit(accessToken: string, path: string) {

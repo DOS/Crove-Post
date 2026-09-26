@@ -52,6 +52,7 @@ export const FirstBillingComponent = () => {
   const user = useUser();
   const dub = useDubClickId();
   const [stripe, setStripe] = useState<null | Promise<Stripe>>(null);
+  const [stripeFailed, setStripeFailed] = useState(false);
   const [tier, setTier] = useState('STANDARD');
   const [period, setPeriod] = useState('MONTHLY');
   const [dosCheckoutLoading, setDosCheckoutLoading] = useState(false);
@@ -67,7 +68,9 @@ export const FirstBillingComponent = () => {
     if (sharedDosBilling) {
       return;
     }
-    setStripe(loadStripe(stripeClient));
+    const stripePromise = loadStripe(stripeClient);
+    stripePromise.catch(() => setStripeFailed(true));
+    setStripe(stripePromise);
   }, [sharedDosBilling, stripeClient]);
 
   const loadCheckout = useCallback(async () => {
@@ -271,6 +274,13 @@ export const FirstBillingComponent = () => {
                   ? t('loading', 'Loading...')
                   : t('billing_continue_dos_checkout', 'Continue to DOS checkout')}
               </button>
+            </div>
+          ) : stripeFailed ? (
+            <div className="mt-[24px] p-[24px] rounded-[20px] border-[1.5px] border-newColColor text-[16px] font-[500]">
+              {t(
+                'billing_stripe_load_failed',
+                'The payment form could not be loaded. Please disable ad blockers or privacy extensions for this page and reload.'
+              )}
             </div>
           ) : !isLoading && data && stripe ? (
             <EmbeddedBilling

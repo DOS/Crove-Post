@@ -46,6 +46,7 @@ export interface VariableContextInterface {
   googleAdsId?: string;
   googleAdsTrialTracking?: string;
   brandConfig?: PublicBrandConfig;
+  recaptchaSiteKey?: string;
 }
 
 const defaultBrandWithCustom: PublicBrandConfig = {
@@ -87,6 +88,7 @@ const VariableContext = createContext({
   sentryDsn: '',
   extensionId: '',
   brandConfig: defaultBrandWithCustom,
+  recaptchaSiteKey: '',
 } as VariableContextInterface);
 export const VariableContextComponent: FC<
   VariableContextInterface & {

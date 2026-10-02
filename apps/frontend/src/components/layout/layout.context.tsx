@@ -140,7 +140,10 @@ function LayoutContextInner(params: { children: ReactNode }) {
         if (
           await deleteDialog(
             (
-              await response.json()
+              await response
+                .clone()
+                .json()
+                .catch(() => ({}))
             ).message,
             t('move_to_billing', 'Move to billing'),
             t('payment_required', 'Payment Required')

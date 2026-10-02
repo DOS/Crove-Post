@@ -232,7 +232,7 @@ export const DeveloperComponent: FC = () => {
           )}
         </div>
         <div className="bg-newBgColorInner rounded-[12px] border border-newBorder overflow-hidden">
-          <div className="bg-newBgColorInner px-[20px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px]">
+          <div className="bg-newBgColorInner px-[20px] mobile:px-[14px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px] mobile:flex-col">
             <div>
               <div className="text-[15px] font-[600]">
                 {t('oauth_application', 'OAuth Application')}
@@ -244,7 +244,7 @@ export const DeveloperComponent: FC = () => {
                 )}
               </div>
             </div>
-            <div className="flex gap-[6px] shrink-0 pt-[2px]">
+            <div className="flex flex-wrap gap-[6px] shrink-0 pt-[2px]">
               <a
                 className="cursor-pointer px-[16px] h-[36px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
                 href={joinBrandUrl(brandConfig?.docsUrl, 'public-api/oauth')}
@@ -296,7 +296,7 @@ export const DeveloperComponent: FC = () => {
               )}
             </div>
           </div>
-          <div className="p-[20px] flex flex-col gap-[16px]">
+          <div className="p-[20px] mobile:p-[14px] flex flex-col gap-[16px]">
             <div className="flex flex-col gap-[6px]">
               <label className="text-[13px] font-[600] text-customColor18">
                 {t('app_name', 'App Name')} *
@@ -357,7 +357,7 @@ export const DeveloperComponent: FC = () => {
                 placeholder="https://yourapp.com/callback"
               />
             </div>
-            <div className="flex gap-[8px]">
+            <div className="flex flex-wrap gap-[8px]">
               <button
                 type="button"
                 onClick={createApp}
@@ -395,7 +395,7 @@ export const DeveloperComponent: FC = () => {
       </div>
       {/* App details / edit */}
       <div className="bg-newBgColorInner rounded-[12px] border border-newBorder overflow-hidden">
-        <div className="bg-newBgColorInner px-[20px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px]">
+        <div className="bg-newBgColorInner px-[20px] mobile:px-[14px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px] mobile:flex-col">
           <div>
             <div className="text-[15px] font-[600]">
               {t('oauth_application', 'OAuth Application')}
@@ -407,7 +407,7 @@ export const DeveloperComponent: FC = () => {
               )}
             </div>
           </div>
-          <div className="flex gap-[6px] shrink-0 pt-[2px]">
+          <div className="flex flex-wrap gap-[6px] shrink-0 pt-[2px]">
             <a
               className="cursor-pointer px-[16px] h-[36px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
               href={joinBrandUrl(brandConfig?.docsUrl, 'public-api/oauth')}
@@ -420,7 +420,7 @@ export const DeveloperComponent: FC = () => {
         </div>
 
         {editing ? (
-          <div className="p-[20px] flex flex-col gap-[16px]">
+          <div className="p-[20px] mobile:p-[14px] flex flex-col gap-[16px]">
             <div className="flex flex-col gap-[6px]">
               <label className="text-[13px] font-[600] text-customColor18">
                 {t('app_name', 'App Name')} *
@@ -481,7 +481,7 @@ export const DeveloperComponent: FC = () => {
                 placeholder="https://yourapp.com/callback"
               />
             </div>
-            <div className="flex gap-[8px]">
+            <div className="flex flex-wrap gap-[8px]">
               <button
                 type="button"
                 onClick={updateApp}
@@ -499,7 +499,7 @@ export const DeveloperComponent: FC = () => {
             </div>
           </div>
         ) : (
-          <div className="p-[20px] flex flex-col gap-[16px]">
+          <div className="p-[20px] mobile:p-[14px] flex flex-col gap-[16px]">
             <div className="flex items-center gap-[12px]">
               {app.picture?.path ? (
                 <img
@@ -525,9 +525,9 @@ export const DeveloperComponent: FC = () => {
               <div className="text-[13px] font-[600] text-customColor18">
                 {t('redirect_url', 'Redirect URL')}
               </div>
-              <div className="text-[14px]">{app.redirectUrl}</div>
+              <div className="text-[14px] break-all">{app.redirectUrl}</div>
             </div>
-            <div className="flex gap-[8px]">
+            <div className="flex flex-wrap gap-[8px]">
               <button
                 type="button"
                 onClick={startEditing}
@@ -548,7 +548,7 @@ export const DeveloperComponent: FC = () => {
             {t('credentials', 'Credentials')}
           </div>
         </div>
-        <div className="p-[20px] flex flex-col gap-[16px]">
+        <div className="p-[20px] mobile:p-[14px] flex flex-col gap-[16px]">
           <div className="flex flex-col gap-[6px]">
             <div className="text-[13px] font-[600] text-customColor18">
               {t('client_id', 'Client ID')}
@@ -561,7 +561,7 @@ export const DeveloperComponent: FC = () => {
             <div className="text-[13px] font-[600] text-customColor18">
               {t('client_secret', 'Client Secret')}
             </div>
-            <div className="bg-newBgColorInner border border-newBorder rounded-[8px] px-[16px] h-[44px] flex items-center overflow-hidden">
+            <div className="bg-newBgColorInner border border-newBorder rounded-[8px] px-[16px] h-[44px] mobile:h-auto mobile:min-h-[44px] mobile:py-[10px] flex items-center overflow-hidden">
               {plaintextSecret ? (
                 <code className="text-[14px] flex-1 truncate">
                   {plaintextSecret}
@@ -576,7 +576,7 @@ export const DeveloperComponent: FC = () => {
               )}
             </div>
           </div>
-          <div className="flex gap-[8px]">
+          <div className="flex flex-wrap gap-[8px]">
             <CopyButton text={app.clientId} label={t('copy_id', 'Copy ID')} />
             {plaintextSecret && (
               <CopyButton

@@ -11,12 +11,14 @@ import {
   Req,
   Res,
   ServiceUnavailableException,
+  UseGuards,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { BootstrapService } from '@gitroom/backend/ecosystem/bootstrap.service';
 import { AuthService as AuthChecker } from '@gitroom/helpers/auth/auth.service';
 import { getCookieUrlFromDomain } from '@gitroom/helpers/subdomain/subdomain.management';
 import { ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { OAuthService } from '@gitroom/nestjs-libraries/database/prisma/oauth/oauth.service';
 import { GetUserFromRequest } from '@gitroom/nestjs-libraries/user/user.from.request';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
@@ -24,16 +26,22 @@ import { User, Organization } from '@prisma/client';
 import {
   AuthorizeOAuthQueryDto,
   ApproveOAuthDto,
+  AuthorizeSelfHostedDto,
 } from '@gitroom/nestjs-libraries/dtos/oauth/authorize-oauth.dto';
 import { TokenExchangeDto } from '@gitroom/nestjs-libraries/dtos/oauth/token-exchange.dto';
 import { RegisterClientDto } from '@gitroom/nestjs-libraries/dtos/oauth/register-client.dto';
 import { RevokeTokenDto } from '@gitroom/nestjs-libraries/dtos/oauth/revoke-token.dto';
 import { extractBasicCredentials } from '@gitroom/nestjs-libraries/chat/oauth-types';
+import { McpRelayService } from '@gitroom/nestjs-libraries/chat/mcp.relay.service';
+import { ThrottlerRealIpGuard } from '@gitroom/nestjs-libraries/throttler/throttler.provider';
 
 @ApiTags('OAuth')
 @Controller('/oauth')
 export class OAuthController {
-  constructor(private _oauthService: OAuthService) {}
+  constructor(
+    private _oauthService: OAuthService,
+    private _mcpRelayService: McpRelayService
+  ) {}
 
   // Dynamic Client Registration (RFC 7591), used by MCP clients like Claude
   @Post('/register')
@@ -53,6 +61,11 @@ export class OAuthController {
       }
     );
 
+    const selfHosted = this._oauthService.allowsSelfHosted(
+      app,
+      query.resource
+    );
+
     return {
       app: {
         name: app.name,
@@ -62,10 +75,64 @@ export class OAuthController {
         redirectUrl: app.redirectUrl,
       },
       state: query.state,
+      selfHosted,
+      selfHostedEmail:
+        selfHosted && this._oauthService.selfHostedRequiresEmail(app),
     };
   }
 
+  // Public (the person may have no account here) and capped per client,
+  // since every attempt sends requests to the instance
+  @UseGuards(ThrottlerRealIpGuard)
+  @Throttle({ default: { limit: 30, ttl: 3600000 } })
+  @Post('/authorize/self-hosted')
+  async authorizeSelfHosted(@Body() body: AuthorizeSelfHostedDto) {
+    const app = await this._oauthService.validateAuthorizationRequest(
+      body.client_id,
+      {
+        redirectUri: body.redirect_uri,
+        codeChallenge: body.code_challenge,
+        codeChallengeMethod: body.code_challenge_method,
+      }
+    );
+
+    const email = body.email?.trim();
+    this._oauthService.validateSelfHostedRequest(app, {
+      resource: body.resource,
+      email,
+    });
+
+    const instance = await this._mcpRelayService.connect(
+      body.instance_url,
+      body.api_key
+    );
+
+    const code = await this._oauthService.createSelfHostedAuthorizationCode(
+      app.id,
+      { ...instance, email },
+      app.dynamic
+        ? {
+            codeChallenge: body.code_challenge,
+            codeChallengeMethod: body.code_challenge_method,
+            redirectUri: body.redirect_uri,
+          }
+        : undefined
+    );
+
+    // Same redirect as an approved cloud authorization
+    const redirectUrl = new URL(
+      app.dynamic ? body.redirect_uri! : app.redirectUrl
+    );
+    redirectUrl.searchParams.set('code', code);
+    if (body.state) {
+      redirectUrl.searchParams.set('state', body.state);
+    }
+    return { redirect: redirectUrl.toString() };
+  }
+
   @Post('/token')
+  // RFC 6749 §5.1: successful token responses are 200; strict clients (Canva) reject Nest's default 201
+  @HttpCode(200)
   async token(
     @Body() body: TokenExchangeDto,
     @Headers('authorization') authorization?: string

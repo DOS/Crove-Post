@@ -46,6 +46,7 @@ import {
   OAuthController,
   OAuthAuthorizedController,
 } from '@gitroom/backend/api/routes/oauth.controller';
+import { OAuthSelfHostedController } from '@gitroom/backend/api/routes/oauth.selfhosted.controller';
 import { AnnouncementsController } from '@gitroom/backend/api/routes/announcements.controller';
 import { AdminController } from '@gitroom/backend/api/routes/admin.controller';
 import { EcosystemModule } from '@gitroom/backend/ecosystem/ecosystem.module';
@@ -88,6 +89,7 @@ const authenticatedController = [
     ? [
         RootController,
         OAuthController,
+        OAuthSelfHostedController,
         MediaWidgetController,
         ClippingWidgetController,
       ]
@@ -101,6 +103,7 @@ const authenticatedController = [
         EnterpriseController,
         NoAuthIntegrationsController,
         OAuthController,
+        OAuthSelfHostedController,
         MediaWidgetController,
         ClippingWidgetController,
         ...authenticatedController,

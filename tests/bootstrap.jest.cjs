@@ -2,6 +2,10 @@ module.exports = {
   rootDir: '..',
   testEnvironment: 'node',
   testRegex: 'tests[\\\\/]bootstrap.*\\.spec\\.ts$',
+  // The consent suite imports oauth.controller, whose self-hosted endpoints
+  // pull @mastra/core into the module graph; mastra keeps a background handle
+  // so jest never exits after a green run (the CI step hung 1h on it).
+  forceExit: true,
   transform: {
     '^.+\\.tsx?$': [
       'ts-jest',

@@ -17,6 +17,7 @@ import { BootstrapService } from '@gitroom/backend/ecosystem/bootstrap.service';
 import { AuthService as AuthChecker } from '@gitroom/helpers/auth/auth.service';
 import { getCookieUrlFromDomain } from '@gitroom/helpers/subdomain/subdomain.management';
 import { ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { OAuthService } from '@gitroom/nestjs-libraries/database/prisma/oauth/oauth.service';
 import { GetUserFromRequest } from '@gitroom/nestjs-libraries/user/user.from.request';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
@@ -53,6 +54,11 @@ export class OAuthController {
       }
     );
 
+    const selfHosted = this._oauthService.allowsSelfHosted(
+      app,
+      query.resource
+    );
+
     return {
       app: {
         name: app.name,
@@ -62,10 +68,20 @@ export class OAuthController {
         redirectUrl: app.redirectUrl,
       },
       state: query.state,
+      selfHosted,
+      selfHostedEmail:
+        selfHosted && this._oauthService.selfHostedRequiresEmail(app),
     };
   }
 
+  // Public (the person may have no account here) and capped per client,
+  // since every attempt sends requests to the instance. Moved to
+  // OAuthSelfHostedController (routes/oauth.selfhosted.controller.ts) so this
+  // file no longer pulls McpRelayService/@mastra into the consent test graph.
+
   @Post('/token')
+  // RFC 6749 §5.1: successful token responses are 200; strict clients (Canva) reject Nest's default 201
+  @HttpCode(200)
   async token(
     @Body() body: TokenExchangeDto,
     @Headers('authorization') authorization?: string

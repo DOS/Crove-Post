@@ -30,6 +30,11 @@ Last verified: 2026-09-21 (fork `dev` vs `upstream/main`).
 | `libraries/nestjs-libraries/src/openai/openai.service.ts` | `pickClips` (sync 2026-09-21) uses the fork `getOpenAIClient()`/`getModel()` pattern so OPENAI_BASE_URL / OPENAI_MODEL_NAME keep working; upstream hardcodes a module-level client and model | Low (file gains upstream methods over time) |
 | `libraries/nestjs-libraries/src/upload/local.storage.ts` | `removeFile` containment guard (path.relative check refusing to unlink outside the upload directory) - CodeQL js/path-injection hardening | Low |
 | `libraries/nestjs-libraries/src/database/prisma/clipping/clipping.service.ts` | Fixed-format failure logging (data passed as arguments, not interpolated) - CodeQL js/tainted-format-string hardening | Low |
+| `apps/backend/src/api/routes/billing.controller.ts` | DOS shared billing branches (subscribe, portal, current billing, cancel, prorate). Since the v2.25.1 sync, `/cancel` in DOS mode emails the cancel feedback after dos.me accepts the cancel; the Stripe path keeps upstream's "email only when `cancel_at` is set" | Medium (upstream reworks billing regularly) |
+| `apps/frontend/src/components/billing/main.billing.component.tsx` | DOS mode on top of upstream's v2.25.1 billing redesign: monthly-only Plus ($9) / Pro ($19) cards (`PlanCard` `label` prop, yearly toggle hidden, only FREE/STANDARD/PRO), portal/cancel box gated by `showPortalAndCancel`, `BillingHistory` hidden (invoices live in the dos.me portal, so the portal button keeps the "/ Invoices History" label), upstream's cancel-toggle toasts skipped (a dos.me cancel never toggles), non-OK responses toasted | Medium |
+| `libraries/nestjs-libraries/src/chat/tools/upload.from.url.tool.ts`, `upload.widget.tool.ts` | MCP descriptions point agents at this deployment's public API and `brand.docsUrl` instead of the upstream CLI (which defaults to the upstream cloud) and upstream docs | Low |
+| `libraries/nestjs-libraries/src/integrations/social/youtube.provider.ts` | `refreshErrorMessage` names the deployment brand, so the Workspace admin trusts the right OAuth app | Low |
+| `package.json` `prisma-db-push` | Fork keeps `pnpm exec prisma` (no `prisma-reset` / `docker-*` scripts); took upstream's removal of `--accept-data-loss` in the v2.25.1 sync | Low |
 
 ## 3. Planned divergence (accepted, not yet done)
 

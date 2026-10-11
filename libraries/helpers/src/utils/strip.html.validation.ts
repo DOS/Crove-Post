@@ -177,10 +177,11 @@ export const stripHtmlValidation = (
     )
       .replace(/&gt;/gi, '>')
       .replace(/&lt;/gi, '<')
-      .replace(/&amp;/gi, '&')
       .replace(/&nbsp;/gi, ' ')
       .replace(/&quot;/gi, '"')
-      .replace(/&#39;/gi, "'");
+      .replace(/&#39;/gi, "'")
+      // last, so an escaped entity like &amp;quot; isn't decoded twice
+      .replace(/&amp;/gi, '&');
   }
 
   if (type === 'markdown') {

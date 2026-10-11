@@ -120,7 +120,7 @@ export const ChannelsAfterPayment: FC<{
         ),
       });
     })();
-  }, [check, integrations]);
+  }, [check, integrations, fetch, modal, t]);
 
   return null;
 };

@@ -195,7 +195,7 @@ export const withProvider = function <T extends object>(params: {
       if (current) {
         setInlineImages(inlineImages);
       }
-    }, [current, inlineImages]);
+    }, [current, inlineImages, setInlineImages]);
 
     useImperativeHandle(
       ref,

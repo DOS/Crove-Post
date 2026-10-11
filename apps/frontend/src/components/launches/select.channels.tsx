@@ -10,6 +10,7 @@ import { Checkbox } from '@gitroom/react/form/checkbox';
 import { FilterIcon } from '@gitroom/frontend/components/ui/icons';
 import { Check } from '@gitroom/frontend/components/launches/tags.component';
 import { IntegrationListRow } from '@gitroom/frontend/components/new-launch/picks.socials.component';
+import ImageWithFallback from '@gitroom/react/helpers/image.with.fallback';
 
 export const SelectChannels: FC<{
   list?: boolean;
@@ -131,10 +132,12 @@ export const SelectChannels: FC<{
                 checked={selectedIds.includes(p.id)}
                 onChange={toggle(p.id)}
               />
-              <img
+              <ImageWithFallback
                 className="w-[24px] h-[24px] rounded-full"
                 src={p.picture || '/no-picture.jpg'}
-                alt=""
+                fallbackSrc="/no-picture.jpg"
+                width={24}
+                height={24}
               />
               <div className="truncate">{p.name}</div>
             </div>

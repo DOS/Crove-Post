@@ -380,7 +380,7 @@ export const Menu: FC<{
       ),
     });
     setShow(false);
-  }, [integrations, t]);
+  }, [integrations, id, modal, mutate, toast, t]);
   const resetChannelName = useCallback(async () => {
     await fetch(`/integrations/${id}/custom-name`, {
       method: 'PUT',
@@ -389,7 +389,7 @@ export const Menu: FC<{
     mutate();
     toast.show(t('channel_name_reset', 'Channel name reset'), 'success');
     setShow(false);
-  }, [id, t]);
+  }, [id, fetch, mutate, toast, t]);
   const updateCredentials = useCallback(() => {
     modal.openModal({
       title: t('custom_url', 'Custom URL'),

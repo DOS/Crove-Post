@@ -12,9 +12,10 @@ import { Integrations } from '@gitroom/frontend/components/launches/calendar.con
 
 const PlatformBadge: FC<{ integration: Integrations }> = ({ integration }) => {
   return integration.identifier === 'youtube' ? (
-    <img
+    <SafeImage
       src="/icons/platforms/youtube.svg"
       className="absolute z-10 bottom-0 -end-[5px] min-w-[16px]"
+      alt={integration.identifier}
       width={16}
     />
   ) : (

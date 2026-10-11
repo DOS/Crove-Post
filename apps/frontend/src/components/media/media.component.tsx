@@ -448,7 +448,7 @@ export const MediaBox: FC<{
         setPage(Math.max(0, (result?.pages || 1) - 1));
       }
     }
-  }, [selected, mutate, page, t]);
+  }, [selected, fetch, mutate, page, t]);
 
   const btn = useMemo(() => {
     return (
@@ -822,7 +822,7 @@ export const MultiMediaComponent: FC<{
         },
       });
     },
-    [currentMedia, insertInContent]
+    [currentMedia, insertInContent, name, onChange]
   );
   const showModal = useCallback(() => {
     modals.openModal({
@@ -840,7 +840,7 @@ export const MultiMediaComponent: FC<{
         />
       ),
     });
-  }, [changeMedia, insertInContent, t]);
+  }, [changeMedia, insertInContent, modals, t]);
 
   const clearMedia = useCallback(
     (topIndex: number) => () => {

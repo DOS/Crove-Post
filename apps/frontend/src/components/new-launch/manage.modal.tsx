@@ -143,10 +143,15 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
   const [dateDraft, setDateDraft] = useState(date);
 
   // the channels the post already has, each with its own post
-  const existingPosts = [existingData, ...(existingData.siblings || [])];
+  const existingPosts = useMemo(
+    () => [existingData, ...(existingData.siblings || [])],
+    [existingData]
+  );
   // the channel in view, or the one that was opened
-  const channel =
-    existingPosts.find((p) => p.integration === current) || existingData;
+  const channel = useMemo(
+    () => existingPosts.find((p) => p.integration === current) || existingData,
+    [existingPosts, current, existingData]
+  );
 
   useEffect(() => {
     if (hide) {
@@ -312,7 +317,16 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
     mutate();
     modal.closeAll();
     return;
-  }, [existingData, mutate, modal, current, integrations]);
+  }, [
+    existingData,
+    existingPosts,
+    channel,
+    fetch,
+    mutate,
+    modal,
+    integrations,
+    t,
+  ]);
 
   const schedule = useCallback(
     (type: 'draft' | 'now' | 'schedule' | 'update') => async () => {
@@ -796,12 +810,20 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
       tags,
       date,
       channelDates,
-      current,
       integrations,
       selectedIntegrations,
       addEditSets,
       dummy,
       shortlinkPreferenceData,
+      existingData,
+      existingPosts,
+      channel,
+      customClose,
+      fetch,
+      modal,
+      mutate,
+      t,
+      toaster,
     ]
   );
 

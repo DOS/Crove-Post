@@ -136,7 +136,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
 
       setDate(newDate);
     },
-    [channelDate, current]
+    [channelDate, current, setChannelDate, setDate]
   );
 
   // the date sheet applies its changes only on save

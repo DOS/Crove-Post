@@ -91,7 +91,7 @@ export const DatePickerPanel: FC<{
         )
       );
     },
-    [date]
+    [date, onChange]
   );
 
   if (sheet) {

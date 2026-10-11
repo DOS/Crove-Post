@@ -60,7 +60,7 @@ export const SelectCustomer: FC<{
       setOpen(false);
       setCurrent('global');
     },
-    [onChange]
+    [onChange, setCurrent, t, toaster]
   );
 
   if (totalCustomers <= 1) {

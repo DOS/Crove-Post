@@ -48,6 +48,7 @@ export const AddMember = () => {
     control: form.control,
     name: 'sendEmail',
   });
+  const t = useT();
   const submit = useCallback(
     async (values: { email: string; role: string; sendEmail: boolean }) => {
       const response = await fetch('/settings/team', {
@@ -73,10 +74,8 @@ export const AddMember = () => {
       modals.closeAll();
       toast.show(t('link_copied_to_clipboard', 'Link copied to clipboard'));
     },
-    []
+    [fetch, modals, toast, t]
   );
-
-  const t = useT();
 
   return (
     <FormProvider {...form}>

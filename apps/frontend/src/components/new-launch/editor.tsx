@@ -655,10 +655,14 @@ export const Editor: FC<{
   const t = useT();
   const toaster = useToaster();
   const editorRef = useRef<undefined | { editor: any }>(undefined);
+  // the toolbar gets the editor from state, a ref can't be read while rendering
+  const [editorInstance, setEditorInstance] = useState<any>(undefined);
   const [loading, setLoading] = useState(false);
   // the uploader is created once, so it reads the latest value from here
   const inlineImagesRef = useRef(inlineImages);
-  inlineImagesRef.current = inlineImages;
+  useEffect(() => {
+    inlineImagesRef.current = inlineImages;
+  }, [inlineImages]);
 
   const uppy = useUppyUploader({
     onUploadSuccess: (result: any) => {
@@ -858,13 +862,12 @@ export const Editor: FC<{
   const editorKey = `${editorType}-${inlineImages}`;
   const [loadedEditor, setLoadedEditor] = useState(editorKey);
   const [showEditor, setShowEditor] = useState(true);
-  useEffect(() => {
-    if (editorKey === loadedEditor) {
-      return;
-    }
+  // adjusted while rendering instead of in an effect, so the editor with the
+  // old extensions is never rendered
+  if (editorKey !== loadedEditor) {
     setLoadedEditor(editorKey);
     setShowEditor(false);
-  }, [editorKey]);
+  }
 
   useEffect(() => {
     if (showEditor) {
@@ -962,6 +965,7 @@ export const Editor: FC<{
                 onChange={props.onChange}
                 paste={paste}
                 autoFocus={autoFocus}
+                onEditor={setEditorInstance}
                 ref={editorRef}
               />
             </div>
@@ -1034,15 +1038,15 @@ export const Editor: FC<{
                     }
                     toolBar={
                       <div className="flex gap-[5px] mobile:gap-[4px]">
-                        <SignatureBox editor={editorRef?.current?.editor} />
+                        <SignatureBox editor={editorInstance} />
                         {editorType !== 'none' && (
                           <>
                             <UText
-                              editor={editorRef?.current?.editor}
+                              editor={editorInstance}
                               currentValue={props.value!}
                             />
                             <BoldText
-                              editor={editorRef?.current?.editor}
+                              editor={editorInstance}
                               currentValue={props.value!}
                             />
                           </>
@@ -1051,15 +1055,15 @@ export const Editor: FC<{
                           identifier !== 'telegram' && (
                             <>
                               <AComponent
-                                editor={editorRef?.current?.editor}
+                                editor={editorInstance}
                                 currentValue={props.value!}
                               />
                               <Bullets
-                                editor={editorRef?.current?.editor}
+                                editor={editorInstance}
                                 currentValue={props.value!}
                               />
                               <HeadingComponent
-                                editor={editorRef?.current?.editor}
+                                editor={editorInstance}
                                 currentValue={props.value!}
                               />
                             </>
@@ -1156,8 +1160,18 @@ export const OnlyEditor = forwardRef<
     onChange: (value: string) => void;
     paste?: (event: ClipboardEvent | File[], slice?: Slice) => boolean;
     autoFocus?: boolean;
+    onEditor?: (editor: any) => void;
   }
->(({ editorType, inlineImages, value, onChange, paste, autoFocus }, ref) => {
+>((props, ref) => {
+  const {
+    editorType,
+    inlineImages,
+    value,
+    onChange,
+    paste,
+    autoFocus,
+    onEditor,
+  } = props;
   const t = useT();
   const fetch = useFetch();
 
@@ -1359,6 +1373,10 @@ export const OnlyEditor = forwardRef<
   useImperativeHandle(ref, () => ({
     editor,
   }));
+
+  useEffect(() => {
+    onEditor?.(editor);
+  }, [editor, onEditor]);
 
   return <EditorContent editor={editor} />;
 });

@@ -43,11 +43,11 @@ export const SelectChannels: FC<{
     const { x, y, height } = ref.current?.getBoundingClientRect();
     setPos({ top: y + height, left: Math.min(x, window.innerWidth - 270) });
     setOpen(true);
-  }, [open]);
+  }, [open, ref]);
 
   const toggleAll = useCallback(() => {
     setSelectedChannels(allSelected ? [] : null);
-  }, [allSelected]);
+  }, [allSelected, setSelectedChannels]);
 
   const toggle = useCallback(
     (id: string) => () => {
@@ -56,7 +56,7 @@ export const SelectChannels: FC<{
         : [...selectedIds, id];
       setSelectedChannels(next.length === channels.length ? null : next);
     },
-    [selectedIds, channels]
+    [selectedIds, channels, setSelectedChannels]
   );
 
   if (channels.length <= 1) {

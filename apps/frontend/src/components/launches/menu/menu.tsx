@@ -51,7 +51,7 @@ const RenameChannelModal: FC<{
     });
     onSave();
     close();
-  }, [channelName, id]);
+  }, [channelName, id, fetch, onSave, close]);
   return (
     <div>
       <Input

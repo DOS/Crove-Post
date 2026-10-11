@@ -211,9 +211,13 @@ export const CalendarWeekProvider: FC<{
     display,
   });
 
-  useEffect(() => {
+  // a customer switch clears the channel filter, adjusted while rendering
+  // instead of in an effect so the stale filter is never rendered
+  const [channelsCustomer, setChannelsCustomer] = useState(filters.customer);
+  if (channelsCustomer !== filters.customer) {
+    setChannelsCustomer(filters.customer);
     setSelectedChannels(null);
-  }, [filters.customer]);
+  }
 
   const params = useMemo(() => {
     return new URLSearchParams({

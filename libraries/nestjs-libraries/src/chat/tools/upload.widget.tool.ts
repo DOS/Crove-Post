@@ -5,6 +5,10 @@ import { Injectable } from '@nestjs/common';
 import { MediaService } from '@gitroom/nestjs-libraries/database/prisma/media/media.service';
 import { checkAuth } from '@gitroom/nestjs-libraries/chat/auth.context';
 import { UPLOAD_WIDGET_URI } from '@gitroom/nestjs-libraries/chat/ui/upload.widget';
+import {
+  getBrandConfig,
+  joinBrandUrl,
+} from '@gitroom/helpers/utils/brand.config';
 
 @Injectable()
 export class UploadWidgetTool implements AgentToolInterface {
@@ -13,11 +17,17 @@ export class UploadWidgetTool implements AgentToolInterface {
   mcpOnly = true;
 
   run() {
+    // The upstream CLI defaults to the upstream cloud, so private files are
+    // pointed at this deployment's public API instead
+    const publicApiDocs = joinBrandUrl(
+      getBrandConfig().docsUrl,
+      'public-api/introduction'
+    );
     return createTool({
       id: 'uploadWidgetTool',
       description: `Show the user an upload widget to add images or videos from their own device to the media library.
 Use this when the user wants to attach a local file to a post. When the media is already available on a public URL, use uploadFromUrlTool instead.
-The widget is only displayed by apps that support MCP Apps (interactive UI); in any other app no widget appears and uploadFromUrlTool with a public URL is the way to add media.
+The widget is only displayed by apps that support MCP Apps (interactive UI); in any other app no widget appears, and local files go through the public API (POST /public/v1/upload with an API key, ${publicApiDocs}). uploadFromUrlTool is only for public URLs.
 Returns a sessionId: the files the user uploads are reported in the conversation, and can also be read with uploadWidgetStatusTool.`,
       mcp: {
         annotations: {

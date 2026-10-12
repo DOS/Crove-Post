@@ -137,7 +137,8 @@ export const stripHtmlValidation = (
   replaceBold = false,
   none = false,
   plain = false,
-  convertMentionFunction?: (idOrHandle: string, name: string) => string
+  convertMentionFunction?: (idOrHandle: string, name: string) => string,
+  inlineImages = false
 ): string => {
   if (plain) {
     return val;
@@ -156,7 +157,12 @@ export const stripHtmlValidation = (
   }
 
   if (type === 'html') {
-    return striptags(convertMention(value, convertMentionFunction), [
+    return striptags(
+      convertMention(
+        inlineImages ? convertImages(value) : value,
+        convertMentionFunction
+      ),
+      [
       'ul',
       'li',
       'h1',
@@ -166,30 +172,33 @@ export const stripHtmlValidation = (
       'strong',
       'u',
       'a',
-    ])
+      ...(inlineImages ? ['img'] : []),
+      ]
+    )
       .replace(/&gt;/gi, '>')
       .replace(/&lt;/gi, '<')
-      .replace(/&amp;/gi, '&')
       .replace(/&nbsp;/gi, ' ')
       .replace(/&quot;/gi, '"')
-      .replace(/&#39;/gi, "'");
+      .replace(/&#39;/gi, "'")
+      // last, so an escaped entity like &amp;quot; isn't decoded twice
+      .replace(/&amp;/gi, '&');
   }
 
   if (type === 'markdown') {
     return striptags(
       convertMention(
         value
-          .replace(/<h1>([.\s\S]*?)<\/h1>/g, (match, p1) => {
+          .replace(/<h1[^>]*>([.\s\S]*?)<\/h1>/g, (match, p1) => {
             return `<h1># ${p1}</h1>\n`;
           })
           .replace(/&amp;/gi, '&')
           .replace(/&nbsp;/gi, ' ')
           .replace(/&quot;/gi, '"')
           .replace(/&#39;/gi, "'")
-          .replace(/<h2>([.\s\S]*?)<\/h2>/g, (match, p1) => {
+          .replace(/<h2[^>]*>([.\s\S]*?)<\/h2>/g, (match, p1) => {
             return `<h2>## ${p1}</h2>\n`;
           })
-          .replace(/<h3>([.\s\S]*?)<\/h3>/g, (match, p1) => {
+          .replace(/<h3[^>]*>([.\s\S]*?)<\/h3>/g, (match, p1) => {
             return `<h3>### ${p1}</h3>\n`;
           })
           .replace(/<u>([.\s\S]*?)<\/u>/g, (match, p1) => {
@@ -201,7 +210,7 @@ export const stripHtmlValidation = (
           .replace(/<li.*?>([.\s\S]*?)<\/li.*?>/gm, (match, p1) => {
             return `<li>- ${p1.replace(/\n/gm, '')}</li>`;
           })
-          .replace(/<p>([.\s\S]*?)<\/p>/g, (match, p1) => {
+          .replace(/<p[^>]*>([.\s\S]*?)<\/p>/g, (match, p1) => {
             return `<p>${p1}</p>\n`;
           })
           .replace(
@@ -217,7 +226,7 @@ export const stripHtmlValidation = (
       .replace(/&lt;/gi, '<');
   }
 
-  if (value.indexOf('<p>') === -1 && !none) {
+  if (!/<p[\s>]/i.test(value) && !none) {
     return value;
   }
 
@@ -266,6 +275,22 @@ export const stripHtmlValidation = (
   return striptags(html, ['ul', 'li', 'h1', 'h2', 'h3'])
     .replace(/&gt;/gi, '>')
     .replace(/&lt;/gi, '<');
+};
+
+// keeps only an http(s) src and the alt of a picture, a value holding a quote
+// is dropped since &quot; is decoded afterwards and would close the attribute
+export const convertImages = (value: string) => {
+  return value.replace(/<img\b[^>]*>/gi, (match) => {
+    const src = /\ssrc="(https?:\/\/[^"]*)"/i.exec(match)?.[1];
+    const alt = /\salt="([^"]*)"/i.exec(match)?.[1];
+    if (!src || src.includes('&quot;')) {
+      return '';
+    }
+
+    return `<img src="${src}"${
+      alt && !alt.includes('&quot;') ? ` alt="${alt}"` : ''
+    }>`;
+  });
 };
 
 export const convertMention = (

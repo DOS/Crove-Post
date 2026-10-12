@@ -48,14 +48,23 @@ export const AddMember = () => {
     control: form.control,
     name: 'sendEmail',
   });
+  const t = useT();
   const submit = useCallback(
     async (values: { email: string; role: string; sendEmail: boolean }) => {
-      const { url } = await (
-        await fetch('/settings/team', {
-          method: 'POST',
-          body: JSON.stringify(values),
-        })
-      ).json();
+      const response = await fetch('/settings/team', {
+        method: 'POST',
+        body: JSON.stringify(values),
+      });
+      if (!response.ok) {
+        const { message } = await response.json().catch(() => ({} as any));
+        toast.show(
+          (Array.isArray(message) ? message[0] : message) ||
+            t('could_not_send_invitation', 'Could not send the invitation'),
+          'warning'
+        );
+        return;
+      }
+      const { url } = await response.json();
       if (values.sendEmail) {
         modals.closeAll();
         toast.show(t('invitation_link_sent', 'Invitation link sent'));
@@ -65,10 +74,8 @@ export const AddMember = () => {
       modals.closeAll();
       toast.show(t('link_copied_to_clipboard', 'Link copied to clipboard'));
     },
-    []
+    [fetch, modals, toast, t]
   );
-
-  const t = useT();
 
   return (
     <FormProvider {...form}>
